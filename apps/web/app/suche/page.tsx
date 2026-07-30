@@ -9,9 +9,10 @@ type SearchPageProps = {
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const bookingType = BookingType.safeParse(params.type);
+  const city = params.city?.trim() ? params.city.trim() : undefined;
 
   const facilities = await trpcServer.facility.list({
-    city: params.city,
+    city,
     bookingType: bookingType.success ? bookingType.data : undefined,
   });
 
