@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  react-native-reanimated: 3.10.1
+  react-native-safe-area-context: 4.10.5
+  react-native-screens: 3.31.1
+
 importers:
 
   .:
@@ -100,13 +105,13 @@ importers:
         specifier: ~2.16.1
         version: 2.16.2(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.2.0))(react@18.2.0)
       react-native-reanimated:
-        specifier: ~3.10.1
+        specifier: 3.10.1
         version: 3.10.1(@babel/core@7.29.7)(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.2.0))(react@18.2.0)
       react-native-safe-area-context:
         specifier: 4.10.5
         version: 4.10.5(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.2.0))(react@18.2.0)
       react-native-screens:
-        specifier: ~3.31.1
+        specifier: 3.31.1
         version: 3.31.1(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.2.0))(react@18.2.0)
     devDependencies:
       '@babel/core':
@@ -1196,7 +1201,7 @@ packages:
 
   '@expo/bunyan@4.0.1':
     resolution: {integrity: sha512-+Lla7nYSiHZirgK+U/uYzsLv/X+HaJienbD5AKX1UQZHYfWaP+9uuQluRB4GrEVWF0GZ7vEVp/jzaOT9k/SQlg==}
-    engines: {'0': node >=0.10.0}
+    engines: {node: '>=0.10.0'}
 
   '@expo/cli@0.18.31':
     resolution: {integrity: sha512-v9llw9fT3Uv+TCM6Xllo54t672CuYtinEQZ2LPJ2EJsCwuTc4Cd2gXQaouuIVD21VoeGQnr5JtJuWbF97sBKzQ==}
@@ -1742,8 +1747,8 @@ packages:
       '@react-navigation/native': ^6.0.0
       react: '*'
       react-native: '*'
-      react-native-safe-area-context: '>= 3.0.0'
-      react-native-screens: '>= 3.0.0'
+      react-native-safe-area-context: 4.10.5
+      react-native-screens: 3.31.1
 
   '@react-navigation/core@6.4.17':
     resolution: {integrity: sha512-Nd76EpomzChWAosGqWOYE3ItayhDzIEzzZsT7PfGcRFDgW5miHV2t4MZcq9YIK4tzxZjVVpYbIynOOQQd1e0Cg==}
@@ -1758,7 +1763,7 @@ packages:
       '@react-navigation/native': ^6.0.0
       react: '*'
       react-native: '*'
-      react-native-safe-area-context: '>= 3.0.0'
+      react-native-safe-area-context: 4.10.5
 
   '@react-navigation/native-stack@6.9.26':
     resolution: {integrity: sha512-++dueQ+FDj2XkZ902DVrK79ub1vp19nSdAZWxKRgd6+Bc0Niiesua6rMCqymYOVaYh+dagwkA9r00bpt/U5WLw==}
@@ -1766,8 +1771,8 @@ packages:
       '@react-navigation/native': ^6.0.0
       react: '*'
       react-native: '*'
-      react-native-safe-area-context: '>= 3.0.0'
-      react-native-screens: '>= 3.0.0'
+      react-native-safe-area-context: 4.10.5
+      react-native-screens: 3.31.1
 
   '@react-navigation/native@6.1.18':
     resolution: {integrity: sha512-mIT9MiL/vMm4eirLcmw2h6h/Nm5FICtnYSdohq4vTLA2FF/6PNhByM7s8ffqoVfE5L0uAa6Xda1B7oddolUiGg==}
@@ -2925,9 +2930,9 @@ packages:
       expo-constants: '*'
       expo-linking: '*'
       expo-status-bar: '*'
-      react-native-reanimated: '*'
-      react-native-safe-area-context: '*'
-      react-native-screens: '*'
+      react-native-reanimated: 3.10.1
+      react-native-safe-area-context: 4.10.5
+      react-native-screens: 3.31.1
     peerDependenciesMeta:
       '@react-navigation/drawer':
         optional: true
@@ -4602,7 +4607,7 @@ packages:
     peerDependencies:
       react: '>=18'
       react-native: '*'
-      react-native-reanimated: '>=3.6.2'
+      react-native-reanimated: 3.10.1
       react-native-safe-area-context: '*'
       react-native-svg: '*'
       tailwindcss: ~3
