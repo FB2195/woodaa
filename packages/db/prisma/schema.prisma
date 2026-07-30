@@ -1,0 +1,18 @@
+// Phase 0: proves the Prisma -> Postgres migration pipeline works end to
+// end. The real domain model (Users, Facilities, Rooms/Capacity, Bookings,
+// ...) is introduced in Phase 1.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model HealthCheck {
+  id        String   @id @default(cuid())
+  status    String   @default("ok")
+  createdAt DateTime @default(now())
+}

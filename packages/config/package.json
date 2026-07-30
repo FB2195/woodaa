@@ -1,0 +1,19 @@
+{
+  "name": "@woodaa/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tailwind-preset": "./tailwind-preset.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@woodaa/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.3"
+  }
+}
