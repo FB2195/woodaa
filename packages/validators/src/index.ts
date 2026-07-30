@@ -28,3 +28,23 @@ export const Pflegegrad = z.union([
   z.literal(5),
 ]);
 export type Pflegegrad = z.infer<typeof Pflegegrad>;
+
+export const FacilitySearchInput = z.object({
+  city: z.string().trim().min(1).optional(),
+  bookingType: BookingType.optional(),
+});
+export type FacilitySearchInput = z.infer<typeof FacilitySearchInput>;
+
+export const CreateBookingRequestInput = z.object({
+  facilityId: z.string().min(1),
+  bookingType: BookingType,
+  requesterName: z.string().trim().min(1).max(200),
+  requesterEmail: z.string().trim().email(),
+  requesterPhone: z.string().trim().max(50).optional(),
+  pflegegrad: Pflegegrad.optional(),
+  message: z.string().trim().max(2000).optional(),
+  desiredStart: z.string().datetime().optional(),
+});
+export type CreateBookingRequestInput = z.infer<
+  typeof CreateBookingRequestInput
+>;

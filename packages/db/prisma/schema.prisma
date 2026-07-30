@@ -1,7 +1,3 @@
-// Phase 0: proves the Prisma -> Postgres migration pipeline works end to
-// end. The real domain model (Users, Facilities, Rooms/Capacity, Bookings,
-// ...) is introduced in Phase 1.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,8 +7,66 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model HealthCheck {
-  id        String   @id @default(cuid())
-  status    String   @default("ok")
-  createdAt DateTime @default(now())
+enum BookingType {
+  STATIONAERE_AUFNAHME
+  KURZZEITPFLEGE
+  TAGES_NACHTPFLEGE
+}
+
+enum FacilityStatus {
+  ACTIVE
+  PENDING_REVIEW
+}
+
+enum BookingRequestStatus {
+  OFFEN
+  KONTAKTIERT
+  ABGESCHLOSSEN
+  ABGELEHNT
+}
+
+model Facility {
+  id              String             @id @default(cuid())
+  slug            String             @unique
+  name            String
+  description     String
+  street          String
+  postalCode      String
+  city            String
+  state           String
+  amenities       String[]
+  status          FacilityStatus     @default(PENDING_REVIEW)
+  operatorName    String
+  operatorEmail   String
+  operatorPhone   String?
+  capacities      FacilityCapacity[]
+  bookingRequests BookingRequest[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model FacilityCapacity {
+  id             String      @id @default(cuid())
+  facility       Facility    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId     String
+  bookingType    BookingType
+  totalSlots     Int
+  availableSlots Int
+
+  @@unique([facilityId, bookingType])
+}
+
+model BookingRequest {
+  id             String               @id @default(cuid())
+  facility       Facility             @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId     String
+  bookingType    BookingType
+  requesterName  String
+  requesterEmail String
+  requesterPhone String?
+  pflegegrad     Int?
+  message        String?
+  desiredStart   DateTime?
+  status         BookingRequestStatus @default(OFFEN)
+  createdAt      DateTime             @default(now())
 }
