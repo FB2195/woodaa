@@ -1,8 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import { notFound } from "next/navigation";
 import { BookingRequestForm } from "@/components/BookingRequestForm";
+import { Header } from "@/components/Header";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
-import { trpcServer } from "@/lib/trpc-server";
+import { formatDate } from "@/lib/format";
+import { getTrpcServer } from "@/lib/trpc-server";
 
 type FacilityPageProps = {
   params: Promise<{ slug: string }>;
@@ -11,6 +13,7 @@ type FacilityPageProps = {
 export default async function FacilityPage({ params }: FacilityPageProps) {
   const { slug } = await params;
 
+  const trpcServer = await getTrpcServer();
   const facility = await trpcServer.facility.bySlug({ slug }).catch((err) => {
     if (err instanceof TRPCError && err.code === "NOT_FOUND") {
       notFound();
@@ -22,15 +25,19 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
     .filter((capacity) => capacity.availableSlots > 0)
     .map((capacity) => capacity.bookingType);
 
+  const weekdayLabels: Record<string, string> = {
+    mon: "Mo",
+    tue: "Di",
+    wed: "Mi",
+    thu: "Do",
+    fri: "Fr",
+    sat: "Sa",
+    sun: "So",
+  };
+
   return (
     <main className="min-h-screen">
-      <header className="border-b border-brand-border bg-brand-surface">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <a href="/" className="text-xl font-semibold text-brand-primary-dark">
-            Woodaa
-          </a>
-        </div>
-      </header>
+      <Header />
 
       <section className="mx-auto grid max-w-6xl gap-10 px-6 py-12 lg:grid-cols-3">
         <div className="lg:col-span-2">
@@ -58,28 +65,70 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
           <h2 className="mt-10 text-lg font-semibold text-brand-text">
             Verfügbarkeit
           </h2>
-          <div className="mt-3 flex flex-col gap-2">
+          <div className="mt-3 flex flex-col gap-3">
             {facility.capacities.map((capacity) => (
               <div
                 key={capacity.id}
-                className="flex items-center justify-between rounded-brand-md border border-brand-border px-4 py-3"
+                className="rounded-brand-md border border-brand-border px-4 py-3"
               >
-                <span className="text-brand-text">
-                  {bookingTypeLabels[capacity.bookingType]}
-                </span>
-                <span
-                  className={
-                    capacity.availableSlots > 0
-                      ? "font-semibold text-brand-accent"
-                      : "text-brand-text-muted"
-                  }
-                >
-                  {capacity.availableSlots > 0
-                    ? `${capacity.availableSlots} von ${capacity.totalSlots} Plätzen frei`
-                    : "Aktuell belegt"}
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-brand-text">
+                    {bookingTypeLabels[capacity.bookingType]}
+                  </span>
+                  <span
+                    className={
+                      capacity.availableSlots > 0
+                        ? "font-semibold text-brand-accent"
+                        : "text-brand-text-muted"
+                    }
+                  >
+                    {capacity.availableSlots > 0
+                      ? `${capacity.availableSlots} von ${capacity.totalSlots} Plätzen frei`
+                      : "Aktuell belegt"}
+                  </span>
+                </div>
+
+                {capacity.bookingType === "STATIONAERE_AUFNAHME" &&
+                  capacity.availableSlots === 0 &&
+                  capacity.availableFrom && (
+                    <p className="mt-1 text-sm text-brand-text-muted">
+                      Nächster freier Platz voraussichtlich ab{" "}
+                      {formatDate(capacity.availableFrom)}
+                    </p>
+                  )}
+
+                {capacity.bookingType === "TAGES_NACHTPFLEGE" &&
+                  capacity.weekdaySlots && (
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-brand-text-muted">
+                      {Object.entries(
+                        capacity.weekdaySlots as Record<string, number>,
+                      ).map(([day, slots]) => (
+                        <span
+                          key={day}
+                          className="rounded-brand-full border border-brand-border px-2 py-1"
+                        >
+                          {weekdayLabels[day] ?? day}: {slots}
+                        </span>
+                      ))}
+                    </div>
+                  )}
               </div>
             ))}
+
+            {facility.kurzzeitpflegeBookings.length > 0 && (
+              <div className="rounded-brand-md border border-brand-border px-4 py-3">
+                <p className="text-sm font-medium text-brand-text">
+                  Belegte Zeiträume Kurzzeitpflege
+                </p>
+                <ul className="mt-2 flex flex-col gap-1 text-sm text-brand-text-muted">
+                  {facility.kurzzeitpflegeBookings.map((booking) => (
+                    <li key={booking.id}>
+                      {formatDate(booking.startDate)} – {formatDate(booking.endDate)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
 

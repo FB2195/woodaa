@@ -25,6 +25,7 @@ export const bookingRequestRouter = router({
           pflegegrad: input.pflegegrad,
           message: input.message,
           desiredStart: input.desiredStart ? new Date(input.desiredStart) : undefined,
+          desiredEnd: input.desiredEnd ? new Date(input.desiredEnd) : undefined,
         },
       });
     }),

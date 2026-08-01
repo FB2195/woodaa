@@ -1,6 +1,7 @@
 import { BookingType } from "@woodaa/validators";
 import { FacilityCard } from "@/components/FacilityCard";
-import { trpcServer } from "@/lib/trpc-server";
+import { Header } from "@/components/Header";
+import { getTrpcServer } from "@/lib/trpc-server";
 
 type SearchPageProps = {
   searchParams: Promise<{ city?: string; type?: string }>;
@@ -11,6 +12,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const bookingType = BookingType.safeParse(params.type);
   const city = params.city?.trim() ? params.city.trim() : undefined;
 
+  const trpcServer = await getTrpcServer();
   const facilities = await trpcServer.facility.list({
     city,
     bookingType: bookingType.success ? bookingType.data : undefined,
@@ -18,13 +20,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   return (
     <main className="min-h-screen">
-      <header className="border-b border-brand-border bg-brand-surface">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <a href="/" className="text-xl font-semibold text-brand-primary-dark">
-            Woodaa
-          </a>
-        </div>
-      </header>
+      <Header />
 
       <section className="mx-auto max-w-6xl px-6 py-12">
         <h1 className="text-2xl font-semibold text-brand-text">

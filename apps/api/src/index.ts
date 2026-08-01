@@ -1,5 +1,6 @@
 import cors from "@fastify/cors";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
+import type { CreateFastifyContextOptions } from "@trpc/server/adapters/fastify";
 import { appRouter, createContext } from "@woodaa/api";
 import Fastify from "fastify";
 
@@ -10,7 +11,14 @@ async function main() {
 
   await server.register(fastifyTRPCPlugin, {
     prefix: "/trpc",
-    trpcOptions: { router: appRouter, createContext },
+    trpcOptions: {
+      router: appRouter,
+      createContext: ({ req }: CreateFastifyContextOptions) => {
+        const header = req.headers.authorization;
+        const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
+        return createContext({ token });
+      },
+    },
   });
 
   server.get("/health", async () => ({ status: "ok" }));

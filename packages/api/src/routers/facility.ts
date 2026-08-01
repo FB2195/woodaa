@@ -29,7 +29,10 @@ export const facilityRouter = router({
     .query(async ({ ctx, input }) => {
       const facility = await ctx.db.facility.findUnique({
         where: { slug: input.slug, status: "ACTIVE" },
-        include: { capacities: true },
+        include: {
+          capacities: true,
+          kurzzeitpflegeBookings: { orderBy: { startDate: "asc" } },
+        },
       });
 
       if (!facility) {

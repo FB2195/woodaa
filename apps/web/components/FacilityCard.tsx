@@ -1,8 +1,8 @@
+import type { FacilityWithCapacities } from "@woodaa/api";
 import Link from "next/link";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
-import type { trpcServer } from "@/lib/trpc-server";
 
-type Facility = Awaited<ReturnType<typeof trpcServer.facility.list>>[number];
+type Facility = FacilityWithCapacities;
 
 export function FacilityCard({ facility }: { facility: Facility }) {
   return (

@@ -1,21 +1,10 @@
 import { bookingTypeOptions } from "@/lib/bookingTypeLabels";
+import { Header } from "@/components/Header";
 
 export default function HomePage() {
   return (
     <main className="min-h-screen">
-      <header className="border-b border-brand-border bg-brand-surface">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <span className="text-xl font-semibold text-brand-primary-dark">
-            Woodaa
-          </span>
-          <nav className="flex items-center gap-6 text-sm text-brand-text-muted">
-            <span>Für Pflegeeinrichtungen</span>
-            <span className="rounded-brand-full bg-brand-primary px-4 py-2 text-white">
-              Einrichtung eintragen
-            </span>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       <section className="bg-brand-primary-dark px-6 py-20 text-white">
         <div className="mx-auto max-w-3xl text-center">

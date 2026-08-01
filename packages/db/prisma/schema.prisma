@@ -26,24 +26,43 @@ enum BookingRequestStatus {
   ABGELEHNT
 }
 
+enum Role {
+  SUCHENDE
+  BETREIBER
+  ADMIN
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(SUCHENDE)
+  facility     Facility? @relation("FacilityOperator")
+  createdAt    DateTime  @default(now())
+}
+
 model Facility {
-  id              String             @id @default(cuid())
-  slug            String             @unique
-  name            String
-  description     String
-  street          String
-  postalCode      String
-  city            String
-  state           String
-  amenities       String[]
-  status          FacilityStatus     @default(PENDING_REVIEW)
-  operatorName    String
-  operatorEmail   String
-  operatorPhone   String?
-  capacities      FacilityCapacity[]
-  bookingRequests BookingRequest[]
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id                     String                   @id @default(cuid())
+  slug                   String                   @unique
+  name                   String
+  description            String
+  street                 String
+  postalCode             String
+  city                   String
+  state                  String
+  amenities              String[]
+  status                 FacilityStatus           @default(PENDING_REVIEW)
+  operatorName           String
+  operatorEmail          String
+  operatorPhone          String?
+  operatorUserId         String?                  @unique
+  operator               User?                    @relation("FacilityOperator", fields: [operatorUserId], references: [id])
+  capacities             FacilityCapacity[]
+  kurzzeitpflegeBookings KurzzeitpflegeBooking[]
+  bookingRequests        BookingRequest[]
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
 }
 
 model FacilityCapacity {
@@ -53,8 +72,26 @@ model FacilityCapacity {
   bookingType    BookingType
   totalSlots     Int
   availableSlots Int
+  // STATIONAERE_AUFNAHME: earliest date a place opens up (e.g. all slots
+  // currently full, but one frees up on this date).
+  availableFrom  DateTime?
+  // TAGES_NACHTPFLEGE: free slots per weekday, e.g. {"mon":3,"tue":3,...}.
+  weekdaySlots   Json?
 
   @@unique([facilityId, bookingType])
+}
+
+// KURZZEITPFLEGE: occupied date ranges. Availability for a queried window
+// is totalSlots (on FacilityCapacity) minus overlapping ranges here, rather
+// than tracking free ranges directly - matches how staff actually think
+// about it ("these beds are taken from X to Y").
+model KurzzeitpflegeBooking {
+  id         String   @id @default(cuid())
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId String
+  startDate  DateTime
+  endDate    DateTime
+  createdAt  DateTime @default(now())
 }
 
 model BookingRequest {
@@ -68,6 +105,7 @@ model BookingRequest {
   pflegegrad     Int?
   message        String?
   desiredStart   DateTime?
+  desiredEnd     DateTime?
   status         BookingRequestStatus @default(OFFEN)
   createdAt      DateTime             @default(now())
 }

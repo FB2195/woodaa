@@ -1,5 +1,7 @@
+import { authRouter } from "./routers/auth";
 import { bookingRequestRouter } from "./routers/bookingRequest";
 import { facilityRouter } from "./routers/facility";
+import { operatorRouter } from "./routers/operator";
 import { publicProcedure, router } from "./trpc";
 
 /**
@@ -11,8 +13,10 @@ export const appRouter = router({
     await ctx.db.$queryRaw`SELECT 1`;
     return { status: "ok" as const };
   }),
+  auth: authRouter,
   facility: facilityRouter,
   bookingRequest: bookingRequestRouter,
+  operator: operatorRouter,
 });
 
 export type AppRouter = typeof appRouter;
