@@ -47,4 +47,10 @@ jobs:
         run: pnpm turbo run typecheck
 
       - name: Build
-        run: pnpm turbo run build
+        # mobile#build occasionally fails with a transient Metro/Babel
+        # worker error ("Cannot find module 'react-native-worklets/plugin'")
+        # that's never been reproducible locally and isn't a real missing
+        # dependency (confirmed via `pnpm why`) - retry once before failing
+        # the job. Turbo's local cache makes the retry only re-run the task
+        # that actually failed.
+        run: pnpm turbo run build || pnpm turbo run build
