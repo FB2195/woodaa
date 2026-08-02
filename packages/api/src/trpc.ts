@@ -35,3 +35,11 @@ const isOperator = t.middleware(({ ctx, next }) => {
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
 export const operatorProcedure = t.procedure.use(isOperator);
+
+const isAdmin = t.middleware(({ ctx, next }) => {
+  if (!ctx.user || ctx.user.role !== "ADMIN") {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
+export const adminProcedure = t.procedure.use(isAdmin);

@@ -17,6 +17,7 @@ enum BookingType {
 enum FacilityStatus {
   ACTIVE
   PENDING_REVIEW
+  REJECTED
 }
 
 enum BookingRequestStatus {

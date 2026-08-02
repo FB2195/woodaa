@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
-import { LoginInput, RegisterInput } from "@woodaa/validators";
+import { BootstrapAdminInput, LoginInput, RegisterInput } from "@woodaa/validators";
 import { z } from "zod";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../auth";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
@@ -60,6 +60,36 @@ export const authRouter = router({
         throw new TRPCError({ code: "UNAUTHORIZED" });
       }
       return issueTokens(user);
+    }),
+
+  bootstrapAdmin: publicProcedure
+    .input(BootstrapAdminInput)
+    .mutation(async ({ ctx, input }) => {
+      const adminCount = await ctx.db.user.count({ where: { role: "ADMIN" } });
+      if (adminCount > 0) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Es existiert bereits ein Admin-Konto.",
+        });
+      }
+
+      const existing = await ctx.db.user.findUnique({ where: { email: input.email } });
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Diese E-Mail-Adresse wird bereits verwendet.",
+        });
+      }
+
+      const passwordHash = await bcrypt.hash(input.password, 12);
+      const user = await ctx.db.user.create({
+        data: { name: input.name, email: input.email, passwordHash, role: "ADMIN" },
+      });
+
+      return {
+        user: { id: user.id, name: user.name, email: user.email, role: user.role },
+        ...issueTokens(user),
+      };
     }),
 
   me: protectedProcedure.query(async ({ ctx }) => {

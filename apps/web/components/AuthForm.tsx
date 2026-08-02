@@ -4,7 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 
-type Mode = "login" | "register-suchende" | "register-betreiber";
+type Mode =
+  | "login"
+  | "register-suchende"
+  | "register-betreiber"
+  | "bootstrap-admin";
 
 const copy: Record<Mode, { title: string; submit: string }> = {
   login: { title: "Anmelden", submit: "Anmelden" },
@@ -16,7 +20,17 @@ const copy: Record<Mode, { title: string; submit: string }> = {
     title: "Einrichtung eintragen",
     submit: "Als Einrichtung registrieren",
   },
+  "bootstrap-admin": {
+    title: "Admin-Konto einrichten",
+    submit: "Admin-Konto erstellen",
+  },
 };
+
+function redirectFor(role: "SUCHENDE" | "BETREIBER" | "ADMIN"): string {
+  if (role === "ADMIN") return "/admin/dashboard";
+  if (role === "BETREIBER") return "/betreiber/dashboard";
+  return "/";
+}
 
 async function establishSession(tokens: {
   accessToken: string;
@@ -38,7 +52,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   const login = trpc.auth.login.useMutation();
   const register = trpc.auth.register.useMutation();
-  const pending = login.isPending || register.isPending;
+  const bootstrapAdmin = trpc.auth.bootstrapAdmin.useMutation();
+  const pending = login.isPending || register.isPending || bootstrapAdmin.isPending;
 
   return (
     <form
@@ -54,18 +69,25 @@ export function AuthForm({ mode }: { mode: Mode }) {
           if (mode === "login") {
             const result = await login.mutateAsync({ email, password });
             await establishSession(result);
-            router.push(
-              result.user.role === "BETREIBER" ? "/betreiber/dashboard" : "/",
-            );
+            router.push(redirectFor(result.user.role));
             router.refresh();
             return;
           }
 
           const name = String(form.get("name") ?? "");
+
+          if (mode === "bootstrap-admin") {
+            const result = await bootstrapAdmin.mutateAsync({ name, email, password });
+            await establishSession(result);
+            router.push(redirectFor(result.user.role));
+            router.refresh();
+            return;
+          }
+
           const role = mode === "register-betreiber" ? "BETREIBER" : "SUCHENDE";
           const result = await register.mutateAsync({ name, email, password, role });
           await establishSession(result);
-          router.push(role === "BETREIBER" ? "/betreiber/dashboard" : "/");
+          router.push(redirectFor(result.user.role));
           router.refresh();
         } catch (err) {
           setError(

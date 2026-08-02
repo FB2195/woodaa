@@ -7,6 +7,7 @@ type Facility = FacilityWithDetails;
 const statusLabels: Record<Facility["status"], string> = {
   ACTIVE: "Live",
   PENDING_REVIEW: "Wird geprüft",
+  REJECTED: "Abgelehnt",
 };
 
 export function FacilityDashboard({ facility }: { facility: Facility }) {
@@ -38,6 +39,12 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
           <p className="mt-3 text-sm text-brand-text-muted">
             Deine Einrichtung wird gerade von unserem Team geprüft und ist
             noch nicht öffentlich sichtbar.
+          </p>
+        )}
+        {facility.status === "REJECTED" && (
+          <p className="mt-3 text-sm text-red-600">
+            Deine Einrichtung wurde nicht freigeschaltet. Melde dich gerne bei
+            uns, falls das ein Irrtum war.
           </p>
         )}
       </div>

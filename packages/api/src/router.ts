@@ -1,3 +1,4 @@
+import { adminRouter } from "./routers/admin";
 import { authRouter } from "./routers/auth";
 import { bookingRequestRouter } from "./routers/bookingRequest";
 import { facilityRouter } from "./routers/facility";
@@ -17,6 +18,7 @@ export const appRouter = router({
   facility: facilityRouter,
   bookingRequest: bookingRequestRouter,
   operator: operatorRouter,
+  admin: adminRouter,
 });
 
 export type AppRouter = typeof appRouter;
