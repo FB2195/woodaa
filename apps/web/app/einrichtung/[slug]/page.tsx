@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { notFound } from "next/navigation";
 import { BookingRequestForm } from "@/components/BookingRequestForm";
 import { FacilityLocationMap } from "@/components/FacilityLocationMap";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { Header } from "@/components/Header";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { formatDate } from "@/lib/format";
@@ -21,6 +22,13 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
     }
     throw err;
   });
+
+  // Logged-out visitors get UNAUTHORIZED here - the favorite button just
+  // starts unfilled for them (clicking it sends them to /login).
+  const favoriteIds = await trpcServer.favorite
+    .myFacilityIds()
+    .catch((): string[] => []);
+  const isFavorited = favoriteIds.includes(facility.id);
 
   const availableBookingTypes = facility.capacities
     .filter((capacity) => capacity.availableSlots > 0)
@@ -42,9 +50,12 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
 
       <section className="mx-auto grid max-w-6xl gap-10 px-6 py-12 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <h1 className="text-3xl font-bold text-brand-primary-dark">
-            {facility.name}
-          </h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-3xl font-bold text-brand-primary-dark">
+              {facility.name}
+            </h1>
+            <FavoriteButton facilityId={facility.id} initialFavorited={isFavorited} />
+          </div>
           <p className="mt-1 text-brand-text-muted">
             {facility.street}, {facility.postalCode} {facility.city},{" "}
             {facility.state}

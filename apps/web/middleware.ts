@@ -36,7 +36,8 @@ export function middleware(request: NextRequest) {
   const isDashboardRoute =
     pathname.startsWith("/betreiber/dashboard") ||
     pathname.startsWith("/admin/dashboard") ||
-    pathname.startsWith("/konto");
+    pathname.startsWith("/konto") ||
+    pathname.startsWith("/favoriten");
 
   if (isDashboardRoute && !request.cookies.has(ACCESS_COOKIE)) {
     const url = request.nextUrl.clone();

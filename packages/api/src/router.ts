@@ -3,6 +3,7 @@ import { adminRouter } from "./routers/admin";
 import { authRouter } from "./routers/auth";
 import { bookingRequestRouter } from "./routers/bookingRequest";
 import { facilityRouter } from "./routers/facility";
+import { favoriteRouter } from "./routers/favorite";
 import { operatorRouter } from "./routers/operator";
 import { twoFactorRouter } from "./routers/twoFactor";
 import { publicProcedure, router } from "./trpc";
@@ -23,6 +24,7 @@ export const appRouter = router({
   admin: adminRouter,
   twoFactor: twoFactorRouter,
   account: accountRouter,
+  favorite: favoriteRouter,
 });
 
 export type AppRouter = typeof appRouter;

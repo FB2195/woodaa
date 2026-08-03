@@ -4,9 +4,14 @@ import type { FacilityWithCapacities } from "@woodaa/api";
 import { useState } from "react";
 import { FacilityCard } from "@/components/FacilityCard";
 import { FacilityMap } from "@/components/FacilityMap";
+import { trpc } from "@/lib/trpc";
 
 export function SearchResultsView({ facilities }: { facilities: FacilityWithCapacities[] }) {
   const [view, setView] = useState<"list" | "map">("list");
+  // Gracefully empty for logged-out visitors, same pattern as Header.tsx's
+  // auth.me query - no error, just no favorites pre-filled.
+  const favoriteIds = trpc.favorite.myFacilityIds.useQuery(undefined, { retry: false });
+  const favoritedSet = new Set(favoriteIds.data ?? []);
 
   return (
     <div className="mt-8">
@@ -38,7 +43,11 @@ export function SearchResultsView({ facilities }: { facilities: FacilityWithCapa
       {view === "list" ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {facilities.map((facility) => (
-            <FacilityCard key={facility.id} facility={facility} />
+            <FacilityCard
+              key={facility.id}
+              facility={facility}
+              initialFavorited={favoritedSet.has(facility.id)}
+            />
           ))}
         </div>
       ) : (

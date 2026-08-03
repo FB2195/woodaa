@@ -39,6 +39,9 @@ export function Header() {
                   Dashboard
                 </Link>
               )}
+              <Link href="/favoriten" className="hover:text-brand-text">
+                Favoriten
+              </Link>
               <Link href="/konto" className="hover:text-brand-text">
                 Mein Konto
               </Link>
