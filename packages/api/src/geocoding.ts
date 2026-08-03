@@ -97,7 +97,11 @@ async function searchLocationsGoogle(
       languageCode: "de",
     }),
   });
-  if (!res.ok) return [];
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`Google Places Autocomplete error ${res.status}: ${body}`);
+    return [];
+  }
 
   const data = (await res.json()) as { suggestions?: GooglePlacePrediction[] };
   return (data.suggestions ?? [])
