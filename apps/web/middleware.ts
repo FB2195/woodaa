@@ -2,21 +2,50 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { ACCESS_COOKIE } from "@/lib/session";
 
+// Site-wide gate while Woodaa isn't ready for public visitors yet, checked
+// before anything else runs. SITE_PASSWORD unset means the gate is off, so
+// local dev and CI builds are unaffected - only set in Vercel when the site
+// should actually be locked.
+function isAuthorized(request: NextRequest): boolean {
+  const password = process.env.SITE_PASSWORD;
+  if (!password) return true;
+
+  const header = request.headers.get("authorization");
+  if (!header?.startsWith("Basic ")) return false;
+
+  const decoded = atob(header.slice("Basic ".length));
+  const suppliedPassword = decoded.split(":")[1] ?? "";
+  return suppliedPassword === password;
+}
+
 /**
- * UX-level redirect only — the real access check happens server-side via
- * operatorProcedure's JWT verification. This just avoids flashing a
- * dashboard shell at logged-out visitors.
+ * The betreiber/admin-dashboard redirect below is UX-level only — the real
+ * access check happens server-side via operatorProcedure's JWT
+ * verification. It just avoids flashing a dashboard shell at logged-out
+ * visitors.
  */
 export function middleware(request: NextRequest) {
-  if (!request.cookies.has(ACCESS_COOKIE)) {
+  if (!isAuthorized(request)) {
+    return new NextResponse("Authentication required.", {
+      status: 401,
+      headers: { "WWW-Authenticate": 'Basic realm="Woodaa"' },
+    });
+  }
+
+  const { pathname } = request.nextUrl;
+  const isDashboardRoute =
+    pathname.startsWith("/betreiber/dashboard") || pathname.startsWith("/admin/dashboard");
+
+  if (isDashboardRoute && !request.cookies.has(ACCESS_COOKIE)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", request.nextUrl.pathname);
+    url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/betreiber/dashboard/:path*", "/admin/dashboard/:path*"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
