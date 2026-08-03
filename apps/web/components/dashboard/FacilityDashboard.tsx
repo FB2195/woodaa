@@ -1,6 +1,7 @@
 import type { FacilityWithDetails } from "@woodaa/api";
 import { CapacityForm } from "./CapacityForm";
 import { KurzzeitpflegeRanges } from "./KurzzeitpflegeRanges";
+import { PflegegradSuitabilityForm } from "./PflegegradSuitabilityForm";
 
 type Facility = FacilityWithDetails;
 
@@ -63,6 +64,11 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
           existing={capacityByType.TAGES_NACHTPFLEGE}
         />
       </div>
+
+      <PflegegradSuitabilityForm
+        minPflegegrad={facility.minPflegegrad}
+        maxPflegegrad={facility.maxPflegegrad}
+      />
 
       <KurzzeitpflegeRanges bookings={facility.kurzzeitpflegeBookings} />
     </div>

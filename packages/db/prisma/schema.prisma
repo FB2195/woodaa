@@ -98,6 +98,12 @@ model Facility {
   // run yet, in which case the facility just doesn't show on the map.
   latitude               Float?
   longitude              Float?
+  // Pflegegrad-Eignung (0-5). Facility-level, not per-capacity - suitability
+  // realistically doesn't vary by booking type within one home. Both null =
+  // "not specified", so the facility stays visible under any Pflegegrad
+  // filter rather than silently disappearing (fail-open, not fail-closed).
+  minPflegegrad          Int?
+  maxPflegegrad          Int?
   status                 FacilityStatus           @default(PENDING_REVIEW)
   operatorName           String
   operatorEmail          String
@@ -130,6 +136,10 @@ model FacilityCapacity {
   bookingType    BookingType
   totalSlots     Int
   availableSlots Int
+  // Geschätzter monatlicher Eigenanteil, in Cent (avoids float rounding on
+  // sort/compare). Null = not entered yet -> "Preis auf Anfrage", sorts last
+  // under price_asc, never excludes a facility unless maxPriceCents is set.
+  monthlyPriceCents Int?
   // STATIONAERE_AUFNAHME: earliest date a place opens up (e.g. all slots
   // currently full, but one frees up on this date).
   availableFrom  DateTime?

@@ -51,6 +51,24 @@ export async function geocodeAddress(address: string): Promise<GeoPoint | null> 
   }
 }
 
+const originCache = new Map<string, { expires: number; value: GeoPoint | null }>();
+const ORIGIN_CACHE_TTL_MS = 5 * 60 * 1000;
+
+// Cached wrapper around geocodeAddress for resolving a search query (e.g.
+// "Berlin") to an origin point for radius filtering / distance sorting.
+// Shares geocodeAddress rather than a second implementation, and caches
+// because search traffic would otherwise repeatedly hit the same throttled
+// Nominatim endpoint for popular queries (many users searching "Berlin").
+export async function geocodeSearchOrigin(query: string): Promise<GeoPoint | null> {
+  const key = query.trim().toLowerCase();
+  const cached = originCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.value;
+
+  const value = await geocodeAddress(query);
+  originCache.set(key, { expires: Date.now() + ORIGIN_CACHE_TTL_MS, value });
+  return value;
+}
+
 export type LocationSuggestion = {
   placeId: string | null;
   label: string;

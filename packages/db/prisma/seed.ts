@@ -18,9 +18,11 @@ const facilities = [
     operatorName: "Sandra Vogel",
     operatorEmail: "leitung@haus-am-tiergarten.de",
     operatorPhone: "030 1234567",
+    minPflegegrad: 0,
+    maxPflegegrad: 5,
     capacities: [
-      { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 40, availableSlots: 6 },
-      { bookingType: "KURZZEITPFLEGE", totalSlots: 8, availableSlots: 2 },
+      { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 40, availableSlots: 6, monthlyPriceCents: 220000 },
+      { bookingType: "KURZZEITPFLEGE", totalSlots: 8, availableSlots: 2, monthlyPriceCents: 240000 },
     ],
   },
   {
@@ -38,9 +40,11 @@ const facilities = [
     operatorName: "Michael Brandt",
     operatorEmail: "info@seniorenresidenz-isar.de",
     operatorPhone: "089 7654321",
+    minPflegegrad: 2,
+    maxPflegegrad: 5,
     capacities: [
-      { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 60, availableSlots: 3 },
-      { bookingType: "TAGES_NACHTPFLEGE", totalSlots: 20, availableSlots: 9 },
+      { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 60, availableSlots: 3, monthlyPriceCents: 260000 },
+      { bookingType: "TAGES_NACHTPFLEGE", totalSlots: 20, availableSlots: 9, monthlyPriceCents: 110000 },
     ],
   },
   {
@@ -58,9 +62,11 @@ const facilities = [
     operatorName: "Julia Nissen",
     operatorEmail: "kontakt@pflegehaus-elbufer.de",
     operatorPhone: "040 2345678",
+    minPflegegrad: 0,
+    maxPflegegrad: 5,
     capacities: [
-      { bookingType: "KURZZEITPFLEGE", totalSlots: 15, availableSlots: 5 },
-      { bookingType: "TAGES_NACHTPFLEGE", totalSlots: 12, availableSlots: 4 },
+      { bookingType: "KURZZEITPFLEGE", totalSlots: 15, availableSlots: 5, monthlyPriceCents: 250000 },
+      { bookingType: "TAGES_NACHTPFLEGE", totalSlots: 12, availableSlots: 4, monthlyPriceCents: 95000 },
     ],
   },
   {
@@ -78,9 +84,11 @@ const facilities = [
     operatorName: "Thomas Krämer",
     operatorEmail: "leitung@haus-rheinblick.de",
     operatorPhone: "0221 3456789",
+    minPflegegrad: 1,
+    maxPflegegrad: 5,
     capacities: [
-      { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 50, availableSlots: 1 },
-      { bookingType: "KURZZEITPFLEGE", totalSlots: 6, availableSlots: 0 },
+      { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 50, availableSlots: 1, monthlyPriceCents: 235000 },
+      { bookingType: "KURZZEITPFLEGE", totalSlots: 6, availableSlots: 0, monthlyPriceCents: 245000 },
     ],
   },
   {
@@ -98,9 +106,11 @@ const facilities = [
     operatorName: "Anke Wolff",
     operatorEmail: "info@pflegezentrum-auenpark.de",
     operatorPhone: "0341 4567890",
+    minPflegegrad: 2,
+    maxPflegegrad: 5,
     capacities: [
-      { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 35, availableSlots: 8 },
-      { bookingType: "TAGES_NACHTPFLEGE", totalSlots: 18, availableSlots: 12 },
+      { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 35, availableSlots: 8, monthlyPriceCents: 205000 },
+      { bookingType: "TAGES_NACHTPFLEGE", totalSlots: 18, availableSlots: 12, monthlyPriceCents: 90000 },
     ],
   },
   {
@@ -118,26 +128,48 @@ const facilities = [
     operatorName: "Robert Lange",
     operatorEmail: "kontakt@haus-elbtal.de",
     operatorPhone: "0351 5678901",
+    minPflegegrad: 0,
+    maxPflegegrad: 5,
     capacities: [
-      { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 25, availableSlots: 4 },
-      { bookingType: "KURZZEITPFLEGE", totalSlots: 5, availableSlots: 3 },
+      { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 25, availableSlots: 4, monthlyPriceCents: 215000 },
+      { bookingType: "KURZZEITPFLEGE", totalSlots: 5, availableSlots: 3, monthlyPriceCents: 230000 },
     ],
   },
 ] as const;
 
 async function main() {
   for (const { capacities, ...facility } of facilities) {
-    await prisma.facility.upsert({
+    const created = await prisma.facility.upsert({
       where: { slug: facility.slug },
-      // Backfills latitude/longitude on already-seeded rows from before
-      // this field existed - safe to re-run, demo data only.
-      update: { latitude: facility.latitude, longitude: facility.longitude },
+      // Backfills fields added after the initial seed on already-seeded
+      // rows - safe to re-run, demo data only. Nested `capacities: {create}`
+      // below only fires on the create branch, so existing capacities are
+      // backfilled separately via their own upsert loop.
+      update: {
+        latitude: facility.latitude,
+        longitude: facility.longitude,
+        minPflegegrad: facility.minPflegegrad,
+        maxPflegegrad: facility.maxPflegegrad,
+      },
       create: {
         ...facility,
         status: "ACTIVE",
         capacities: { create: capacities.map((c) => ({ ...c })) },
       },
     });
+
+    for (const capacity of capacities) {
+      await prisma.facilityCapacity.upsert({
+        where: {
+          facilityId_bookingType: {
+            facilityId: created.id,
+            bookingType: capacity.bookingType,
+          },
+        },
+        update: { monthlyPriceCents: capacity.monthlyPriceCents },
+        create: { facilityId: created.id, ...capacity },
+      });
+    }
   }
   console.log(`Seeded ${facilities.length} Pflegeheime.`);
 }

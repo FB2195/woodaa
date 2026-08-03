@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { pflegegradOptions } from "@/lib/pflegegradLabels";
 
 export function CreateFacilityForm() {
   const router = useRouter();
@@ -20,6 +21,8 @@ export function CreateFacilityForm() {
           .split(",")
           .map((a) => a.trim())
           .filter(Boolean);
+        const minPflegegradRaw = String(form.get("minPflegegrad") ?? "");
+        const maxPflegegradRaw = String(form.get("maxPflegegrad") ?? "");
 
         try {
           await createFacility.mutateAsync({
@@ -31,6 +34,12 @@ export function CreateFacilityForm() {
             state: String(form.get("state") ?? ""),
             amenities,
             operatorPhone: String(form.get("operatorPhone") ?? "") || undefined,
+            minPflegegrad: minPflegegradRaw
+              ? (Number(minPflegegradRaw) as 0 | 1 | 2 | 3 | 4 | 5)
+              : undefined,
+            maxPflegegrad: maxPflegegradRaw
+              ? (Number(maxPflegegradRaw) as 0 | 1 | 2 | 3 | 4 | 5)
+              : undefined,
           });
           router.refresh();
         } catch (err) {
@@ -112,6 +121,39 @@ export function CreateFacilityForm() {
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
       </label>
+
+      <div className="grid grid-cols-2 gap-4">
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Geeignet ab Pflegegrad
+          <select
+            name="minPflegegrad"
+            defaultValue=""
+            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          >
+            <option value="">Nicht angegeben</option>
+            {pflegegradOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Geeignet bis Pflegegrad
+          <select
+            name="maxPflegegrad"
+            defaultValue=""
+            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          >
+            <option value="">Nicht angegeben</option>
+            {pflegegradOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       <label className="flex flex-col gap-1 text-sm text-brand-text">
         Telefon (optional)

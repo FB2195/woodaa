@@ -5,7 +5,9 @@ import { FacilityLocationMap } from "@/components/FacilityLocationMap";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { Header } from "@/components/Header";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatPriceEuro } from "@/lib/format";
+import { pflegegradLabels } from "@/lib/pflegegradLabels";
+import type { Pflegegrad } from "@woodaa/validators";
 import { getTrpcServer } from "@/lib/trpc-server";
 
 type FacilityPageProps = {
@@ -60,6 +62,16 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
             {facility.street}, {facility.postalCode} {facility.city},{" "}
             {facility.state}
           </p>
+          {(facility.minPflegegrad !== null || facility.maxPflegegrad !== null) && (
+            <p className="mt-2 text-sm text-brand-text-muted">
+              Geeignet für{" "}
+              {facility.minPflegegrad !== null && facility.maxPflegegrad !== null
+                ? `Pflegegrad ${facility.minPflegegrad}–${facility.maxPflegegrad}`
+                : pflegegradLabels[
+                    (facility.minPflegegrad ?? facility.maxPflegegrad) as Pflegegrad
+                  ]}
+            </p>
+          )}
 
           {facility.latitude !== null && facility.longitude !== null && (
             <FacilityLocationMap
@@ -107,6 +119,11 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
                       : "Aktuell belegt"}
                   </span>
                 </div>
+                <p className="mt-1 text-sm text-brand-text-muted">
+                  {capacity.monthlyPriceCents !== null
+                    ? `${formatPriceEuro(capacity.monthlyPriceCents)}/Monat (geschätzter Eigenanteil)`
+                    : "Preis auf Anfrage"}
+                </p>
 
                 {capacity.bookingType === "STATIONAERE_AUFNAHME" &&
                   capacity.availableSlots === 0 &&

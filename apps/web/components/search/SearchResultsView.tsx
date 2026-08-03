@@ -1,12 +1,12 @@
 "use client";
 
-import type { FacilityWithCapacities } from "@woodaa/api";
+import type { FacilityListItem } from "@woodaa/api";
 import { useState } from "react";
 import { FacilityCard } from "@/components/FacilityCard";
 import { FacilityMap } from "@/components/FacilityMap";
 import { trpc } from "@/lib/trpc";
 
-export function SearchResultsView({ facilities }: { facilities: FacilityWithCapacities[] }) {
+export function SearchResultsView({ facilities }: { facilities: FacilityListItem[] }) {
   const [view, setView] = useState<"list" | "map">("list");
   // Gracefully empty for logged-out visitors, same pattern as Header.tsx's
   // auth.me query - no error, just no favorites pre-filled.

@@ -65,12 +65,20 @@ export function CapacityForm({
         setError(null);
         const form = new FormData(event.currentTarget);
         const availableFromRaw = String(form.get("availableFrom") ?? "");
+        const monthlyPriceRaw = String(form.get("monthlyPrice") ?? "");
 
         try {
           await updateCapacity.mutateAsync({
             bookingType,
             totalSlots: Number(form.get("totalSlots")),
             availableSlots: Number(form.get("availableSlots")),
+            // undefined (not null) - leaving the field blank on a resubmit
+            // must not wipe an already-stored price, same convention as
+            // availableFrom/weekdaySlots below (Prisma drops undefined keys
+            // on update, keeping the existing value).
+            monthlyPriceCents: monthlyPriceRaw
+              ? Math.round(Number(monthlyPriceRaw) * 100)
+              : undefined,
             availableFrom: availableFromRaw
               ? new Date(availableFromRaw).toISOString()
               : undefined,
@@ -113,6 +121,23 @@ export function CapacityForm({
           />
         </label>
       </div>
+
+      <label className="flex flex-col gap-1 text-sm text-brand-text">
+        Geschätzter monatlicher Eigenanteil (€)
+        <input
+          type="number"
+          name="monthlyPrice"
+          min={0}
+          step={10}
+          defaultValue={
+            existing?.monthlyPriceCents != null
+              ? existing.monthlyPriceCents / 100
+              : ""
+          }
+          placeholder="z. B. 2400"
+          className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+        />
+      </label>
 
       {bookingType === "STATIONAERE_AUFNAHME" && (
         <label className="flex flex-col gap-1 text-sm text-brand-text">

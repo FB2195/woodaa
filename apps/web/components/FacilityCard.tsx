@@ -2,8 +2,13 @@ import type { FacilityWithCapacities } from "@woodaa/api";
 import Link from "next/link";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { formatDistanceKm, formatPriceEuro } from "@/lib/format";
+import { cheapestCapacityPrice } from "@/lib/price";
 
-type Facility = FacilityWithCapacities;
+// distanceKm is only present when the search had a resolvable origin
+// (facility.list computes it) - absent e.g. on /favoriten, which reuses
+// this same card with plain FacilityWithCapacities.
+type Facility = FacilityWithCapacities & { distanceKm?: number | null };
 
 export function FacilityCard({
   facility,
@@ -27,9 +32,16 @@ export function FacilityCard({
       </h3>
       <p className="mt-1 text-sm text-brand-text-muted">
         {facility.city}, {facility.state}
+        {facility.distanceKm != null && ` · ${formatDistanceKm(facility.distanceKm)} entfernt`}
       </p>
       <p className="mt-3 line-clamp-2 text-sm text-brand-text">
         {facility.description}
+      </p>
+      <p className="mt-2 text-sm font-medium text-brand-text">
+        {(() => {
+          const price = cheapestCapacityPrice(facility);
+          return price !== null ? `ab ${formatPriceEuro(price)}/Monat` : "Preis auf Anfrage";
+        })()}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         {facility.capacities.map((capacity) => (

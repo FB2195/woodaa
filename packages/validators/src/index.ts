@@ -29,9 +29,16 @@ export const Pflegegrad = z.union([
 ]);
 export type Pflegegrad = z.infer<typeof Pflegegrad>;
 
+export const SortOption = z.enum(["newest", "price_asc", "distance_asc"]);
+export type SortOption = z.infer<typeof SortOption>;
+
 export const FacilitySearchInput = z.object({
   city: z.string().trim().min(1).optional(),
   bookingType: BookingType.optional(),
+  maxPriceCents: z.coerce.number().int().min(0).optional(),
+  radiusKm: z.coerce.number().int().positive().max(200).optional(),
+  pflegegrad: Pflegegrad.optional(),
+  sort: SortOption.optional(),
 });
 export type FacilitySearchInput = z.infer<typeof FacilitySearchInput>;
 
@@ -82,7 +89,7 @@ export const WeekdaySlots = z.object({
 });
 export type WeekdaySlots = z.infer<typeof WeekdaySlots>;
 
-export const CreateFacilityInput = z.object({
+const FacilityFields = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().min(1).max(5000),
   street: z.string().trim().min(1).max(200),
@@ -91,16 +98,41 @@ export const CreateFacilityInput = z.object({
   state: z.string().trim().min(1).max(200),
   amenities: z.array(z.string().trim().min(1).max(100)).max(30),
   operatorPhone: z.string().trim().max(50).optional(),
+  minPflegegrad: Pflegegrad.optional(),
+  maxPflegegrad: Pflegegrad.optional(),
+});
+
+// .partial() must run before .refine() - ZodEffects (what .refine() returns)
+// has no .partial(), so UpdateFacilityInput derives from the plain object,
+// not from CreateFacilityInput.
+const pflegegradRangeOk = (data: {
+  minPflegegrad?: number;
+  maxPflegegrad?: number;
+}) =>
+  data.minPflegegrad == null ||
+  data.maxPflegegrad == null ||
+  data.minPflegegrad <= data.maxPflegegrad;
+
+export const CreateFacilityInput = FacilityFields.refine(pflegegradRangeOk, {
+  message: "Pflegegrad von darf nicht größer als Pflegegrad bis sein.",
+  path: ["maxPflegegrad"],
 });
 export type CreateFacilityInput = z.infer<typeof CreateFacilityInput>;
 
-export const UpdateFacilityInput = CreateFacilityInput.partial();
+export const UpdateFacilityInput = FacilityFields.partial().refine(
+  pflegegradRangeOk,
+  {
+    message: "Pflegegrad von darf nicht größer als Pflegegrad bis sein.",
+    path: ["maxPflegegrad"],
+  },
+);
 export type UpdateFacilityInput = z.infer<typeof UpdateFacilityInput>;
 
 export const UpdateCapacityInput = z.object({
   bookingType: BookingType,
   totalSlots: z.number().int().min(0),
   availableSlots: z.number().int().min(0),
+  monthlyPriceCents: z.number().int().min(0).optional(),
   availableFrom: z.string().datetime().optional(),
   weekdaySlots: WeekdaySlots.optional(),
 });
