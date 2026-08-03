@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { FacilitySearchInput } from "@woodaa/validators";
 import { z } from "zod";
+import { searchLocations } from "../geocoding";
 import { publicProcedure, router } from "../trpc";
 
 export const facilityRouter = router({
@@ -8,8 +9,16 @@ export const facilityRouter = router({
     return ctx.db.facility.findMany({
       where: {
         status: "ACTIVE",
+        // "city" is really "Ort oder PLZ" from the user's perspective - a
+        // postal-code search like "10555" previously matched nothing at
+        // all since only the city name was checked.
         ...(input.city
-          ? { city: { contains: input.city, mode: "insensitive" } }
+          ? {
+              OR: [
+                { city: { contains: input.city, mode: "insensitive" } },
+                { postalCode: { startsWith: input.city } },
+              ],
+            }
           : {}),
         ...(input.bookingType
           ? {
@@ -41,4 +50,8 @@ export const facilityRouter = router({
 
       return facility;
     }),
+
+  searchLocations: publicProcedure
+    .input(z.object({ query: z.string().trim().min(2) }))
+    .query(async ({ input }) => searchLocations(input.query)),
 });

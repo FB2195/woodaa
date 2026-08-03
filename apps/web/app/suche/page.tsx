@@ -1,6 +1,7 @@
 import { BookingType } from "@woodaa/validators";
-import { FacilityCard } from "@/components/FacilityCard";
 import { Header } from "@/components/Header";
+import { SearchForm } from "@/components/search/SearchForm";
+import { SearchResultsView } from "@/components/search/SearchResultsView";
 import { getTrpcServer } from "@/lib/trpc-server";
 
 type SearchPageProps = {
@@ -23,6 +24,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       <Header />
 
       <section className="mx-auto max-w-6xl px-6 py-12">
+        <SearchForm
+          defaultCity={params.city}
+          defaultType={bookingType.success ? bookingType.data : undefined}
+          className="mb-8 flex flex-col gap-3 rounded-brand-lg border border-brand-border bg-brand-surface p-4 sm:flex-row"
+        />
+
         <h1 className="text-2xl font-semibold text-brand-text">
           {params.city
             ? `Pflegeplätze in ${params.city}`
@@ -39,11 +46,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             Pflegeart.
           </p>
         ) : (
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {facilities.map((facility) => (
-              <FacilityCard key={facility.id} facility={facility} />
-            ))}
-          </div>
+          <SearchResultsView facilities={facilities} />
         )}
       </section>
     </main>

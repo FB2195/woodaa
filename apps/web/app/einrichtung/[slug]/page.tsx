@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { notFound } from "next/navigation";
 import { BookingRequestForm } from "@/components/BookingRequestForm";
+import { FacilityLocationMap } from "@/components/FacilityLocationMap";
 import { Header } from "@/components/Header";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { formatDate } from "@/lib/format";
@@ -48,6 +49,14 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
             {facility.street}, {facility.postalCode} {facility.city},{" "}
             {facility.state}
           </p>
+
+          {facility.latitude !== null && facility.longitude !== null && (
+            <FacilityLocationMap
+              latitude={facility.latitude}
+              longitude={facility.longitude}
+              name={facility.name}
+            />
+          )}
 
           <p className="mt-6 text-brand-text">{facility.description}</p>
 

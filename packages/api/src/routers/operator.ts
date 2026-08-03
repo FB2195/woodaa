@@ -6,6 +6,7 @@ import {
   UpdateFacilityInput,
 } from "@woodaa/validators";
 import { z } from "zod";
+import { geocodeAddress } from "../geocoding";
 import { slugify } from "../lib/slugify";
 import { operatorProcedure, router } from "../trpc";
 import type { Context } from "../trpc";
@@ -75,6 +76,11 @@ export const operatorRouter = router({
       }
 
       const slug = await uniqueSlugFor(ctx, input.name, input.city);
+      // Best-effort - a facility is still created even if geocoding fails
+      // or Nominatim is unreachable, it just won't show on the map yet.
+      const geo = await geocodeAddress(
+        `${input.street}, ${input.postalCode} ${input.city}, Germany`,
+      );
 
       return ctx.db.facility.create({
         data: {
@@ -84,6 +90,8 @@ export const operatorRouter = router({
           operatorName: user.name,
           operatorEmail: user.email,
           operatorUserId: user.id,
+          latitude: geo?.latitude ?? null,
+          longitude: geo?.longitude ?? null,
         },
       });
     }),
@@ -92,9 +100,28 @@ export const operatorRouter = router({
     .input(UpdateFacilityInput)
     .mutation(async ({ ctx, input }) => {
       const facility = await requireOwnFacility(ctx);
+
+      const addressChanged =
+        (input.street !== undefined && input.street !== facility.street) ||
+        (input.postalCode !== undefined && input.postalCode !== facility.postalCode) ||
+        (input.city !== undefined && input.city !== facility.city);
+
+      // Only re-geocode when the address actually changed, to avoid
+      // burning Nominatim requests on unrelated edits (e.g. description).
+      const geo = addressChanged
+        ? await geocodeAddress(
+            `${input.street ?? facility.street}, ${input.postalCode ?? facility.postalCode} ${input.city ?? facility.city}, Germany`,
+          )
+        : null;
+
       return ctx.db.facility.update({
         where: { id: facility.id },
-        data: input,
+        data: {
+          ...input,
+          ...(addressChanged
+            ? { latitude: geo?.latitude ?? null, longitude: geo?.longitude ?? null }
+            : {}),
+        },
       });
     }),
 

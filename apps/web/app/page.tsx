@@ -1,5 +1,6 @@
 import { bookingTypeOptions } from "@/lib/bookingTypeLabels";
 import { Header } from "@/components/Header";
+import { SearchForm } from "@/components/search/SearchForm";
 
 export default function HomePage() {
   return (
@@ -17,36 +18,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        <form
-          action="/suche"
-          method="GET"
-          className="mx-auto mt-10 flex max-w-2xl flex-col gap-3 rounded-brand-lg bg-brand-surface p-4 shadow-lg sm:flex-row"
-        >
-          <input
-            type="text"
-            name="city"
-            placeholder="Stadt oder PLZ, z. B. Berlin"
-            className="flex-1 rounded-brand-md border border-brand-border px-4 py-3 text-brand-text placeholder:text-brand-text-muted focus:outline-none focus:ring-2 focus:ring-brand-accent"
-          />
-          <select
-            name="type"
-            defaultValue=""
-            className="rounded-brand-md border border-brand-border px-4 py-3 text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
-          >
-            <option value="">Alle Pflegearten</option>
-            {bookingTypeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="rounded-brand-md bg-brand-accent px-6 py-3 font-semibold text-white transition hover:opacity-90"
-          >
-            Suchen
-          </button>
-        </form>
+        <SearchForm className="mx-auto mt-10 flex max-w-2xl flex-col gap-3 rounded-brand-lg bg-brand-surface p-4 shadow-lg sm:flex-row" />
       </section>
 
       <section className="mx-auto max-w-6xl px-6 py-16">

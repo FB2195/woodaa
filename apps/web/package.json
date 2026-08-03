@@ -17,6 +17,7 @@
     "@woodaa/api": "workspace:*",
     "@woodaa/ui": "workspace:*",
     "@woodaa/validators": "workspace:*",
+    "maplibre-gl": "^4.7.1",
     "next": "^15.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

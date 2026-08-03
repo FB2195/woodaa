@@ -92,6 +92,11 @@ model Facility {
   city                   String
   state                  String
   amenities              String[]
+  // Best-effort geocoded from street/postalCode/city on create/update
+  // (packages/api/src/geocoding.ts) - null if geocoding failed or hasn't
+  // run yet, in which case the facility just doesn't show on the map.
+  latitude               Float?
+  longitude              Float?
   status                 FacilityStatus           @default(PENDING_REVIEW)
   operatorName           String
   operatorEmail          String
