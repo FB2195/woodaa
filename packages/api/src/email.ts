@@ -13,10 +13,12 @@ async function sendEmail({
   to,
   subject,
   html,
+  text,
 }: {
   to: string;
   subject: string;
   html: string;
+  text: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -34,7 +36,10 @@ async function sendEmail({
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to, subject, html }),
+    // A plain-text part alongside html isn't just an accessibility nicety -
+    // HTML-only mail is a well-known spam-filter signal, especially for a
+    // domain with no sending history yet.
+    body: JSON.stringify({ from, to, subject, html, text }),
   });
 
   if (!res.ok) {
@@ -64,5 +69,13 @@ export async function sendVerificationEmail({
       <p>Der Link ist 24 Stunden gültig.</p>
       <p>Falls du dich nicht bei Woodaa registriert hast, kannst du diese E-Mail ignorieren.</p>
     `,
+    text: `Hallo ${name},
+
+bitte bestätige deine E-Mail-Adresse, um dein Woodaa-Konto zu aktivieren:
+${verifyUrl}
+
+Der Link ist 24 Stunden gültig.
+
+Falls du dich nicht bei Woodaa registriert hast, kannst du diese E-Mail ignorieren.`,
   });
 }
