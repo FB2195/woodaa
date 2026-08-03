@@ -6,6 +6,7 @@ export { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from "./auth";
 export type { FacilityListItem } from "./routers/facility";
 export type {
   FacilityCapacity,
+  FacilityPhoto,
   FacilityWithCapacities,
   FacilityWithDetails,
   KurzzeitpflegeBooking,

@@ -2,6 +2,7 @@ import type { FacilityWithDetails } from "@woodaa/api";
 import { CapacityForm } from "./CapacityForm";
 import { KurzzeitpflegeRanges } from "./KurzzeitpflegeRanges";
 import { PflegegradSuitabilityForm } from "./PflegegradSuitabilityForm";
+import { PhotoManager } from "./PhotoManager";
 
 type Facility = FacilityWithDetails;
 
@@ -71,6 +72,8 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
       />
 
       <KurzzeitpflegeRanges bookings={facility.kurzzeitpflegeBookings} />
+
+      <PhotoManager photos={facility.photos} />
     </div>
   );
 }

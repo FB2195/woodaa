@@ -114,6 +114,7 @@ model Facility {
   kurzzeitpflegeBookings KurzzeitpflegeBooking[]
   bookingRequests        BookingRequest[]
   favoritedBy            Favorite[]
+  photos                 FacilityPhoto[]
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
 }
@@ -160,6 +161,21 @@ model KurzzeitpflegeBooking {
   startDate  DateTime
   endDate    DateTime
   createdAt  DateTime @default(now())
+}
+
+// Object storage lives in Cloudflare R2 - only the bucket object `key` is
+// stored here (e.g. "facilities/<facilityId>/<uuid>.jpg"), never a full
+// URL, so swapping the public base URL (r2.dev -> a custom domain later)
+// needs no data migration. Ordered by createdAt: the oldest photo is the
+// implicit cover/thumbnail (no separate order/isCover field in v1).
+model FacilityPhoto {
+  id         String   @id @default(cuid())
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId String
+  key        String
+  createdAt  DateTime @default(now())
+
+  @@index([facilityId])
 }
 
 model BookingRequest {

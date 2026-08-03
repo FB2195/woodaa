@@ -145,3 +145,25 @@ export const KurzzeitpflegeRangeInput = z.object({
 export type KurzzeitpflegeRangeInput = z.infer<
   typeof KurzzeitpflegeRangeInput
 >;
+
+export const AllowedPhotoContentType = z.enum([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+export type AllowedPhotoContentType = z.infer<typeof AllowedPhotoContentType>;
+
+// Shared by operator.ts (server-side cap enforcement) and PhotoManager.tsx
+// (UI: disabling the upload button, pre-flight size check).
+export const MAX_FACILITY_PHOTOS = 8;
+export const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
+
+export const RequestPhotoUploadInput = z.object({
+  contentType: AllowedPhotoContentType,
+});
+export type RequestPhotoUploadInput = z.infer<typeof RequestPhotoUploadInput>;
+
+export const ConfirmPhotoUploadInput = z.object({
+  key: z.string().min(1).max(500),
+});
+export type ConfirmPhotoUploadInput = z.infer<typeof ConfirmPhotoUploadInput>;

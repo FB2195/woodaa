@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { withPhotoUrl } from "../r2";
 import { protectedProcedure, router } from "../trpc";
 
 export const favoriteRouter = router({
@@ -43,9 +44,19 @@ export const favoriteRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const favorites = await ctx.db.favorite.findMany({
       where: { userId: ctx.user.id, facility: { status: "ACTIVE" } },
-      include: { facility: { include: { capacities: true } } },
+      include: {
+        facility: {
+          include: {
+            capacities: true,
+            photos: { take: 1, orderBy: { createdAt: "asc" } },
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
-    return favorites.map((f) => f.facility);
+    return favorites.map((f) => ({
+      ...f.facility,
+      photos: f.facility.photos.map(withPhotoUrl),
+    }));
   }),
 });

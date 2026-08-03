@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { notFound } from "next/navigation";
 import { BookingRequestForm } from "@/components/BookingRequestForm";
+import { FacilityGallery } from "@/components/FacilityGallery";
 import { FacilityLocationMap } from "@/components/FacilityLocationMap";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { Header } from "@/components/Header";
@@ -72,6 +73,8 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
                   ]}
             </p>
           )}
+
+          <FacilityGallery photos={facility.photos} />
 
           {facility.latitude !== null && facility.longitude !== null && (
             <FacilityLocationMap

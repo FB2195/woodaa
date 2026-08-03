@@ -4,6 +4,7 @@ import { FacilitySearchInput } from "@woodaa/validators";
 import { z } from "zod";
 import { geocodeSearchOrigin, searchLocations, type GeoPoint } from "../geocoding";
 import { haversineDistanceKm } from "../geo";
+import { withPhotoUrl } from "../r2";
 import { publicProcedure, router } from "../trpc";
 
 // Search-context-only: distance from the geocoded search origin, null when
@@ -73,7 +74,12 @@ export const facilityRouter = router({
               }
             : {}),
         },
-        include: { capacities: true },
+        // Cover photo only (not the whole gallery) - the list view just
+        // needs a card thumbnail, bySlug below fetches the full gallery.
+        include: {
+          capacities: true,
+          photos: { take: 1, orderBy: { createdAt: "asc" } },
+        },
         orderBy: { createdAt: "desc" },
       });
 
@@ -89,6 +95,7 @@ export const facilityRouter = router({
 
       let results: FacilityListItem[] = facilities.map((f) => ({
         ...f,
+        photos: f.photos.map(withPhotoUrl),
         distanceKm:
           origin && f.latitude !== null && f.longitude !== null
             ? haversineDistanceKm(origin, { latitude: f.latitude, longitude: f.longitude })
@@ -134,6 +141,7 @@ export const facilityRouter = router({
         include: {
           capacities: true,
           kurzzeitpflegeBookings: { orderBy: { startDate: "asc" } },
+          photos: { orderBy: { createdAt: "asc" } },
         },
       });
 
@@ -141,7 +149,7 @@ export const facilityRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Einrichtung nicht gefunden." });
       }
 
-      return facility;
+      return { ...facility, photos: facility.photos.map(withPhotoUrl) };
     }),
 
   searchLocations: publicProcedure
