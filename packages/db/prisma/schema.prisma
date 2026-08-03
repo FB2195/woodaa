@@ -34,14 +34,52 @@ enum Role {
 }
 
 model User {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  passwordHash    String
-  name            String
-  role            Role      @default(SUCHENDE)
-  emailVerifiedAt DateTime?
-  facility        Facility? @relation("FacilityOperator")
-  createdAt       DateTime  @default(now())
+  id                      String    @id @default(cuid())
+  email                   String    @unique
+  passwordHash            String
+  name                    String
+  role                    Role      @default(SUCHENDE)
+  emailVerifiedAt         DateTime?
+  verificationEmailSentAt DateTime?
+  failedLoginAttempts     Int       @default(0)
+  lockedUntil             DateTime?
+  twoFactorSecret         String?
+  twoFactorEnabled        Boolean   @default(false)
+  facility                Facility? @relation("FacilityOperator")
+  refreshTokens           RefreshToken[]
+  recoveryCodes           RecoveryCode[]
+  createdAt               DateTime  @default(now())
+}
+
+// Hashed (SHA-256), not raw — a DB leak shouldn't yield directly reusable
+// bearer tokens. Rotated on every use; familyId ties a rotation chain
+// together so reuse of an already-rotated token can revoke the whole chain.
+model RefreshToken {
+  id           String    @id @default(cuid())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  tokenHash    String    @unique
+  familyId     String
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?   @unique
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+// One-time TOTP recovery codes, generated on 2FA setup confirmation.
+// Hashed like RefreshToken, individually markable as used.
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  codeHash  String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Facility {

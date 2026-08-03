@@ -49,11 +49,67 @@ async function establishSession(tokens: {
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
 
   const login = trpc.auth.login.useMutation();
   const register = trpc.auth.register.useMutation();
   const bootstrapAdmin = trpc.auth.bootstrapAdmin.useMutation();
-  const pending = login.isPending || register.isPending || bootstrapAdmin.isPending;
+  const verifyTwoFactor = trpc.auth.verifyTwoFactor.useMutation();
+  const pending =
+    login.isPending ||
+    register.isPending ||
+    bootstrapAdmin.isPending ||
+    verifyTwoFactor.isPending;
+
+  if (challengeToken) {
+    return (
+      <form
+        className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-6"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setError(null);
+          const form = new FormData(event.currentTarget);
+          const code = String(form.get("code") ?? "").trim();
+
+          try {
+            const result = await verifyTwoFactor.mutateAsync({ challengeToken, code });
+            await establishSession(result);
+            router.push(redirectFor(result.user.role));
+            router.refresh();
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.");
+          }
+        }}
+      >
+        <h1 className="text-lg font-semibold text-brand-primary-dark">
+          Bestätigungscode
+        </h1>
+        <p className="text-sm text-brand-text-muted">
+          Gib den 6-stelligen Code aus deiner Authenticator-App ein, oder
+          verwende einen deiner Wiederherstellungscodes.
+        </p>
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Code
+          <input
+            name="code"
+            required
+            autoFocus
+            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          />
+        </label>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-brand-md bg-brand-accent px-6 py-3 font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+        >
+          {pending ? "Einen Moment…" : "Bestätigen"}
+        </button>
+      </form>
+    );
+  }
 
   return (
     <form
@@ -68,6 +124,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
         try {
           if (mode === "login") {
             const result = await login.mutateAsync({ email, password });
+            if (result.twoFactorRequired) {
+              setChallengeToken(result.challengeToken);
+              return;
+            }
             await establishSession(result);
             router.push(redirectFor(result.user.role));
             router.refresh();

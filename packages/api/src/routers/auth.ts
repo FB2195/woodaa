@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
 import { BootstrapAdminInput, LoginInput, RegisterInput } from "@woodaa/validators";
@@ -6,16 +7,63 @@ import {
   signAccessToken,
   signEmailVerificationToken,
   signRefreshToken,
+  signTwoFactorChallengeToken,
   verifyEmailVerificationToken,
   verifyRefreshToken,
+  verifyTwoFactorChallengeToken,
 } from "../auth";
 import { sendVerificationEmail } from "../email";
+import { hashToken } from "../tokenHash";
+import { decryptSecret, verifyTotpCode } from "../twoFactor";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
+import type { Context } from "../trpc";
 
-function issueTokens(user: { id: string; role: "SUCHENDE" | "BETREIBER" | "ADMIN" }) {
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+const RESEND_COOLDOWN_MS = 2 * 60 * 1000;
+const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const GENERIC_LOGIN_ERROR = "E-Mail oder Passwort ist falsch.";
+// A real bcrypt hash of a random value, computed lazily on first use and
+// then reused - pads the "no such account" / "account locked" branches to
+// roughly the same response time as a real password check, so timing can't
+// be used to distinguish them from a wrong-password attempt.
+let dummyHash: string | null = null;
+async function getDummyHash(): Promise<string> {
+  if (!dummyHash) {
+    dummyHash = await bcrypt.hash(randomUUID(), 12);
+  }
+  return dummyHash;
+}
+
+type AuthedUser = { id: string; role: "SUCHENDE" | "BETREIBER" | "ADMIN" };
+
+// Persists (and, on rotation, revokes the predecessor of) a refresh token so
+// it can later be looked up/revoked from the DB - the JWT signature alone
+// only proves authenticity, not that the token hasn't been logged out or
+// already rotated away.
+async function issueTokens(
+  ctx: Context,
+  user: AuthedUser,
+  rotate?: { oldTokenId: string; familyId: string },
+) {
+  const familyId = rotate?.familyId ?? randomUUID();
+  const refreshToken = signRefreshToken({ sub: user.id, jti: randomUUID() });
+  const tokenHash = hashToken(refreshToken);
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
+
+  const created = await ctx.db.refreshToken.create({
+    data: { userId: user.id, tokenHash, familyId, expiresAt },
+  });
+  if (rotate) {
+    await ctx.db.refreshToken.update({
+      where: { id: rotate.oldTokenId },
+      data: { replacedById: created.id },
+    });
+  }
+
   return {
     accessToken: signAccessToken({ sub: user.id, role: user.role }),
-    refreshToken: signRefreshToken({ sub: user.id }),
+    refreshToken,
   };
 }
 
@@ -46,31 +94,134 @@ export const authRouter = router({
 
     const passwordHash = await bcrypt.hash(input.password, 12);
     const user = await ctx.db.user.create({
-      data: { name: input.name, email: input.email, passwordHash, role: input.role },
+      data: {
+        name: input.name,
+        email: input.email,
+        passwordHash,
+        role: input.role,
+        verificationEmailSentAt: new Date(),
+      },
     });
 
     await dispatchVerificationEmail(user);
 
     return {
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
-      ...issueTokens(user),
+      ...(await issueTokens(ctx, user)),
     };
   }),
 
   login: publicProcedure.input(LoginInput).mutation(async ({ ctx, input }) => {
     const user = await ctx.db.user.findUnique({ where: { email: input.email } });
-    if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) {
-      throw new TRPCError({
-        code: "UNAUTHORIZED",
-        message: "E-Mail oder Passwort ist falsch.",
+
+    if (!user) {
+      await bcrypt.compare(input.password, await getDummyHash());
+      throw new TRPCError({ code: "UNAUTHORIZED", message: GENERIC_LOGIN_ERROR });
+    }
+
+    const isLocked = user.lockedUntil && user.lockedUntil > new Date();
+    if (isLocked) {
+      await bcrypt.compare(input.password, await getDummyHash());
+      throw new TRPCError({ code: "UNAUTHORIZED", message: GENERIC_LOGIN_ERROR });
+    }
+
+    const valid = await bcrypt.compare(input.password, user.passwordHash);
+    if (!valid) {
+      const attempts = user.failedLoginAttempts + 1;
+      await ctx.db.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: attempts,
+          lockedUntil:
+            attempts >= MAX_FAILED_ATTEMPTS
+              ? new Date(Date.now() + LOCKOUT_DURATION_MS)
+              : user.lockedUntil,
+        },
       });
+      throw new TRPCError({ code: "UNAUTHORIZED", message: GENERIC_LOGIN_ERROR });
+    }
+
+    await ctx.db.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+
+    if (user.role === "ADMIN" && user.twoFactorEnabled) {
+      return {
+        twoFactorRequired: true as const,
+        challengeToken: signTwoFactorChallengeToken({ sub: user.id }),
+      };
     }
 
     return {
+      twoFactorRequired: false as const,
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
-      ...issueTokens(user),
+      ...(await issueTokens(ctx, user)),
     };
   }),
+
+  verifyTwoFactor: publicProcedure
+    .input(z.object({ challengeToken: z.string().min(1), code: z.string().min(6).max(11) }))
+    .mutation(async ({ ctx, input }) => {
+      const payload = verifyTwoFactorChallengeToken(input.challengeToken);
+      if (!payload) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+
+      const user = await ctx.db.user.findUnique({ where: { id: payload.sub } });
+      if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+
+      const isLocked = user.lockedUntil && user.lockedUntil > new Date();
+      if (isLocked) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: GENERIC_LOGIN_ERROR });
+      }
+
+      let valid = verifyTotpCode(decryptSecret(user.twoFactorSecret), input.code);
+
+      // Fall back to a recovery code if the input doesn't look like/match a
+      // TOTP code - recovery codes are longer ("XXXX-XXXX") than the 6-digit
+      // TOTP window this input also accepts.
+      if (!valid) {
+        const codeHash = hashToken(input.code.toUpperCase());
+        const recoveryCode = await ctx.db.recoveryCode.findFirst({
+          where: { userId: user.id, codeHash, usedAt: null },
+        });
+        if (recoveryCode) {
+          await ctx.db.recoveryCode.update({
+            where: { id: recoveryCode.id },
+            data: { usedAt: new Date() },
+          });
+          valid = true;
+        }
+      }
+
+      if (!valid) {
+        const attempts = user.failedLoginAttempts + 1;
+        await ctx.db.user.update({
+          where: { id: user.id },
+          data: {
+            failedLoginAttempts: attempts,
+            lockedUntil:
+              attempts >= MAX_FAILED_ATTEMPTS
+                ? new Date(Date.now() + LOCKOUT_DURATION_MS)
+                : user.lockedUntil,
+          },
+        });
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Der Code ist ungültig." });
+      }
+
+      await ctx.db.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null },
+      });
+
+      return {
+        user: { id: user.id, name: user.name, email: user.email, role: user.role },
+        ...(await issueTokens(ctx, user)),
+      };
+    }),
 
   refresh: publicProcedure
     .input(z.object({ refreshToken: z.string().min(1) }))
@@ -79,11 +230,61 @@ export const authRouter = router({
       if (!payload) {
         throw new TRPCError({ code: "UNAUTHORIZED" });
       }
-      const user = await ctx.db.user.findUnique({ where: { id: payload.sub } });
+
+      const tokenHash = hashToken(input.refreshToken);
+      const stored = await ctx.db.refreshToken.findUnique({ where: { tokenHash } });
+      if (!stored || stored.expiresAt < new Date()) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+
+      if (stored.revokedAt) {
+        // Reuse of an already-rotated token is a theft signal - kill the
+        // whole rotation chain, forcing a fresh login everywhere.
+        await ctx.db.refreshToken.updateMany({
+          where: { familyId: stored.familyId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Sitzung wurde aus Sicherheitsgründen beendet. Bitte erneut anmelden.",
+        });
+      }
+
+      // Atomic claim: only the first of two concurrent refresh calls against
+      // the same still-valid token succeeds; the loser is treated as reuse.
+      const claim = await ctx.db.refreshToken.updateMany({
+        where: { id: stored.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      if (claim.count === 0) {
+        await ctx.db.refreshToken.updateMany({
+          where: { familyId: stored.familyId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+
+      const user = await ctx.db.user.findUnique({ where: { id: stored.userId } });
       if (!user) {
         throw new TRPCError({ code: "UNAUTHORIZED" });
       }
-      return issueTokens(user);
+
+      return issueTokens(ctx, user, { oldTokenId: stored.id, familyId: stored.familyId });
+    }),
+
+  logout: publicProcedure
+    .input(z.object({ refreshToken: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      // Deliberately publicProcedure: an already-expired access token must
+      // not block revoking the refresh token.
+      if (input.refreshToken) {
+        const tokenHash = hashToken(input.refreshToken);
+        await ctx.db.refreshToken.updateMany({
+          where: { tokenHash, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+      return { success: true as const };
     }),
 
   bootstrapAdmin: publicProcedure
@@ -118,7 +319,7 @@ export const authRouter = router({
 
       return {
         user: { id: user.id, name: user.name, email: user.email, role: user.role },
-        ...issueTokens(user),
+        ...(await issueTokens(ctx, user)),
       };
     }),
 
@@ -144,6 +345,21 @@ export const authRouter = router({
     if (user.emailVerifiedAt) {
       return { success: true as const };
     }
+
+    if (
+      user.verificationEmailSentAt &&
+      Date.now() - user.verificationEmailSentAt.getTime() < RESEND_COOLDOWN_MS
+    ) {
+      throw new TRPCError({
+        code: "TOO_MANY_REQUESTS",
+        message: "Bitte warte kurz, bevor du erneut eine Bestätigungs-E-Mail anforderst.",
+      });
+    }
+
+    await ctx.db.user.update({
+      where: { id: user.id },
+      data: { verificationEmailSentAt: new Date() },
+    });
     await dispatchVerificationEmail(user);
     return { success: true as const };
   }),
@@ -151,7 +367,14 @@ export const authRouter = router({
   me: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.db.user.findUnique({
       where: { id: ctx.user.id },
-      select: { id: true, name: true, email: true, role: true, emailVerifiedAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        emailVerifiedAt: true,
+        twoFactorEnabled: true,
+      },
     });
     if (!user) {
       throw new TRPCError({ code: "UNAUTHORIZED" });

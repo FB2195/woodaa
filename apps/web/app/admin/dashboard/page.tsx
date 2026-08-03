@@ -1,18 +1,24 @@
 import { Header } from "@/components/Header";
 import { PendingFacilityRow } from "@/components/admin/PendingFacilityRow";
+import { TwoFactorSetup } from "@/components/admin/TwoFactorSetup";
 import { getTrpcServer } from "@/lib/trpc-server";
 
 export default async function AdminDashboardPage() {
   const trpcServer = await getTrpcServer();
-  const [pending, active] = await Promise.all([
+  const [pending, active, me] = await Promise.all([
     trpcServer.admin.pendingFacilities(),
     trpcServer.admin.activeFacilities(),
+    trpcServer.auth.me(),
   ]);
 
   return (
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-4xl px-6 py-12">
+        <div className="mb-8">
+          <TwoFactorSetup enabled={me.twoFactorEnabled} />
+        </div>
+
         <h1 className="text-2xl font-bold text-brand-primary-dark">
           Einrichtungen prüfen
         </h1>

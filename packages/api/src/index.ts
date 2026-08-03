@@ -2,6 +2,7 @@ export { appRouter } from "./router";
 export type { AppRouter } from "./router";
 export { createContext } from "./trpc";
 export type { Context } from "./trpc";
+export { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from "./auth";
 export type {
   FacilityCapacity,
   FacilityWithCapacities,

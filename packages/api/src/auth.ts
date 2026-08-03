@@ -5,17 +5,27 @@ export type AccessTokenPayload = {
   role: "SUCHENDE" | "BETREIBER" | "ADMIN";
 };
 
-// Silent refresh-on-expiry isn't wired up yet, so the access token itself
-// carries the session for now; the (separately issued, unused-for-now)
-// refresh token is in place for when that lands.
-const ACCESS_TOKEN_TTL = "7d";
+export type RefreshTokenPayload = {
+  sub: string;
+  jti: string;
+};
+
+// Short-lived on purpose: the refresh flow (packages/api/src/routers/auth.ts
+// `refresh`) is DB-backed and rotates on every use, so a leaked access token
+// only has a narrow window of usefulness. Cookie maxAge on the web app must
+// stay in sync — see ACCESS_TOKEN_TTL_SECONDS below.
+const ACCESS_TOKEN_TTL = "20m";
+export const ACCESS_TOKEN_TTL_SECONDS = 20 * 60;
 const REFRESH_TOKEN_TTL = "30d";
+export const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 const EMAIL_VERIFICATION_TOKEN_TTL = "1d";
+const TWO_FACTOR_CHALLENGE_TOKEN_TTL = "5m";
 
 type SecretName =
   | "JWT_ACCESS_SECRET"
   | "JWT_REFRESH_SECRET"
-  | "JWT_EMAIL_VERIFICATION_SECRET";
+  | "JWT_EMAIL_VERIFICATION_SECRET"
+  | "JWT_TWO_FACTOR_SECRET";
 
 function requireSecret(name: SecretName): string {
   const value = process.env[name];
@@ -31,7 +41,7 @@ export function signAccessToken(payload: AccessTokenPayload): string {
   });
 }
 
-export function signRefreshToken(payload: { sub: string }): string {
+export function signRefreshToken(payload: RefreshTokenPayload): string {
   return jwt.sign(payload, requireSecret("JWT_REFRESH_SECRET"), {
     expiresIn: REFRESH_TOKEN_TTL,
   });
@@ -45,9 +55,26 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
   }
 }
 
-export function verifyRefreshToken(token: string): { sub: string } | null {
+export function verifyRefreshToken(token: string): RefreshTokenPayload | null {
   try {
-    return jwt.verify(token, requireSecret("JWT_REFRESH_SECRET")) as { sub: string };
+    return jwt.verify(token, requireSecret("JWT_REFRESH_SECRET")) as RefreshTokenPayload;
+  } catch {
+    return null;
+  }
+}
+
+// Short-lived token identifying "this user passed step 1 (password) of an
+// admin login and now owes a TOTP code" — kept on its own secret so a leak
+// of any other token class can't be used to forge a 2FA challenge.
+export function signTwoFactorChallengeToken(payload: { sub: string }): string {
+  return jwt.sign(payload, requireSecret("JWT_TWO_FACTOR_SECRET"), {
+    expiresIn: TWO_FACTOR_CHALLENGE_TOKEN_TTL,
+  });
+}
+
+export function verifyTwoFactorChallengeToken(token: string): { sub: string } | null {
+  try {
+    return jwt.verify(token, requireSecret("JWT_TWO_FACTOR_SECRET")) as { sub: string };
   } catch {
     return null;
   }
