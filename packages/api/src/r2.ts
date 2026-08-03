@@ -30,7 +30,12 @@ function r2Client(): S3Client {
   if (!client) {
     client = new S3Client({
       region: "auto",
-      endpoint: `https://${requireEnv("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com`,
+      // The bucket is pinned to EU jurisdiction (data residency for DSGVO) -
+      // jurisdiction-restricted R2 buckets are only reachable through the
+      // matching jurisdictional endpoint, not the default global one. This
+      // must stay in sync with the bucket's actual jurisdiction setting in
+      // Cloudflare.
+      endpoint: `https://${requireEnv("R2_ACCOUNT_ID")}.eu.r2.cloudflarestorage.com`,
       credentials: {
         accessKeyId: requireEnv("R2_ACCESS_KEY_ID"),
         secretAccessKey: requireEnv("R2_SECRET_ACCESS_KEY"),
