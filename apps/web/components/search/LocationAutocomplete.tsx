@@ -57,7 +57,7 @@ export function LocationAutocomplete({
       {showDropdown && (
         <ul className="absolute z-10 mt-1 w-full rounded-brand-md border border-brand-border bg-brand-surface shadow-lg">
           {suggestions.data?.map((suggestion) => (
-            <li key={`${suggestion.city}-${suggestion.postalCode}`}>
+            <li key={suggestion.placeId ?? `${suggestion.city}-${suggestion.postalCode}`}>
               <button
                 type="button"
                 onClick={() => {

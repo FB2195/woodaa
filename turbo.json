@@ -13,7 +13,8 @@
         "RESEND_API_KEY",
         "EMAIL_FROM",
         "APP_URL",
-        "SITE_PASSWORD"
+        "SITE_PASSWORD",
+        "GOOGLE_PLACES_API_KEY"
       ],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
@@ -30,7 +31,8 @@
         "RESEND_API_KEY",
         "EMAIL_FROM",
         "APP_URL",
-        "SITE_PASSWORD"
+        "SITE_PASSWORD",
+        "GOOGLE_PLACES_API_KEY"
       ]
     },
     "lint": {
