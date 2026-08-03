@@ -39,6 +39,9 @@ export function Header() {
                   Dashboard
                 </Link>
               )}
+              <Link href="/konto" className="hover:text-brand-text">
+                Mein Konto
+              </Link>
               <span className="text-brand-text">{me.data.name}</span>
               <button
                 type="button"
