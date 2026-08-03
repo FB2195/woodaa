@@ -10,8 +10,14 @@ export type AccessTokenPayload = {
 // refresh token is in place for when that lands.
 const ACCESS_TOKEN_TTL = "7d";
 const REFRESH_TOKEN_TTL = "30d";
+const EMAIL_VERIFICATION_TOKEN_TTL = "1d";
 
-function requireSecret(name: "JWT_ACCESS_SECRET" | "JWT_REFRESH_SECRET"): string {
+type SecretName =
+  | "JWT_ACCESS_SECRET"
+  | "JWT_REFRESH_SECRET"
+  | "JWT_EMAIL_VERIFICATION_SECRET";
+
+function requireSecret(name: SecretName): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(`Missing required env var ${name}`);
@@ -42,6 +48,25 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
 export function verifyRefreshToken(token: string): { sub: string } | null {
   try {
     return jwt.verify(token, requireSecret("JWT_REFRESH_SECRET")) as { sub: string };
+  } catch {
+    return null;
+  }
+}
+
+// Stateless by design: verifying twice is harmless (it just re-sets
+// emailVerifiedAt), so no server-side "used" tracking is needed for a
+// low-stakes confirmation link like this.
+export function signEmailVerificationToken(payload: { sub: string }): string {
+  return jwt.sign(payload, requireSecret("JWT_EMAIL_VERIFICATION_SECRET"), {
+    expiresIn: EMAIL_VERIFICATION_TOKEN_TTL,
+  });
+}
+
+export function verifyEmailVerificationToken(token: string): { sub: string } | null {
+  try {
+    return jwt.verify(token, requireSecret("JWT_EMAIL_VERIFICATION_SECRET")) as {
+      sub: string;
+    };
   } catch {
     return null;
   }

@@ -54,6 +54,16 @@ export const operatorRouter = router({
   createFacility: operatorProcedure
     .input(CreateFacilityInput)
     .mutation(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUniqueOrThrow({
+        where: { id: ctx.user.id },
+      });
+      if (!user.emailVerifiedAt) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Bitte bestätige zuerst deine E-Mail-Adresse.",
+        });
+      }
+
       const existing = await ctx.db.facility.findUnique({
         where: { operatorUserId: ctx.user.id },
       });
@@ -64,9 +74,6 @@ export const operatorRouter = router({
         });
       }
 
-      const user = await ctx.db.user.findUniqueOrThrow({
-        where: { id: ctx.user.id },
-      });
       const slug = await uniqueSlugFor(ctx, input.name, input.city);
 
       return ctx.db.facility.create({

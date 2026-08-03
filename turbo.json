@@ -3,13 +3,29 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "env": ["DATABASE_URL", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"],
+      "env": [
+        "DATABASE_URL",
+        "JWT_ACCESS_SECRET",
+        "JWT_REFRESH_SECRET",
+        "JWT_EMAIL_VERIFICATION_SECRET",
+        "RESEND_API_KEY",
+        "EMAIL_FROM",
+        "APP_URL"
+      ],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "dev": {
       "cache": false,
       "persistent": true,
-      "env": ["DATABASE_URL", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"]
+      "env": [
+        "DATABASE_URL",
+        "JWT_ACCESS_SECRET",
+        "JWT_REFRESH_SECRET",
+        "JWT_EMAIL_VERIFICATION_SECRET",
+        "RESEND_API_KEY",
+        "EMAIL_FROM",
+        "APP_URL"
+      ]
     },
     "lint": {
       "dependsOn": ["^build"]

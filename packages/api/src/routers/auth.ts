@@ -2,7 +2,14 @@ import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
 import { BootstrapAdminInput, LoginInput, RegisterInput } from "@woodaa/validators";
 import { z } from "zod";
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../auth";
+import {
+  signAccessToken,
+  signEmailVerificationToken,
+  signRefreshToken,
+  verifyEmailVerificationToken,
+  verifyRefreshToken,
+} from "../auth";
+import { sendVerificationEmail } from "../email";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
 
 function issueTokens(user: { id: string; role: "SUCHENDE" | "BETREIBER" | "ADMIN" }) {
@@ -10,6 +17,21 @@ function issueTokens(user: { id: string; role: "SUCHENDE" | "BETREIBER" | "ADMIN
     accessToken: signAccessToken({ sub: user.id, role: user.role }),
     refreshToken: signRefreshToken({ sub: user.id }),
   };
+}
+
+async function dispatchVerificationEmail(user: {
+  id: string;
+  name: string;
+  email: string;
+}) {
+  const token = signEmailVerificationToken({ sub: user.id });
+  try {
+    await sendVerificationEmail({ to: user.email, name: user.name, token });
+  } catch (err) {
+    // Registration itself should still succeed even if the email provider
+    // has a hiccup - the user can request another one via resendVerificationEmail.
+    console.error("Failed to send verification email:", err);
+  }
 }
 
 export const authRouter = router({
@@ -26,6 +48,8 @@ export const authRouter = router({
     const user = await ctx.db.user.create({
       data: { name: input.name, email: input.email, passwordHash, role: input.role },
     });
+
+    await dispatchVerificationEmail(user);
 
     return {
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
@@ -83,7 +107,13 @@ export const authRouter = router({
 
       const passwordHash = await bcrypt.hash(input.password, 12);
       const user = await ctx.db.user.create({
-        data: { name: input.name, email: input.email, passwordHash, role: "ADMIN" },
+        data: {
+          name: input.name,
+          email: input.email,
+          passwordHash,
+          role: "ADMIN",
+          emailVerifiedAt: new Date(),
+        },
       });
 
       return {
@@ -92,10 +122,36 @@ export const authRouter = router({
       };
     }),
 
+  verifyEmail: publicProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const payload = verifyEmailVerificationToken(input.token);
+      if (!payload) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Der Bestätigungslink ist ungültig oder abgelaufen.",
+        });
+      }
+      const user = await ctx.db.user.update({
+        where: { id: payload.sub },
+        data: { emailVerifiedAt: new Date() },
+      });
+      return { email: user.email };
+    }),
+
+  resendVerificationEmail: protectedProcedure.mutation(async ({ ctx }) => {
+    const user = await ctx.db.user.findUniqueOrThrow({ where: { id: ctx.user.id } });
+    if (user.emailVerifiedAt) {
+      return { success: true as const };
+    }
+    await dispatchVerificationEmail(user);
+    return { success: true as const };
+  }),
+
   me: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.db.user.findUnique({
       where: { id: ctx.user.id },
-      select: { id: true, name: true, email: true, role: true },
+      select: { id: true, name: true, email: true, role: true, emailVerifiedAt: true },
     });
     if (!user) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
