@@ -1,10 +1,7 @@
 "use client";
 
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
-
-const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 
 export function FacilityLocationMap({
   latitude,
@@ -16,34 +13,37 @@ export function FacilityLocationMap({
   name: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    let cancelled = false;
 
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: MAP_STYLE,
-      center: [longitude, latitude],
-      zoom: 13,
-      interactive: true,
-    });
-    mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
-    new maplibregl.Marker({ color: "#3f5c3f" }).setLngLat([longitude, latitude]).addTo(map);
+    loadGoogleMaps()
+      .then((maps) => {
+        if (cancelled || !containerRef.current) return;
+        const position = { lat: latitude, lng: longitude };
+        const map = new maps.Map(containerRef.current, {
+          center: position,
+          zoom: 14,
+          streetViewControl: false,
+          mapTypeControl: false,
+        });
+        new maps.Marker({ position, map, title: name });
+      })
+      .catch((err) => {
+        console.error("Google Maps konnte nicht geladen werden", err);
+      });
 
     return () => {
-      map.remove();
-      mapRef.current = null;
+      cancelled = true;
     };
-  }, [latitude, longitude]);
+  }, [latitude, longitude, name]);
 
   return (
     <div
       ref={containerRef}
       role="img"
       aria-label={`Standort von ${name} auf der Karte`}
-      className="mt-4 h-64 w-full rounded-brand-lg"
+      className="mt-4 h-64 w-full rounded-brand-lg bg-brand-background"
     />
   );
 }

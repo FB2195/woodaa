@@ -1,11 +1,9 @@
 "use client";
 
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 
-const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
-const GERMANY_CENTER: [number, number] = [10.4515, 51.1657];
+const GERMANY_CENTER = { lat: 51.1657, lng: 10.4515 };
 
 type MapFacility = {
   id: string;
@@ -18,48 +16,55 @@ type MapFacility = {
 
 export function FacilityMap({ facilities }: { facilities: MapFacility[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    let cancelled = false;
 
-    const withCoords = facilities.filter(
-      (f): f is MapFacility & { latitude: number; longitude: number } =>
-        f.latitude !== null && f.longitude !== null,
-    );
+    loadGoogleMaps()
+      .then((maps) => {
+        if (cancelled || !containerRef.current) return;
 
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: MAP_STYLE,
-      center: withCoords[0]
-        ? [withCoords[0].longitude, withCoords[0].latitude]
-        : GERMANY_CENTER,
-      zoom: withCoords.length > 0 ? 6 : 5,
-    });
-    mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
+        const withCoords = facilities.filter(
+          (f): f is MapFacility & { latitude: number; longitude: number } =>
+            f.latitude !== null && f.longitude !== null,
+        );
 
-    const bounds = new maplibregl.LngLatBounds();
-    withCoords.forEach((facility) => {
-      const popup = new maplibregl.Popup({ offset: 24 }).setHTML(
-        `<a href="/einrichtung/${facility.slug}" style="font-weight:600;color:#3f5c3f">${facility.name}</a><br/><span style="color:#666">${facility.city}</span>`,
-      );
-      new maplibregl.Marker({ color: "#3f5c3f" })
-        .setLngLat([facility.longitude, facility.latitude])
-        .setPopup(popup)
-        .addTo(map);
-      bounds.extend([facility.longitude, facility.latitude]);
-    });
+        const map = new maps.Map(containerRef.current, {
+          center: withCoords[0]
+            ? { lat: withCoords[0].latitude, lng: withCoords[0].longitude }
+            : GERMANY_CENTER,
+          zoom: withCoords.length > 0 ? 6 : 5,
+          streetViewControl: false,
+          mapTypeControl: false,
+        });
 
-    if (withCoords.length > 1) {
-      map.fitBounds(bounds, { padding: 60, maxZoom: 12 });
-    }
+        const infoWindow = new maps.InfoWindow();
+        const bounds = new maps.LatLngBounds();
+
+        withCoords.forEach((facility) => {
+          const position = { lat: facility.latitude, lng: facility.longitude };
+          const marker = new maps.Marker({ position, map, title: facility.name });
+          marker.addListener("click", () => {
+            infoWindow.setContent(
+              `<a href="/einrichtung/${facility.slug}" style="font-weight:600;color:#3f5c3f">${facility.name}</a><br/><span style="color:#666">${facility.city}</span>`,
+            );
+            infoWindow.open({ map, anchor: marker });
+          });
+          bounds.extend(position);
+        });
+
+        if (withCoords.length > 1) {
+          map.fitBounds(bounds, 60);
+        }
+      })
+      .catch((err) => {
+        console.error("Google Maps konnte nicht geladen werden", err);
+      });
 
     return () => {
-      map.remove();
-      mapRef.current = null;
+      cancelled = true;
     };
   }, [facilities]);
 
-  return <div ref={containerRef} className="h-[500px] w-full rounded-brand-lg" />;
+  return <div ref={containerRef} className="h-[500px] w-full rounded-brand-lg bg-brand-background" />;
 }
