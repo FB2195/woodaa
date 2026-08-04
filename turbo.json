@@ -5,6 +5,7 @@
       "dependsOn": ["^build"],
       "env": [
         "DATABASE_URL",
+        "DATABASE_URL_UNPOOLED",
         "JWT_ACCESS_SECRET",
         "JWT_REFRESH_SECRET",
         "JWT_EMAIL_VERIFICATION_SECRET",
@@ -29,6 +30,7 @@
       "persistent": true,
       "env": [
         "DATABASE_URL",
+        "DATABASE_URL_UNPOOLED",
         "JWT_ACCESS_SECRET",
         "JWT_REFRESH_SECRET",
         "JWT_EMAIL_VERIFICATION_SECRET",

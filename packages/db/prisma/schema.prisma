@@ -4,8 +4,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Neon's pooled endpoint (DATABASE_URL, "-pooler" host) runs in
+  // transaction-pooling mode, which breaks multi-statement DDL sessions
+  // (explicit BEGIN/COMMIT blocks, CREATE EXTENSION advisory locks) used by
+  // `prisma migrate deploy`. directUrl routes migrations to the unpooled
+  // connection instead; ordinary Prisma Client queries still use `url`.
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 enum BookingType {
