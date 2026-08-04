@@ -27,6 +27,12 @@ enum BookingRequestStatus {
   ABGELEHNT
 }
 
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum Role {
   SUCHENDE
   BETREIBER
@@ -115,6 +121,7 @@ model Facility {
   bookingRequests        BookingRequest[]
   favoritedBy            Favorite[]
   photos                 FacilityPhoto[]
+  reviews                Review[]
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
 }
@@ -175,6 +182,33 @@ model FacilityPhoto {
   key        String
   createdAt  DateTime @default(now())
 
+  @@index([facilityId])
+}
+
+// Only a Suchende who can prove genuine prior contact with the facility (a
+// case-insensitive matching BookingRequest.requesterEmail - see review.ts)
+// may create one; every row starts PENDING and only becomes publicly
+// visible once an admin approves it (same moderation shape as
+// FacilityStatus.PENDING_REVIEW). reviewerEmail is stored but never
+// surfaced to other users - same trust/display treatment as
+// BookingRequest.requesterEmail. @@unique enforces "one review per person
+// per facility" at the DB level instead of a racy check-then-create.
+model Review {
+  id                String       @id @default(cuid())
+  facility          Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId        String
+  reviewerName      String
+  reviewerEmail     String
+  rating            Int
+  careRating        Int?
+  cleanlinessRating Int?
+  foodRating        Int?
+  staffRating       Int?
+  comment           String?
+  status            ReviewStatus @default(PENDING)
+  createdAt         DateTime     @default(now())
+
+  @@unique([facilityId, reviewerEmail])
   @@index([facilityId])
 }
 

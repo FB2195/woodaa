@@ -1,7 +1,10 @@
 import { TRPCError } from "@trpc/server";
+import type { Review } from "@woodaa/db";
 import { z } from "zod";
 import { withPhotoUrl } from "../r2";
 import { adminProcedure, router } from "../trpc";
+
+export type AdminPendingReview = Review & { facility: { name: string; slug: string } };
 
 export const adminRouter = router({
   pendingFacilities: adminProcedure.query(async ({ ctx }) => {
@@ -44,6 +47,40 @@ export const adminRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       return ctx.db.facility.update({
+        where: { id: input.id },
+        data: { status: "REJECTED" },
+      });
+    }),
+
+  pendingReviews: adminProcedure.query(async ({ ctx }) => {
+    return ctx.db.review.findMany({
+      where: { status: "PENDING" },
+      include: { facility: { select: { name: true, slug: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+  }),
+
+  approveReview: adminProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const review = await ctx.db.review.findUnique({ where: { id: input.id } });
+      if (!review) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return ctx.db.review.update({
+        where: { id: input.id },
+        data: { status: "APPROVED" },
+      });
+    }),
+
+  rejectReview: adminProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const review = await ctx.db.review.findUnique({ where: { id: input.id } });
+      if (!review) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return ctx.db.review.update({
         where: { id: input.id },
         data: { status: "REJECTED" },
       });

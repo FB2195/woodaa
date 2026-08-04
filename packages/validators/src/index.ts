@@ -167,3 +167,19 @@ export const ConfirmPhotoUploadInput = z.object({
   key: z.string().min(1).max(500),
 });
 export type ConfirmPhotoUploadInput = z.infer<typeof ConfirmPhotoUploadInput>;
+
+export const Rating = z.number().int().min(1).max(5);
+export type Rating = z.infer<typeof Rating>;
+
+export const CreateReviewInput = z.object({
+  facilityId: z.string().min(1),
+  reviewerName: z.string().trim().min(1).max(200),
+  reviewerEmail: z.string().trim().email(),
+  rating: Rating,
+  careRating: Rating.optional(),
+  cleanlinessRating: Rating.optional(),
+  foodRating: Rating.optional(),
+  staffRating: Rating.optional(),
+  comment: z.string().trim().max(2000).optional(),
+});
+export type CreateReviewInput = z.infer<typeof CreateReviewInput>;

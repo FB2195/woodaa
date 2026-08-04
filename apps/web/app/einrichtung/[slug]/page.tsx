@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { notFound } from "next/navigation";
 import { BookingRequestForm } from "@/components/BookingRequestForm";
 import { FacilityGallery } from "@/components/FacilityGallery";
+import { FacilityReviews } from "@/components/FacilityReviews";
 import { FacilityLocationMap } from "@/components/FacilityLocationMap";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { Header } from "@/components/Header";
@@ -170,6 +171,13 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
               </div>
             )}
           </div>
+
+          <FacilityReviews
+            facilityId={facility.id}
+            reviews={facility.reviews}
+            avgRating={facility.avgRating}
+            reviewCount={facility.reviewCount}
+          />
         </div>
 
         <div>

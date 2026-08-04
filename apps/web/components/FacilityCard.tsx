@@ -6,10 +6,14 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { formatDistanceKm, formatPriceEuro } from "@/lib/format";
 import { cheapestCapacityPrice } from "@/lib/price";
 
-// distanceKm is only present when the search had a resolvable origin
-// (facility.list computes it) - absent e.g. on /favoriten, which reuses
-// this same card with plain FacilityWithCapacities.
-type Facility = FacilityWithCapacities & { distanceKm?: number | null };
+// distanceKm/avgRating/reviewCount are only present when the search
+// computed them (facility.list) - absent e.g. on /favoriten, which
+// reuses this same card with plain FacilityWithCapacities.
+type Facility = FacilityWithCapacities & {
+  distanceKm?: number | null;
+  avgRating?: number | null;
+  reviewCount?: number;
+};
 
 export function FacilityCard({
   facility,
@@ -65,6 +69,13 @@ export function FacilityCard({
             return price !== null ? `ab ${formatPriceEuro(price)}/Monat` : "Preis auf Anfrage";
           })()}
         </p>
+        {!!facility.reviewCount && (
+          <p className="mt-1 flex items-center gap-1 text-sm text-brand-text-muted">
+            <span aria-hidden="true">⭐</span>
+            {facility.avgRating!.toLocaleString("de-DE", { maximumFractionDigits: 1 })}
+            <span>({facility.reviewCount})</span>
+          </p>
+        )}
         <div className="mt-4 flex flex-wrap gap-2">
           {facility.capacities.map((capacity) => (
             <span

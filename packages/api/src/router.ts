@@ -5,6 +5,7 @@ import { bookingRequestRouter } from "./routers/bookingRequest";
 import { facilityRouter } from "./routers/facility";
 import { favoriteRouter } from "./routers/favorite";
 import { operatorRouter } from "./routers/operator";
+import { reviewRouter } from "./routers/review";
 import { twoFactorRouter } from "./routers/twoFactor";
 import { publicProcedure, router } from "./trpc";
 
@@ -25,6 +26,7 @@ export const appRouter = router({
   twoFactor: twoFactorRouter,
   account: accountRouter,
   favorite: favoriteRouter,
+  review: reviewRouter,
 });
 
 export type AppRouter = typeof appRouter;

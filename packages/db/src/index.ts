@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import type { FacilityPhoto as PrismaFacilityPhoto } from "@prisma/client";
 
-export type { FacilityCapacity, KurzzeitpflegeBooking } from "@prisma/client";
+export type { FacilityCapacity, KurzzeitpflegeBooking, Review } from "@prisma/client";
 
 // R2 stores only the object `key` (see the FacilityPhoto model comment in
 // schema.prisma) - every router enriches each row with a derived absolute
@@ -26,7 +26,12 @@ export type FacilityWithCapacities = Omit<
 > & { photos: FacilityPhoto[] };
 
 type FacilityWithDetailsRaw = Prisma.FacilityGetPayload<{
-  include: { capacities: true; kurzzeitpflegeBookings: true; photos: true };
+  include: {
+    capacities: true;
+    kurzzeitpflegeBookings: true;
+    photos: true;
+    reviews: true;
+  };
 }>;
 export type FacilityWithDetails = Omit<FacilityWithDetailsRaw, "photos"> & {
   photos: FacilityPhoto[];

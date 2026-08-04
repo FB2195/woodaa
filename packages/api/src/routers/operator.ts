@@ -60,6 +60,10 @@ export const operatorRouter = router({
         capacities: true,
         kurzzeitpflegeBookings: { orderBy: { startDate: "asc" } },
         photos: { orderBy: { createdAt: "asc" } },
+        // All statuses, not just APPROVED - an operator should be able to
+        // see reviews about their own facility regardless of moderation
+        // state (no UI surfaces this yet, but the type needs the field).
+        reviews: { orderBy: { createdAt: "desc" } },
       },
     });
     if (!facility) return null;

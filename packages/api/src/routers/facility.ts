@@ -12,7 +12,20 @@ import { publicProcedure, router } from "../trpc";
 // the facility itself has no coordinates.
 export type FacilityListItem = FacilityWithCapacities & {
   distanceKm: number | null;
+  avgRating: number | null;
+  reviewCount: number;
 };
+
+function avgOf(values: number[]): number | null {
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+}
+
+// Derived from an already-fetched array, same "no second round-trip for
+// aggregates" pattern as cheapestPrice - used by bySlug, which fetches the
+// full approved-review list anyway for display.
+function reviewStats(reviews: { rating: number }[]) {
+  return { avgRating: avgOf(reviews.map((r) => r.rating)), reviewCount: reviews.length };
+}
 
 function cheapestPrice(
   facility: FacilityWithCapacities,
@@ -93,6 +106,21 @@ export const facilityRouter = router({
         origin = await geocodeSearchOrigin(input.city);
       }
 
+      // Batched (one query for the whole result page, not per-facility) -
+      // same no-N+1 spirit as cheapestPrice. Only APPROVED reviews count
+      // towards the badge.
+      const ratingRows = facilities.length
+        ? await ctx.db.review.groupBy({
+            by: ["facilityId"],
+            where: { facilityId: { in: facilities.map((f) => f.id) }, status: "APPROVED" },
+            _avg: { rating: true },
+            _count: { _all: true },
+          })
+        : [];
+      const ratingByFacility = new Map(
+        ratingRows.map((r) => [r.facilityId, { avgRating: r._avg.rating, reviewCount: r._count._all }]),
+      );
+
       let results: FacilityListItem[] = facilities.map((f) => ({
         ...f,
         photos: f.photos.map(withPhotoUrl),
@@ -100,6 +128,8 @@ export const facilityRouter = router({
           origin && f.latitude !== null && f.longitude !== null
             ? haversineDistanceKm(origin, { latitude: f.latitude, longitude: f.longitude })
             : null,
+        avgRating: ratingByFacility.get(f.id)?.avgRating ?? null,
+        reviewCount: ratingByFacility.get(f.id)?.reviewCount ?? 0,
       }));
 
       if (input.radiusKm !== undefined && origin) {
@@ -142,6 +172,7 @@ export const facilityRouter = router({
           capacities: true,
           kurzzeitpflegeBookings: { orderBy: { startDate: "asc" } },
           photos: { orderBy: { createdAt: "asc" } },
+          reviews: { where: { status: "APPROVED" }, orderBy: { createdAt: "desc" } },
         },
       });
 
@@ -149,7 +180,11 @@ export const facilityRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Einrichtung nicht gefunden." });
       }
 
-      return { ...facility, photos: facility.photos.map(withPhotoUrl) };
+      return {
+        ...facility,
+        photos: facility.photos.map(withPhotoUrl),
+        ...reviewStats(facility.reviews),
+      };
     }),
 
   searchLocations: publicProcedure
