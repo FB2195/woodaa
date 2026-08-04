@@ -13,6 +13,29 @@ const bookingTypeIcons: Record<string, string> = {
   NACHTPFLEGE: "🌙",
 };
 
+const trustPoints = [
+  {
+    icon: "⚡",
+    title: "Echtzeit-Verfügbarkeit",
+    text: "Kein Rätselraten am Telefon - Sie sehen sofort, wo aktuell wirklich ein Platz frei ist.",
+  },
+  {
+    icon: "🔒",
+    title: "Keine Doppelbuchung",
+    text: "Jeder gebuchte Platz wird technisch abgesichert reserviert - garantiert kein Verwechseln, keine Doppelvergabe.",
+  },
+  {
+    icon: "✅",
+    title: "Geprüfte Einrichtungen",
+    text: "Jede Einrichtung wird vor der Veröffentlichung von uns geprüft, bevor sie sichtbar wird.",
+  },
+  {
+    icon: "🤝",
+    title: "Kostenlos & unverbindlich anfragen",
+    text: "Erst in Ruhe informieren, dann entscheiden - eine Anfrage kostet nichts und verpflichtet zu nichts.",
+  },
+];
+
 const steps = [
   {
     icon: "🔍",
@@ -88,6 +111,30 @@ export default async function HomePage() {
           <span>
             <strong className="text-white">sofort</strong> verbindlich buchbar
           </span>
+        </div>
+      </section>
+
+      <section className="border-b border-brand-border bg-brand-surface px-6 py-12">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="text-2xl font-semibold text-brand-text">
+            Warum Woodaa?
+          </h2>
+          <div className="mt-6 flex gap-4 overflow-x-auto pb-2">
+            {trustPoints.map((point) => (
+              <div
+                key={point.title}
+                className="w-64 shrink-0 rounded-brand-lg border border-brand-border bg-brand-background p-5 shadow-sm"
+              >
+                <span className="text-3xl">{point.icon}</span>
+                <h3 className="mt-3 text-base font-semibold text-brand-primary-dark">
+                  {point.title}
+                </h3>
+                <p className="mt-2 text-sm text-brand-text-muted">
+                  {point.text}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
