@@ -128,7 +128,11 @@ model Facility {
   id                     String                   @id @default(cuid())
   slug                   String                   @unique
   name                   String
-  description            String
+  // Empty ("") until the operator fills it in - only required to go public
+  // (ACTIVE), not to use the internal availability tool (PENDING_REVIEW is
+  // fully functional). See requireDescriptionForPublicListing in
+  // operator.ts.
+  description            String                   @default("")
   street                 String
   postalCode             String
   city                   String

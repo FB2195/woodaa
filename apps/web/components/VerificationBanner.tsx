@@ -15,8 +15,9 @@ export function VerificationBanner({ email }: { email: string }) {
         Bitte bestätige deine E-Mail-Adresse
       </p>
       <p className="mt-1 text-sm text-brand-text-muted">
-        Wir haben einen Bestätigungslink an {email} geschickt. Erst danach
-        kannst du deine Einrichtung anlegen.
+        Wir haben einen Bestätigungslink an {email} geschickt. Du kannst das
+        Tool schon nutzen - bestätigt sein musst du erst, wenn du öffentlich
+        auf Woodaa sichtbar werden willst.
       </p>
       <button
         type="button"

@@ -24,9 +24,9 @@ export default async function OperatorDashboardPage() {
 
         {facility ? (
           <FacilityDashboard facility={facility} />
-        ) : verified ? (
+        ) : (
           <CreateFacilityForm />
-        ) : null}
+        )}
       </section>
     </main>
   );

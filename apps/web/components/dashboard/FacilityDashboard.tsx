@@ -3,6 +3,7 @@ import type { FacilityWithOperatorDetails } from "@woodaa/api";
 import { CategoryPanel } from "./CategoryPanel";
 import { PflegegradSuitabilityForm } from "./PflegegradSuitabilityForm";
 import { PhotoManager } from "./PhotoManager";
+import { PublicListingPrompt } from "./PublicListingPrompt";
 
 type Facility = FacilityWithOperatorDetails;
 
@@ -13,11 +14,11 @@ const allBookingTypes: BookingType[] = [
   "NACHTPFLEGE",
 ];
 
-const statusLabels: Record<Facility["status"], string> = {
-  ACTIVE: "Live",
-  PENDING_REVIEW: "Wird geprüft",
-  REJECTED: "Abgelehnt",
-};
+function statusLabel(facility: Facility): string {
+  if (facility.status === "ACTIVE") return "Live";
+  if (facility.status === "REJECTED") return "Abgelehnt";
+  return facility.description ? "Wird geprüft" : "Nur intern";
+}
 
 export function FacilityDashboard({ facility }: { facility: Facility }) {
   const capacityByType = Object.fromEntries(
@@ -29,6 +30,8 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
       facility.units.filter((u) => u.bookingType === type),
     ]),
   );
+  const awaitingReview =
+    facility.status === "PENDING_REVIEW" && facility.description !== "";
 
   return (
     <div className="flex flex-col gap-8">
@@ -44,13 +47,13 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
                 : "bg-brand-border text-brand-text-muted"
             }`}
           >
-            {statusLabels[facility.status]}
+            {statusLabel(facility)}
           </span>
         </div>
         <p className="mt-1 text-sm text-brand-text-muted">
           {facility.street}, {facility.postalCode} {facility.city}
         </p>
-        {facility.status === "PENDING_REVIEW" && (
+        {awaitingReview && (
           <p className="mt-3 text-sm text-brand-text-muted">
             Deine Einrichtung wird gerade von unserem Team geprüft und ist
             noch nicht öffentlich sichtbar.
@@ -63,6 +66,10 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
           </p>
         )}
       </div>
+
+      {facility.status === "PENDING_REVIEW" && !facility.description && (
+        <PublicListingPrompt amenities={facility.amenities} />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {allBookingTypes.map((type) => (
