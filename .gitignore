@@ -34,3 +34,4 @@ packages/db/prisma/*.db
 # misc
 coverage/
 .eas/
+node-compile-cache/
