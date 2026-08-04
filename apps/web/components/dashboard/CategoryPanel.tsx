@@ -8,7 +8,10 @@ import { formatDate } from "@/lib/format";
 import type { BookingType } from "@woodaa/validators";
 import type { FacilityCapacity, FacilityUnit, UnitBooking } from "@woodaa/api";
 
-type Unit = FacilityUnit & { bookings: UnitBooking[] };
+type BookingWithVollmachtFlag = UnitBooking & {
+  user: { vollmachtDocumentKey: string | null } | null;
+};
+type Unit = FacilityUnit & { bookings: BookingWithVollmachtFlag[] };
 
 function toDateInputValue(value: Date | string | null | undefined): string {
   if (!value) return "";
@@ -77,6 +80,11 @@ function UnitRow({
               ? ` · ${formatDate(booking.startDate)}–${formatDate(booking.endDate)}`
               : ""}
             {booking.guestName ? ` · ${booking.guestName}` : ""}
+            {booking.user?.vollmachtDocumentKey && (
+              <span className="ml-1 rounded-brand-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                Bevollmächtigte/r Angehörige/r
+              </span>
+            )}
           </span>
           <button
             type="button"

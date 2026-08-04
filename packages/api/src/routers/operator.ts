@@ -79,8 +79,14 @@ export const operatorRouter = router({
           orderBy: { createdAt: "asc" },
           include: {
             // Active bookings only - the manual booking page shows current
-            // occupancy, not full history.
-            bookings: { where: { status: "BESTAETIGT" }, orderBy: { createdAt: "desc" } },
+            // occupancy, not full history. user.vollmachtDocumentKey flags
+            // bookings from a Bevollmächtigte/r Angehörige/r account (see
+            // FacilityWithOperatorDetails in @woodaa/db).
+            bookings: {
+              where: { status: "BESTAETIGT" },
+              orderBy: { createdAt: "desc" },
+              include: { user: { select: { vollmachtDocumentKey: true } } },
+            },
           },
         },
       },

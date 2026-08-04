@@ -8,7 +8,11 @@ import { formatDate } from "@/lib/format";
 import { paymentMethodLabels } from "@/lib/paymentMethodLabels";
 import { trpc } from "@/lib/trpc";
 
-function ApprovalRow({ booking }: { booking: UnitBooking }) {
+type BookingWithVollmachtFlag = UnitBooking & {
+  user: { vollmachtDocumentKey: string | null } | null;
+};
+
+function ApprovalRow({ booking }: { booking: BookingWithVollmachtFlag }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const approve = trpc.operator.approveBookingPayment.useMutation();
@@ -41,6 +45,11 @@ function ApprovalRow({ booking }: { booking: UnitBooking }) {
             {bookingTypeLabels[booking.bookingType]} · {paymentMethodLabels[booking.paymentMethod!]}
             {booking.startDate && ` · ab ${formatDate(booking.startDate)}`}
           </p>
+          {booking.user?.vollmachtDocumentKey && (
+            <span className="mt-1 inline-block rounded-brand-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+              Bevollmächtigte/r Angehörige/r
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {booking.kostenuebernahmeDocumentKey && (
@@ -87,7 +96,7 @@ function ApprovalRow({ booking }: { booking: UnitBooking }) {
 // Bookings paid via RECHNUNG or KOSTENUEBERNAHME_KASSE need the facility's
 // explicit "Go" before they count as payment-confirmed - see
 // paymentStatus/PaymentMethod in schema.prisma.
-export function PaymentApprovals({ bookings }: { bookings: UnitBooking[] }) {
+export function PaymentApprovals({ bookings }: { bookings: BookingWithVollmachtFlag[] }) {
   const pending = bookings.filter((b) => b.paymentStatus === "WARTET_AUF_HEIM_FREIGABE");
 
   if (pending.length === 0) return null;
