@@ -264,7 +264,8 @@ export function CategoryPanel({
         }}
       >
         <label className="flex flex-col gap-1 text-xs text-brand-text-muted">
-          Monatlicher Eigenanteil (€)
+          Monatlicher Heimpreis (€) - Familien sehen daneben automatisch
+          ihren Eigenanteil nach Pflegekassen-Zuschuss
           <input
             type="number"
             name="monthlyPrice"
