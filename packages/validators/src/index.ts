@@ -78,6 +78,17 @@ export const BootstrapAdminInput = z.object({
 });
 export type BootstrapAdminInput = z.infer<typeof BootstrapAdminInput>;
 
+export const ForgotPasswordInput = z.object({
+  email: z.string().trim().email(),
+});
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordInput>;
+
+export const ResetPasswordInput = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8).max(200),
+});
+export type ResetPasswordInput = z.infer<typeof ResetPasswordInput>;
+
 export const WeekdaySlots = z.object({
   mon: z.number().int().min(0),
   tue: z.number().int().min(0),

@@ -20,12 +20,16 @@ const REFRESH_TOKEN_TTL = "30d";
 export const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 const EMAIL_VERIFICATION_TOKEN_TTL = "1d";
 const TWO_FACTOR_CHALLENGE_TOKEN_TTL = "5m";
+// Shorter than email verification - a leaked/replayed reset link risks a
+// full account takeover, not just a harmless re-confirmation.
+const PASSWORD_RESET_TOKEN_TTL = "1h";
 
 type SecretName =
   | "JWT_ACCESS_SECRET"
   | "JWT_REFRESH_SECRET"
   | "JWT_EMAIL_VERIFICATION_SECRET"
-  | "JWT_TWO_FACTOR_SECRET";
+  | "JWT_TWO_FACTOR_SECRET"
+  | "JWT_PASSWORD_RESET_SECRET";
 
 function requireSecret(name: SecretName): string {
   const value = process.env[name];
@@ -93,6 +97,28 @@ export function verifyEmailVerificationToken(token: string): { sub: string } | n
   try {
     return jwt.verify(token, requireSecret("JWT_EMAIL_VERIFICATION_SECRET")) as {
       sub: string;
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Hybrid, unlike the email-verification token above: this JWT is ALSO
+// hashed and stored as a PasswordResetToken row (see routers/auth.ts), so
+// the link is genuinely single-use and revocable, not just time-limited.
+export function signPasswordResetToken(payload: { sub: string; jti: string }): string {
+  return jwt.sign(payload, requireSecret("JWT_PASSWORD_RESET_SECRET"), {
+    expiresIn: PASSWORD_RESET_TOKEN_TTL,
+  });
+}
+
+export function verifyPasswordResetToken(
+  token: string,
+): { sub: string; jti: string } | null {
+  try {
+    return jwt.verify(token, requireSecret("JWT_PASSWORD_RESET_SECRET")) as {
+      sub: string;
+      jti: string;
     };
   } catch {
     return null;

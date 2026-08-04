@@ -79,3 +79,35 @@ Der Link ist 24 Stunden gültig.
 Falls du dich nicht bei Woodaa registriert hast, kannst du diese E-Mail ignorieren.`,
   });
 }
+
+export async function sendPasswordResetEmail({
+  to,
+  name,
+  token,
+}: {
+  to: string;
+  name: string;
+  token: string;
+}) {
+  const resetUrl = `${appUrl()}/passwort-zuruecksetzen?token=${encodeURIComponent(token)}`;
+
+  await sendEmail({
+    to,
+    subject: "Passwort zurücksetzen bei Woodaa",
+    html: `
+      <p>Hallo ${name},</p>
+      <p>du hast angefordert, dein Passwort bei Woodaa zurückzusetzen:</p>
+      <p><a href="${resetUrl}">${resetUrl}</a></p>
+      <p>Der Link ist 1 Stunde gültig und nur einmal verwendbar.</p>
+      <p>Falls du das nicht warst, kannst du diese E-Mail ignorieren — dein Passwort bleibt unverändert.</p>
+    `,
+    text: `Hallo ${name},
+
+du hast angefordert, dein Passwort bei Woodaa zurückzusetzen:
+${resetUrl}
+
+Der Link ist 1 Stunde gültig und nur einmal verwendbar.
+
+Falls du das nicht warst, kannst du diese E-Mail ignorieren — dein Passwort bleibt unverändert.`,
+  });
+}

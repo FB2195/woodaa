@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -191,6 +192,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
       </label>
+
+      {mode === "login" && (
+        <Link
+          href="/passwort-vergessen"
+          className="-mt-2 self-end text-sm text-brand-accent underline"
+        >
+          Passwort vergessen?
+        </Link>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

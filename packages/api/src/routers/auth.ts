@@ -1,18 +1,26 @@
 import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
-import { BootstrapAdminInput, LoginInput, RegisterInput } from "@woodaa/validators";
+import {
+  BootstrapAdminInput,
+  ForgotPasswordInput,
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+} from "@woodaa/validators";
 import { z } from "zod";
 import {
   signAccessToken,
   signEmailVerificationToken,
+  signPasswordResetToken,
   signRefreshToken,
   signTwoFactorChallengeToken,
   verifyEmailVerificationToken,
+  verifyPasswordResetToken,
   verifyRefreshToken,
   verifyTwoFactorChallengeToken,
 } from "../auth";
-import { sendVerificationEmail } from "../email";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../email";
 import { hashToken } from "../tokenHash";
 import { decryptSecret, verifyTotpCode } from "../twoFactor";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
@@ -21,6 +29,8 @@ import type { Context } from "../trpc";
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 2 * 60 * 1000;
+const PASSWORD_RESET_COOLDOWN_MS = 2 * 60 * 1000;
+const PASSWORD_RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const GENERIC_LOGIN_ERROR = "E-Mail oder Passwort ist falsch.";
 // A real bcrypt hash of a random value, computed lazily on first use and
@@ -363,6 +373,84 @@ export const authRouter = router({
     await dispatchVerificationEmail(user);
     return { success: true as const };
   }),
+
+  forgotPassword: publicProcedure
+    .input(ForgotPasswordInput)
+    .mutation(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUnique({ where: { email: input.email } });
+      // Anti-enumeration: always the same generic success, regardless of
+      // whether the email exists - same discipline as GENERIC_LOGIN_ERROR.
+      if (user) {
+        const recent = await ctx.db.passwordResetToken.findFirst({
+          where: {
+            userId: user.id,
+            createdAt: { gt: new Date(Date.now() - PASSWORD_RESET_COOLDOWN_MS) },
+          },
+        });
+        if (!recent) {
+          const token = signPasswordResetToken({ sub: user.id, jti: randomUUID() });
+          await ctx.db.passwordResetToken.create({
+            data: {
+              userId: user.id,
+              tokenHash: hashToken(token),
+              expiresAt: new Date(Date.now() + PASSWORD_RESET_TOKEN_EXPIRY_MS),
+            },
+          });
+          try {
+            await sendPasswordResetEmail({ to: user.email, name: user.name, token });
+          } catch (err) {
+            console.error("Failed to send password reset email:", err);
+          }
+        }
+      }
+      return { success: true as const };
+    }),
+
+  resetPassword: publicProcedure
+    .input(ResetPasswordInput)
+    .mutation(async ({ ctx, input }) => {
+      const payload = verifyPasswordResetToken(input.token);
+      if (!payload) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Der Link ist ungültig oder abgelaufen.",
+        });
+      }
+
+      const resetToken = await ctx.db.passwordResetToken.findUnique({
+        where: { tokenHash: hashToken(input.token) },
+      });
+      if (
+        !resetToken ||
+        resetToken.usedAt ||
+        resetToken.expiresAt < new Date() ||
+        resetToken.userId !== payload.sub
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Der Link ist ungültig oder abgelaufen.",
+        });
+      }
+
+      const passwordHash = await bcrypt.hash(input.password, 12);
+      await ctx.db.$transaction([
+        ctx.db.user.update({
+          where: { id: resetToken.userId },
+          data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+        }),
+        ctx.db.passwordResetToken.update({
+          where: { id: resetToken.id },
+          data: { usedAt: new Date() },
+        }),
+        // Forces re-login on every device - standard practice for a
+        // password change, in case the old password was compromised.
+        ctx.db.refreshToken.updateMany({
+          where: { userId: resetToken.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        }),
+      ]);
+      return { success: true as const };
+    }),
 
   me: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.db.user.findUnique({

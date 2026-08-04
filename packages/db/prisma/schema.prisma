@@ -55,6 +55,7 @@ model User {
   refreshTokens           RefreshToken[]
   recoveryCodes           RecoveryCode[]
   favorites               Favorite[]
+  passwordResetTokens     PasswordResetToken[]
   createdAt               DateTime  @default(now())
 }
 
@@ -83,6 +84,22 @@ model RecoveryCode {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   codeHash  String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Hybrid like RefreshToken: a real JWT (see auth.ts) for fast, tamper-proof
+// verification, plus a SHA-256-hashed DB row with expiresAt/usedAt so the
+// link is genuinely single-use (unlike the stateless email-verification
+// token) and revocable server-side.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
 
