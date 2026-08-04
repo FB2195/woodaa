@@ -14,6 +14,7 @@ export type {
   FacilityWithDetails,
   FacilityWithOperatorDetails,
   OccupiedRange,
+  PhotoCategory,
   Review,
   UnitBooking,
 } from "@woodaa/db";

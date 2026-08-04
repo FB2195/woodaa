@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { PlaceholderPhoto } from "@/components/PlaceholderPhoto";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -89,13 +90,15 @@ export function PhotoManager({ photos }: { photos: FacilityPhoto[] }) {
               key={photo.id}
               className="group relative aspect-square overflow-hidden rounded-brand-md border border-brand-border"
             >
-              <Image
-                src={photo.url}
-                alt=""
-                fill
-                sizes="200px"
-                className="object-cover"
-              />
+              {photo.url ? (
+                <Image src={photo.url} alt="" fill sizes="200px" className="object-cover" />
+              ) : (
+                <PlaceholderPhoto
+                  category={photo.category}
+                  seed={photo.id}
+                  className="h-full w-full"
+                />
+              )}
               <button
                 type="button"
                 disabled={removePhoto.isPending}

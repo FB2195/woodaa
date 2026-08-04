@@ -288,7 +288,11 @@ export const operatorRouter = router({
       if (!photo || photo.facilityId !== facility.id) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
-      await deleteObject(photo.key);
+      // key is null for designed placeholder rows (seed data) - nothing to
+      // delete from R2 in that case, just remove the row.
+      if (photo.key) {
+        await deleteObject(photo.key);
+      }
       await ctx.db.facilityPhoto.delete({ where: { id: input.id } });
       return { success: true };
     }),

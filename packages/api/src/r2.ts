@@ -83,10 +83,13 @@ export function publicPhotoUrl(key: string): string {
 // resolved `url` before returning (see FacilityWithCapacities/
 // FacilityWithDetails in @woodaa/db) - centralized here so URL
 // construction (and its one env var) exists in exactly one place.
-export function withPhotoUrl<T extends { key: string }>(
+// key = null means the row is a designed placeholder tile (no real upload,
+// see PhotoCategory on FacilityPhoto) - url is null too, and the frontend
+// renders PlaceholderPhoto from `category` instead of an <img>.
+export function withPhotoUrl<T extends { key: string | null }>(
   photo: T,
-): T & { url: string } {
-  return { ...photo, url: publicPhotoUrl(photo.key) };
+): T & { url: string | null } {
+  return { ...photo, url: photo.key ? publicPhotoUrl(photo.key) : null };
 }
 
 export function newPhotoKey(facilityId: string, extension: string): string {

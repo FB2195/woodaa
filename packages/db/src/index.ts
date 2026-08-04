@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import type { FacilityPhoto as PrismaFacilityPhoto } from "@prisma/client";
 
-export type { FacilityCapacity, FacilityUnit, Review } from "@prisma/client";
+export type { FacilityCapacity, FacilityUnit, PhotoCategory, Review } from "@prisma/client";
 export type { Booking as UnitBooking } from "@prisma/client";
 
 // R2 stores only the object `key` (see the FacilityPhoto model comment in
@@ -9,7 +9,7 @@ export type { Booking as UnitBooking } from "@prisma/client";
 // `url` (packages/api/src/r2.ts withPhotoUrl) before returning it, so this
 // exported type describes what consumers actually receive, not the raw
 // table row shape.
-export type FacilityPhoto = PrismaFacilityPhoto & { url: string };
+export type FacilityPhoto = PrismaFacilityPhoto & { url: string | null };
 
 /**
  * Payload types for Server Component consumers, which call the tRPC router

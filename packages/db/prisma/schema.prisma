@@ -249,14 +249,29 @@ model Booking {
 // URL, so swapping the public base URL (r2.dev -> a custom domain later)
 // needs no data migration. Ordered by createdAt: the oldest photo is the
 // implicit cover/thumbnail (no separate order/isCover field in v1).
+//
+// key is nullable to also represent designed placeholder tiles (see
+// apps/web/components/PlaceholderPhoto.tsx): rows with key = null carry no real image,
+// just a `category` the frontend renders as a styled illustration instead
+// of an <img>. Lets demo/seed facilities show a full gallery without a real
+// photo upload pipeline, using the exact same gallery UI real uploads use.
 model FacilityPhoto {
-  id         String   @id @default(cuid())
-  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  id         String        @id @default(cuid())
+  facility   Facility      @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   facilityId String
-  key        String
-  createdAt  DateTime @default(now())
+  key        String?
+  category   PhotoCategory?
+  createdAt  DateTime      @default(now())
 
   @@index([facilityId])
+}
+
+enum PhotoCategory {
+  AUSSENANSICHT
+  GARTEN
+  STATION
+  ZIMMER
+  SONSTIGE
 }
 
 // Only a Suchende who can prove genuine prior contact with the facility (a

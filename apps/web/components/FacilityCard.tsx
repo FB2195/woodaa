@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { PlaceholderPhoto } from "@/components/PlaceholderPhoto";
 import { formatDistanceKm, formatPriceEuro } from "@/lib/format";
 import { cheapestCapacityPrice } from "@/lib/price";
 
@@ -30,7 +31,7 @@ export function FacilityCard({
       className="relative block overflow-hidden rounded-brand-lg border border-brand-border bg-brand-surface shadow-sm transition hover:shadow-md"
     >
       <div className="relative aspect-[16/10] w-full bg-brand-background">
-        {cover ? (
+        {cover?.url ? (
           <Image
             src={cover.url}
             alt=""
@@ -39,11 +40,11 @@ export function FacilityCard({
             className="object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-brand-text-muted">
-            <span aria-hidden="true" className="text-3xl">
-              🏠
-            </span>
-          </div>
+          <PlaceholderPhoto
+            category={cover?.category}
+            seed={cover?.id ?? facility.id}
+            className="h-full w-full"
+          />
         )}
         <FavoriteButton
           facilityId={facility.id}
