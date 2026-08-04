@@ -564,3 +564,6 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+// deploy-retry: trivial touch to force a real Vercel rebuild after resolving
+// the stuck migration (an empty commit got silently skipped last time).
