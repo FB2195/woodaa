@@ -3,8 +3,17 @@ import type { BookingType } from "@woodaa/validators";
 export const bookingTypeLabels: Record<BookingType, string> = {
   STATIONAERE_AUFNAHME: "Stationäre Aufnahme",
   KURZZEITPFLEGE: "Kurzzeitpflege",
-  TAGES_NACHTPFLEGE: "Tages- & Nachtpflege",
+  TAGESPFLEGE: "Tagespflege",
+  NACHTPFLEGE: "Nachtpflege",
 };
+
+// STATIONAERE_AUFNAHME ist unbefristet belegt (kein Zeitraum nötig);
+// KURZZEITPFLEGE/TAGESPFLEGE/NACHTPFLEGE brauchen ein Start-/Enddatum.
+export const dateRangedBookingTypes: BookingType[] = [
+  "KURZZEITPFLEGE",
+  "TAGESPFLEGE",
+  "NACHTPFLEGE",
+];
 
 export const bookingTypeOptions = (
   Object.keys(bookingTypeLabels) as BookingType[]

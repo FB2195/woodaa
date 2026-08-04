@@ -1,15 +1,19 @@
 import { TRPCError } from "@trpc/server";
 import {
   AllowedPhotoContentType,
+  CancelBookingInput,
   ConfirmPhotoUploadInput,
   CreateFacilityInput,
-  KurzzeitpflegeRangeInput,
+  CreateManualBookingInput,
   MAX_FACILITY_PHOTOS,
+  RenameUnitInput,
   RequestPhotoUploadInput,
-  UpdateCapacityInput,
+  SetUnitCountInput,
   UpdateFacilityInput,
+  UpdatePricingInput,
 } from "@woodaa/validators";
 import { z } from "zod";
+import { cancelBooking, createBooking, setUnitCount } from "../availability";
 import { geocodeAddress } from "../geocoding";
 import { slugify } from "../lib/slugify";
 import { createPresignedUploadUrl, deleteObject, newPhotoKey, withPhotoUrl } from "../r2";
@@ -58,12 +62,19 @@ export const operatorRouter = router({
       where: { operatorUserId: ctx.user.id },
       include: {
         capacities: true,
-        kurzzeitpflegeBookings: { orderBy: { startDate: "asc" } },
         photos: { orderBy: { createdAt: "asc" } },
         // All statuses, not just APPROVED - an operator should be able to
         // see reviews about their own facility regardless of moderation
         // state (no UI surfaces this yet, but the type needs the field).
         reviews: { orderBy: { createdAt: "desc" } },
+        units: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            // Active bookings only - the manual booking page shows current
+            // occupancy, not full history.
+            bookings: { where: { status: "BESTAETIGT" }, orderBy: { createdAt: "desc" } },
+          },
+        },
       },
     });
     if (!facility) return null;
@@ -143,69 +154,91 @@ export const operatorRouter = router({
       });
     }),
 
-  updateCapacity: operatorProcedure
-    .input(UpdateCapacityInput)
+  // Nur Preis/availableFrom - totalSlots/availableSlots werden nie mehr
+  // per Formular getippt, sondern ausschließlich von setUnitCount/
+  // createManualBooking/cancelBooking über availability.ts gepflegt.
+  updatePricing: operatorProcedure
+    .input(UpdatePricingInput)
     .mutation(async ({ ctx, input }) => {
       const facility = await requireOwnFacility(ctx);
-      const availableFrom = input.availableFrom
-        ? new Date(input.availableFrom)
-        : null;
+      const availableFrom = input.availableFrom ? new Date(input.availableFrom) : null;
 
       return ctx.db.facilityCapacity.upsert({
         where: {
-          facilityId_bookingType: {
-            facilityId: facility.id,
-            bookingType: input.bookingType,
-          },
+          facilityId_bookingType: { facilityId: facility.id, bookingType: input.bookingType },
         },
+        // 0/0 on first create - a real count only exists once setUnitCount
+        // has run at least once; the pricing form can be filled in first.
         create: {
           facilityId: facility.id,
           bookingType: input.bookingType,
-          totalSlots: input.totalSlots,
-          availableSlots: input.availableSlots,
+          totalSlots: 0,
+          availableSlots: 0,
           monthlyPriceCents: input.monthlyPriceCents,
           availableFrom,
-          weekdaySlots: input.weekdaySlots,
         },
         update: {
-          totalSlots: input.totalSlots,
-          availableSlots: input.availableSlots,
           monthlyPriceCents: input.monthlyPriceCents,
           availableFrom,
-          weekdaySlots: input.weekdaySlots,
         },
       });
     }),
 
-  addOccupiedRange: operatorProcedure
-    .input(KurzzeitpflegeRangeInput)
+  // "Wie viele Plätze gibt es insgesamt in dieser Kategorie" - Erhöhen legt
+  // anonyme neue Plätze an, Verringern entfernt nur Plätze ohne aktive
+  // Buchung (siehe setUnitCount in availability.ts).
+  setUnitCount: operatorProcedure
+    .input(SetUnitCountInput)
     .mutation(async ({ ctx, input }) => {
       const facility = await requireOwnFacility(ctx);
-      const startDate = new Date(input.startDate);
-      const endDate = new Date(input.endDate);
-      if (endDate <= startDate) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Enddatum muss nach dem Startdatum liegen.",
-        });
+      await ctx.db.$transaction((tx) =>
+        setUnitCount(tx, facility.id, input.bookingType, input.totalUnits),
+      );
+      return { success: true };
+    }),
+
+  renameUnit: operatorProcedure
+    .input(RenameUnitInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const unit = await ctx.db.facilityUnit.findUnique({ where: { id: input.unitId } });
+      if (!unit || unit.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
       }
-      return ctx.db.kurzzeitpflegeBooking.create({
-        data: { facilityId: facility.id, startDate, endDate },
+      return ctx.db.facilityUnit.update({
+        where: { id: input.unitId },
+        data: { label: input.label },
       });
     }),
 
-  removeOccupiedRange: operatorProcedure
-    .input(z.object({ id: z.string().min(1) }))
+  // Für Telefon-/Vor-Ort-Buchungen: ein Klick pro Kategorie, das System
+  // weist automatisch einen freien Platz zu (siehe createBooking) - Personal
+  // muss nicht wissen/wählen, welcher Platz konkret belegt wird.
+  createManualBooking: operatorProcedure
+    .input(CreateManualBookingInput)
     .mutation(async ({ ctx, input }) => {
       const facility = await requireOwnFacility(ctx);
-      const booking = await ctx.db.kurzzeitpflegeBooking.findUnique({
-        where: { id: input.id },
+      return createBooking(ctx.db, {
+        facilityId: facility.id,
+        bookingType: input.bookingType,
+        source: input.source,
+        startDate: input.startDate ? new Date(input.startDate) : null,
+        endDate: input.endDate ? new Date(input.endDate) : null,
+        guestName: input.guestName,
+        guestEmail: input.guestEmail,
+        guestPhone: input.guestPhone,
+        note: input.note,
       });
-      if (!booking || booking.facilityId !== facility.id) {
-        throw new TRPCError({ code: "NOT_FOUND" });
-      }
-      await ctx.db.kurzzeitpflegeBooking.delete({ where: { id: input.id } });
-      return { success: true };
+    }),
+
+  // Storniert jede Buchung der eigenen Einrichtung, unabhängig von der
+  // Quelle - auch eine online sofort verbindliche Buchung, falls die
+  // Einrichtung sie im Nachhinein doch nicht annehmen kann.
+  cancelBooking: operatorProcedure
+    .input(CancelBookingInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      return cancelBooking(ctx.db, input.bookingId, { requireFacilityId: facility.id });
     }),
 
   requestPhotoUpload: operatorProcedure

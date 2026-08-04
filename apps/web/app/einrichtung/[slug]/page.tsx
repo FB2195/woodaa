@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { notFound } from "next/navigation";
-import { BookingRequestForm } from "@/components/BookingRequestForm";
+import { BookingSidebar } from "@/components/BookingSidebar";
 import { FacilityGallery } from "@/components/FacilityGallery";
 import { FacilityReviews } from "@/components/FacilityReviews";
 import { FacilityLocationMap } from "@/components/FacilityLocationMap";
@@ -37,16 +37,6 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
   const availableBookingTypes = facility.capacities
     .filter((capacity) => capacity.availableSlots > 0)
     .map((capacity) => capacity.bookingType);
-
-  const weekdayLabels: Record<string, string> = {
-    mon: "Mo",
-    tue: "Di",
-    wed: "Mi",
-    thu: "Do",
-    fri: "Fr",
-    sat: "Sa",
-    sun: "So",
-  };
 
   return (
     <main className="min-h-screen">
@@ -138,38 +128,25 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
                     </p>
                   )}
 
-                {capacity.bookingType === "TAGES_NACHTPFLEGE" &&
-                  capacity.weekdaySlots && (
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-brand-text-muted">
-                      {Object.entries(
-                        capacity.weekdaySlots as Record<string, number>,
-                      ).map(([day, slots]) => (
-                        <span
-                          key={day}
-                          className="rounded-brand-full border border-brand-border px-2 py-1"
-                        >
-                          {weekdayLabels[day] ?? day}: {slots}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                {facility.occupiedRanges.some((r) => r.bookingType === capacity.bookingType) && (
+                  <div className="mt-2 text-xs text-brand-text-muted">
+                    <p className="font-medium">Bereits belegte Zeiträume:</p>
+                    <ul className="mt-1 flex flex-wrap gap-2">
+                      {facility.occupiedRanges
+                        .filter((r) => r.bookingType === capacity.bookingType)
+                        .map((r, i) => (
+                          <li
+                            key={i}
+                            className="rounded-brand-full border border-brand-border px-2 py-1"
+                          >
+                            {formatDate(r.startDate)} – {formatDate(r.endDate)}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             ))}
-
-            {facility.kurzzeitpflegeBookings.length > 0 && (
-              <div className="rounded-brand-md border border-brand-border px-4 py-3">
-                <p className="text-sm font-medium text-brand-text">
-                  Belegte Zeiträume Kurzzeitpflege
-                </p>
-                <ul className="mt-2 flex flex-col gap-1 text-sm text-brand-text-muted">
-                  {facility.kurzzeitpflegeBookings.map((booking) => (
-                    <li key={booking.id}>
-                      {formatDate(booking.startDate)} – {formatDate(booking.endDate)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
 
           <FacilityReviews
@@ -181,10 +158,7 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
         </div>
 
         <div>
-          <BookingRequestForm
-            facilityId={facility.id}
-            availableBookingTypes={availableBookingTypes}
-          />
+          <BookingSidebar facilityId={facility.id} availableBookingTypes={availableBookingTypes} />
         </div>
       </section>
     </main>

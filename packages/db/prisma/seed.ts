@@ -44,7 +44,8 @@ const facilities = [
     maxPflegegrad: 5,
     capacities: [
       { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 60, availableSlots: 3, monthlyPriceCents: 260000 },
-      { bookingType: "TAGES_NACHTPFLEGE", totalSlots: 20, availableSlots: 9, monthlyPriceCents: 110000 },
+      { bookingType: "TAGESPFLEGE", totalSlots: 14, availableSlots: 6, monthlyPriceCents: 110000 },
+      { bookingType: "NACHTPFLEGE", totalSlots: 6, availableSlots: 3, monthlyPriceCents: 95000 },
     ],
   },
   {
@@ -66,7 +67,7 @@ const facilities = [
     maxPflegegrad: 5,
     capacities: [
       { bookingType: "KURZZEITPFLEGE", totalSlots: 15, availableSlots: 5, monthlyPriceCents: 250000 },
-      { bookingType: "TAGES_NACHTPFLEGE", totalSlots: 12, availableSlots: 4, monthlyPriceCents: 95000 },
+      { bookingType: "TAGESPFLEGE", totalSlots: 12, availableSlots: 4, monthlyPriceCents: 95000 },
     ],
   },
   {
@@ -110,7 +111,7 @@ const facilities = [
     maxPflegegrad: 5,
     capacities: [
       { bookingType: "STATIONAERE_AUFNAHME", totalSlots: 35, availableSlots: 8, monthlyPriceCents: 205000 },
-      { bookingType: "TAGES_NACHTPFLEGE", totalSlots: 18, availableSlots: 12, monthlyPriceCents: 90000 },
+      { bookingType: "TAGESPFLEGE", totalSlots: 18, availableSlots: 12, monthlyPriceCents: 90000 },
     ],
   },
   {
@@ -137,37 +138,96 @@ const facilities = [
   },
 ] as const;
 
+// Demo-Belegungszeitraum für date-basierte Kategorien (Kurzzeit-/Tages-/
+// Nachtpflege), damit "aktuell belegt" auch stimmt, wenn man die Seed-Daten
+// heute anschaut.
+const today = new Date();
+today.setUTCHours(0, 0, 0, 0);
+const demoRangeStart = new Date(today);
+demoRangeStart.setUTCDate(demoRangeStart.getUTCDate() - 5);
+const demoRangeEnd = new Date(today);
+demoRangeEnd.setUTCDate(demoRangeEnd.getUTCDate() + 10);
+
 async function main() {
   for (const { capacities, ...facility } of facilities) {
     const created = await prisma.facility.upsert({
       where: { slug: facility.slug },
       // Backfills fields added after the initial seed on already-seeded
-      // rows - safe to re-run, demo data only. Nested `capacities: {create}`
-      // below only fires on the create branch, so existing capacities are
-      // backfilled separately via their own upsert loop.
+      // rows - safe to re-run, demo data only.
       update: {
         latitude: facility.latitude,
         longitude: facility.longitude,
         minPflegegrad: facility.minPflegegrad,
         maxPflegegrad: facility.maxPflegegrad,
       },
-      create: {
-        ...facility,
-        status: "ACTIVE",
-        capacities: { create: capacities.map((c) => ({ ...c })) },
-      },
+      create: { ...facility, status: "ACTIVE" },
     });
 
     for (const capacity of capacities) {
-      await prisma.facilityCapacity.upsert({
+      const cap = await prisma.facilityCapacity.upsert({
         where: {
-          facilityId_bookingType: {
-            facilityId: created.id,
-            bookingType: capacity.bookingType,
-          },
+          facilityId_bookingType: { facilityId: created.id, bookingType: capacity.bookingType },
         },
         update: { monthlyPriceCents: capacity.monthlyPriceCents },
-        create: { facilityId: created.id, ...capacity },
+        create: {
+          facilityId: created.id,
+          bookingType: capacity.bookingType,
+          totalSlots: 0,
+          availableSlots: 0,
+          monthlyPriceCents: capacity.monthlyPriceCents,
+        },
+      });
+
+      // Units + Bookings sind der Wahrheitsträger - nur beim allerersten
+      // Seed-Lauf für diese Kategorie provisionieren, sonst würde jeder
+      // erneute Lauf weitere Plätze anhäufen.
+      const existingUnitCount = await prisma.facilityUnit.count({
+        where: { facilityId: created.id, bookingType: capacity.bookingType },
+      });
+      if (existingUnitCount === 0) {
+        const units = await Promise.all(
+          Array.from({ length: capacity.totalSlots }, (_, i) =>
+            prisma.facilityUnit.create({
+              data: {
+                facilityId: created.id,
+                bookingType: capacity.bookingType,
+                label: `Platz ${i + 1}`,
+              },
+            }),
+          ),
+        );
+
+        const isDateRanged = capacity.bookingType !== "STATIONAERE_AUFNAHME";
+        const occupiedCount = capacity.totalSlots - capacity.availableSlots;
+        for (let i = 0; i < occupiedCount; i++) {
+          await prisma.booking.create({
+            data: {
+              facilityId: created.id,
+              unitId: units[i].id,
+              bookingType: capacity.bookingType,
+              source: "TELEFON",
+              guestName: "Demo-Beleger",
+              startDate: isDateRanged ? demoRangeStart : null,
+              endDate: isDateRanged ? demoRangeEnd : null,
+            },
+          });
+        }
+      }
+
+      // Cache aus den echten Units/Bookings ableiten, statt die eingangs
+      // hartkodierten Zahlen ungeprüft zu übernehmen - genau wie die App es
+      // über availability.syncCapacityCache tut.
+      const totalUnits = await prisma.facilityUnit.count({
+        where: { facilityId: created.id, bookingType: capacity.bookingType },
+      });
+      const occupiedUnits = await prisma.booking.findMany({
+        where: { facilityId: created.id, bookingType: capacity.bookingType, status: "BESTAETIGT" },
+        select: { unitId: true },
+        distinct: ["unitId"],
+      });
+      await prisma.facilityCapacity.update({
+        where: { id: cap.id },
+        data: { totalSlots: totalUnits, availableSlots: totalUnits - occupiedUnits.length },
       });
     }
   }

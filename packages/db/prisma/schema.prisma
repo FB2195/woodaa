@@ -11,7 +11,19 @@ datasource db {
 enum BookingType {
   STATIONAERE_AUFNAHME
   KURZZEITPFLEGE
-  TAGES_NACHTPFLEGE
+  TAGESPFLEGE
+  NACHTPFLEGE
+}
+
+enum UnitBookingSource {
+  ONLINE // sofort verbindliche Buchung über Woodaa
+  TELEFON
+  VOR_ORT
+}
+
+enum UnitBookingStatus {
+  BESTAETIGT
+  STORNIERT
 }
 
 enum FacilityStatus {
@@ -134,7 +146,8 @@ model Facility {
   operatorUserId         String?                  @unique
   operator               User?                    @relation("FacilityOperator", fields: [operatorUserId], references: [id])
   capacities             FacilityCapacity[]
-  kurzzeitpflegeBookings KurzzeitpflegeBooking[]
+  units                  FacilityUnit[]
+  bookings               Booking[]
   bookingRequests        BookingRequest[]
   favoritedBy            Favorite[]
   photos                 FacilityPhoto[]
@@ -159,6 +172,11 @@ model FacilityCapacity {
   facility       Facility    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   facilityId     String
   bookingType    BookingType
+  // totalSlots/availableSlots are a maintained cache, not operator input:
+  // the single writer is availability.ts (syncCapacityCache), called
+  // transactionally after every FacilityUnit/Booking change. Source of
+  // truth is always FacilityUnit + Booking - these two columns exist only
+  // so search/list can filter and display without recomputing per request.
   totalSlots     Int
   availableSlots Int
   // Geschätzter monatlicher Eigenanteil, in Cent (avoids float rounding on
@@ -168,23 +186,62 @@ model FacilityCapacity {
   // STATIONAERE_AUFNAHME: earliest date a place opens up (e.g. all slots
   // currently full, but one frees up on this date).
   availableFrom  DateTime?
-  // TAGES_NACHTPFLEGE: free slots per weekday, e.g. {"mon":3,"tue":3,...}.
-  weekdaySlots   Json?
 
   @@unique([facilityId, bookingType])
 }
 
-// KURZZEITPFLEGE: occupied date ranges. Availability for a queried window
-// is totalSlots (on FacilityCapacity) minus overlapping ranges here, rather
-// than tracking free ranges directly - matches how staff actually think
-// about it ("these beds are taken from X to Y").
-model KurzzeitpflegeBooking {
-  id         String   @id @default(cuid())
-  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  facilityId String
-  startDate  DateTime
-  endDate    DateTime
-  createdAt  DateTime @default(now())
+// Ein einzelner buchbarer Platz/Bett innerhalb einer Kategorie. Reine
+// Identität (kein Status-Feld) - ob ein Platz gerade belegt ist, wird immer
+// live aus den aktiven Booking-Zeilen abgeleitet (siehe availability.ts),
+// nie separat gecacht, damit Anzeige und Wahrheit nie auseinanderlaufen
+// können. label ist auto-generiert ("Platz 1", ...) und vom Betreiber
+// umbenennbar (z.B. "Zimmer 4").
+model FacilityUnit {
+  id          String            @id @default(cuid())
+  facility    Facility          @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId  String
+  bookingType BookingType
+  label       String
+  createdAt   DateTime          @default(now())
+  bookings    Booking[]
+
+  @@index([facilityId, bookingType])
+}
+
+// Eine einzelne Belegung eines Platzes.
+// - STATIONAERE_AUFNAHME: startDate/endDate bleiben null (unbefristet belegt
+//   bis storniert = Auszug).
+// - KURZZEITPFLEGE/TAGESPFLEGE/NACHTPFLEGE: konkreter Zeitraum, beide Enden
+//   inklusiv (bei Tages-/Nachtpflege ist startDate = endDate = der gebuchte
+//   Tag). Ein Platz wird frühestens am Folgetag nach einer Abreise wieder
+//   für denselben Platz belegbar (Tagesgranularität, keine Uhrzeit) - bei
+//   mehreren Plätzen pro Kategorie fällt das in der Praxis nicht auf, weil
+//   die Zuteilung automatisch einen anderen freien Platz wählt.
+//
+// Überlappende aktive Buchungen auf demselben Platz sind über einen
+// EXCLUDE-Constraint auf DB-Ebene unmöglich gemacht (siehe Migration
+// 20260804_availability_engine) - das ist die eigentliche
+// Doppelbuchungssperre, nicht Applikationscode mit Locking/Retries.
+model Booking {
+  id          String            @id @default(cuid())
+  facility    Facility          @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId  String
+  unit        FacilityUnit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unitId      String
+  bookingType BookingType
+  source      UnitBookingSource
+  status      UnitBookingStatus @default(BESTAETIGT)
+  startDate   DateTime?
+  endDate     DateTime?
+  guestName   String?
+  guestEmail  String?
+  guestPhone  String?
+  note        String?
+  createdAt   DateTime          @default(now())
+  cancelledAt DateTime?
+
+  @@index([facilityId, bookingType])
+  @@index([unitId, status])
 }
 
 // Object storage lives in Cloudflare R2 - only the bucket object `key` is

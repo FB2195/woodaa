@@ -6,11 +6,19 @@ import { z } from "zod";
  */
 
 export const BookingType = z.enum([
-  "STATIONAERE_AUFNAHME", // langfristige Dauerpflege
-  "KURZZEITPFLEGE", // zeitlich befristeter Aufenthalt
-  "TAGES_NACHTPFLEGE", // teilstationäre Betreuung ohne durchgängige Übernachtung
+  "STATIONAERE_AUFNAHME", // langfristige Dauerpflege, unbefristet belegt
+  "KURZZEITPFLEGE", // zeitlich befristeter Aufenthalt (Start-/Enddatum)
+  "TAGESPFLEGE", // teilstationär tagsüber, tageweise buchbar
+  "NACHTPFLEGE", // teilstationär nachts, tageweise buchbar
 ]);
 export type BookingType = z.infer<typeof BookingType>;
+
+export const UnitBookingSource = z.enum([
+  "ONLINE", // sofort verbindliche Buchung über Woodaa
+  "TELEFON",
+  "VOR_ORT",
+]);
+export type UnitBookingSource = z.infer<typeof UnitBookingSource>;
 
 export const Role = z.enum([
   "SUCHENDE", // Angehörige / Pflegebedürftige, die einen Platz suchen
@@ -89,17 +97,6 @@ export const ResetPasswordInput = z.object({
 });
 export type ResetPasswordInput = z.infer<typeof ResetPasswordInput>;
 
-export const WeekdaySlots = z.object({
-  mon: z.number().int().min(0),
-  tue: z.number().int().min(0),
-  wed: z.number().int().min(0),
-  thu: z.number().int().min(0),
-  fri: z.number().int().min(0),
-  sat: z.number().int().min(0),
-  sun: z.number().int().min(0),
-});
-export type WeekdaySlots = z.infer<typeof WeekdaySlots>;
-
 const FacilityFields = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().min(1).max(5000),
@@ -139,23 +136,79 @@ export const UpdateFacilityInput = FacilityFields.partial().refine(
 );
 export type UpdateFacilityInput = z.infer<typeof UpdateFacilityInput>;
 
-export const UpdateCapacityInput = z.object({
+// totalSlots/availableSlots are no longer operator-editable input - they're
+// a maintained cache derived from FacilityUnit/Booking (see
+// packages/api/src/availability.ts). Pricing metadata is still direct
+// operator input, set via updatePricing.
+export const UpdatePricingInput = z.object({
   bookingType: BookingType,
-  totalSlots: z.number().int().min(0),
-  availableSlots: z.number().int().min(0),
   monthlyPriceCents: z.number().int().min(0).optional(),
   availableFrom: z.string().datetime().optional(),
-  weekdaySlots: WeekdaySlots.optional(),
 });
-export type UpdateCapacityInput = z.infer<typeof UpdateCapacityInput>;
+export type UpdatePricingInput = z.infer<typeof UpdatePricingInput>;
 
-export const KurzzeitpflegeRangeInput = z.object({
-  startDate: z.string().datetime(),
-  endDate: z.string().datetime(),
+export const SetUnitCountInput = z.object({
+  bookingType: BookingType,
+  totalUnits: z.number().int().min(0).max(500),
 });
-export type KurzzeitpflegeRangeInput = z.infer<
-  typeof KurzzeitpflegeRangeInput
->;
+export type SetUnitCountInput = z.infer<typeof SetUnitCountInput>;
+
+export const RenameUnitInput = z.object({
+  unitId: z.string().min(1),
+  label: z.string().trim().min(1).max(100),
+});
+export type RenameUnitInput = z.infer<typeof RenameUnitInput>;
+
+// Shared by the public instant-booking flow (source always "ONLINE", no
+// operator auth) and the operator's manual booking page (TELEFON/VOR_ORT).
+// startDate/endDate: required together for KURZZEITPFLEGE/TAGESPFLEGE/
+// NACHTPFLEGE (for Tages-/Nachtpflege, start === end, a single day), absent
+// for STATIONAERE_AUFNAHME (unbefristet).
+export const CreateBookingInput = z
+  .object({
+    facilityId: z.string().min(1),
+    bookingType: BookingType,
+    startDate: z.string().datetime().optional(),
+    endDate: z.string().datetime().optional(),
+    guestName: z.string().trim().min(1).max(200),
+    guestEmail: z.string().trim().email().optional(),
+    guestPhone: z.string().trim().max(50).optional(),
+    note: z.string().trim().max(1000).optional(),
+  })
+  .refine((data) => (data.startDate === undefined) === (data.endDate === undefined), {
+    message: "Start- und Enddatum müssen beide gesetzt sein oder beide leer bleiben.",
+    path: ["endDate"],
+  });
+export type CreateBookingInput = z.infer<typeof CreateBookingInput>;
+
+// Same shape as CreateBookingInput but without facilityId - used by the
+// operator's manual booking mutation, where the facility is always implied
+// by the authenticated operator, never client-supplied.
+export const CreateManualBookingInput = z
+  .object({
+    bookingType: BookingType,
+    source: z.enum(["TELEFON", "VOR_ORT"]),
+    startDate: z.string().datetime().optional(),
+    endDate: z.string().datetime().optional(),
+    guestName: z.string().trim().min(1).max(200),
+    guestEmail: z.string().trim().email().optional(),
+    guestPhone: z.string().trim().max(50).optional(),
+    note: z.string().trim().max(1000).optional(),
+  })
+  .refine((data) => (data.startDate === undefined) === (data.endDate === undefined), {
+    message: "Start- und Enddatum müssen beide gesetzt sein oder beide leer bleiben.",
+    path: ["endDate"],
+  });
+export type CreateManualBookingInput = z.infer<typeof CreateManualBookingInput>;
+
+export const CancelBookingInput = z.object({
+  bookingId: z.string().min(1),
+  // Nur für die öffentliche Stornierung durch Suchende - muss mit der
+  // beim Buchen hinterlegten E-Mail übereinstimmen. Betreiber stornieren
+  // ohne dieses Feld (Facility-Ownership reicht als Berechtigung).
+  guestEmail: z.string().trim().email().optional(),
+});
+export type CancelBookingInput = z.infer<typeof CancelBookingInput>;
 
 export const AllowedPhotoContentType = z.enum([
   "image/jpeg",

@@ -1,6 +1,7 @@
 import { accountRouter } from "./routers/account";
 import { adminRouter } from "./routers/admin";
 import { authRouter } from "./routers/auth";
+import { bookingRouter } from "./routers/booking";
 import { bookingRequestRouter } from "./routers/bookingRequest";
 import { facilityRouter } from "./routers/facility";
 import { favoriteRouter } from "./routers/favorite";
@@ -20,6 +21,7 @@ export const appRouter = router({
   }),
   auth: authRouter,
   facility: facilityRouter,
+  booking: bookingRouter,
   bookingRequest: bookingRequestRouter,
   operator: operatorRouter,
   admin: adminRouter,
