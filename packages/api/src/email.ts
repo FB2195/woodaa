@@ -9,6 +9,10 @@ function appUrl(): string {
   return "http://localhost:3000";
 }
 
+function logoHtml(): string {
+  return `<p><img src="${appUrl()}/logo.png" alt="Woodaa" width="160" style="display:block;height:auto;max-width:160px" /></p>`;
+}
+
 async function sendEmail({
   to,
   subject,
@@ -63,6 +67,7 @@ export async function sendVerificationEmail({
     to,
     subject: "Bitte bestätige deine E-Mail-Adresse bei Woodaa",
     html: `
+      ${logoHtml()}
       <p>Hallo ${name},</p>
       <p>bitte bestätige deine E-Mail-Adresse, um dein Woodaa-Konto zu aktivieren:</p>
       <p><a href="${verifyUrl}">${verifyUrl}</a></p>
@@ -95,6 +100,7 @@ export async function sendPasswordResetEmail({
     to,
     subject: "Passwort zurücksetzen bei Woodaa",
     html: `
+      ${logoHtml()}
       <p>Hallo ${name},</p>
       <p>du hast angefordert, dein Passwort bei Woodaa zurückzusetzen:</p>
       <p><a href="${resetUrl}">${resetUrl}</a></p>

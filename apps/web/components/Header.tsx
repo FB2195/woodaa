@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -83,8 +84,15 @@ export function Header() {
   return (
     <header className="border-b border-brand-border bg-brand-surface">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <Link href="/" className="text-xl font-semibold text-brand-primary-dark">
-          Woodaa
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/logo.png"
+            alt="Woodaa"
+            width={786}
+            height={412}
+            priority
+            className="h-9 w-auto"
+          />
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm text-brand-text-muted md:flex">
