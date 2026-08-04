@@ -1,6 +1,11 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+import {
+  Prisma,
+  type BookingAdminApprovalStatus,
+  type PaymentStatus,
+  type PrismaClient,
+} from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import type { BookingType } from "@woodaa/validators";
+import type { BookingType, PaymentMethod } from "@woodaa/validators";
 
 type Tx = Prisma.TransactionClient;
 
@@ -110,10 +115,15 @@ function normalizeRange(
 ): { startDate: Date | null; endDate: Date | null } {
   const start = startDate ? startOfDay(startDate) : null;
   const end = endDate ? startOfDay(endDate) : null;
-  if ((start === null) !== (end === null)) {
+  // end without a start is never sensible; start without an end is "Ende
+  // offen" (open-ended, e.g. ongoing Tages-/Nachtpflege) and is allowed -
+  // freeUnitCandidates' conflict query and the DB's GIST exclusion
+  // constraint both already treat a null upper bound as unbounded going
+  // forward, so no further special-casing is needed downstream.
+  if (start === null && end !== null) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "Start- und Enddatum müssen beide gesetzt sein oder beide leer bleiben.",
+      message: "Ohne Startdatum kann kein Enddatum gesetzt werden.",
     });
   }
   if (start && end && end < start) {
@@ -173,10 +183,30 @@ export type CreateBookingInput = {
   source: "ONLINE" | "TELEFON" | "VOR_ORT";
   startDate?: Date | null;
   endDate?: Date | null;
+  desiredStartDate?: Date | null;
+  userId?: string | null;
   guestName?: string | null;
   guestEmail?: string | null;
   guestPhone?: string | null;
+  guestFirstName?: string | null;
+  guestLastName?: string | null;
+  guestBirthDate?: Date | null;
+  guestStreet?: string | null;
+  guestPostalCode?: string | null;
+  guestCity?: string | null;
+  krankenkasse?: string | null;
+  versicherungsnummerEncrypted?: string | null;
+  pflegegrad?: number | null;
+  pflegegradAntragLaeuft?: boolean;
   note?: string | null;
+  // ONLINE bookings only - see PaymentMethod/PaymentStatus in schema.prisma.
+  paymentMethod?: PaymentMethod | null;
+  paymentStatus?: PaymentStatus | null;
+  stripePaymentIntentId?: string | null;
+  // Set when the booking user is a bevollmächtigt account - see
+  // BookingAdminApprovalStatus in schema.prisma. Defaults to
+  // NICHT_ERFORDERLICH (the Prisma schema default) when omitted.
+  adminApprovalStatus?: BookingAdminApprovalStatus;
 };
 
 // Atomically claims one free unit and books it. Auto-assigns the unit -
@@ -222,10 +252,28 @@ export async function createBooking(db: PrismaClient, input: CreateBookingInput)
             source: input.source,
             startDate,
             endDate,
+            desiredStartDate: input.desiredStartDate ?? null,
+            userId: input.userId ?? null,
             guestName: input.guestName ?? null,
             guestEmail: input.guestEmail ?? null,
             guestPhone: input.guestPhone ?? null,
+            guestFirstName: input.guestFirstName ?? null,
+            guestLastName: input.guestLastName ?? null,
+            guestBirthDate: input.guestBirthDate ?? null,
+            guestStreet: input.guestStreet ?? null,
+            guestPostalCode: input.guestPostalCode ?? null,
+            guestCity: input.guestCity ?? null,
+            krankenkasse: input.krankenkasse ?? null,
+            versicherungsnummerEncrypted: input.versicherungsnummerEncrypted ?? null,
+            pflegegrad: input.pflegegrad ?? null,
+            pflegegradAntragLaeuft: input.pflegegradAntragLaeuft ?? false,
             note: input.note ?? null,
+            paymentMethod: input.paymentMethod ?? null,
+            paymentStatus: input.paymentStatus ?? null,
+            stripePaymentIntentId: input.stripePaymentIntentId ?? null,
+            ...(input.adminApprovalStatus
+              ? { adminApprovalStatus: input.adminApprovalStatus }
+              : {}),
           },
         });
         await tx.$executeRaw`RELEASE SAVEPOINT claim_attempt`;

@@ -32,6 +32,33 @@ enum UnitBookingStatus {
   STORNIERT
 }
 
+// Nur für ONLINE-Buchungen gesetzt (siehe Booking.paymentMethod) - Telefon-/
+// Vor-Ort-Buchungen laufen komplett außerhalb dieser Felder, das Heim
+// rechnet direkt mit dem Kunden ab.
+enum PaymentMethod {
+  KARTE
+  KLARNA
+  PAYPAL
+  // Wird über das Heim abgewickelt, nicht über Woodaa/Stripe - braucht
+  // deshalb eine Freigabe durch das Heim (das Ausfallrisiko trägt es selbst).
+  RECHNUNG
+  // Die Pflegekasse zahlt das Heim direkt, belegt durch eine hochgeladene
+  // Kostenübernahmebestätigung - ebenfalls freigabepflichtig durchs Heim.
+  KOSTENUEBERNAHME_KASSE
+}
+
+enum PaymentStatus {
+  // KARTE/KLARNA/PAYPAL: noch keine Stripe-Bestätigung. RECHNUNG/
+  // KOSTENUEBERNAHME_KASSE: Kostenübernahmebestätigung noch nicht hochgeladen.
+  AUSSTEHEND
+  // Nur KARTE/KLARNA/PAYPAL: Stripe-Zahlung erfolgreich bestätigt.
+  BEZAHLT
+  // Nur RECHNUNG/KOSTENUEBERNAHME_KASSE: wartet auf das "Go" des Heims.
+  WARTET_AUF_HEIM_FREIGABE
+  FREIGEGEBEN
+  ABGELEHNT
+}
+
 enum FacilityStatus {
   ACTIVE
   PENDING_REVIEW
@@ -68,35 +95,72 @@ enum CareApplicationStatus {
   EINGEREICHT_UEBER_WOODAA
 }
 
+// Only meaningful once User.vollmachtDocumentKey is set (see there) -
+// uploading a Vollmacht is what makes an account "bevollmächtigt" at all.
+enum VollmachtReviewStatus {
+  AUSSTEHEND
+  GEPRUEFT
+  ABGELEHNT
+}
+
+// Every booking made from a bevollmächtigt account needs Woodaa staff's
+// explicit sign-off before it counts as confirmed - independent of, and in
+// addition to, any facility-side payment approval (see PaymentStatus).
+enum BookingAdminApprovalStatus {
+  NICHT_ERFORDERLICH
+  AUSSTEHEND
+  FREIGEGEBEN
+  ABGELEHNT
+}
+
 model User {
-  id                      String    @id @default(cuid())
-  email                   String    @unique
-  passwordHash            String
-  name                    String
-  role                    Role      @default(SUCHENDE)
-  emailVerifiedAt         DateTime?
-  verificationEmailSentAt DateTime?
-  failedLoginAttempts     Int       @default(0)
-  lockedUntil             DateTime?
-  twoFactorSecret         String?
-  twoFactorEnabled        Boolean   @default(false)
-  facility                Facility? @relation("FacilityOperator")
-  refreshTokens           RefreshToken[]
-  recoveryCodes           RecoveryCode[]
-  favorites               Favorite[]
-  passwordResetTokens     PasswordResetToken[]
+  id                           String                 @id @default(cuid())
+  email                        String                 @unique
+  passwordHash                 String
+  name                         String
+  role                         Role                   @default(SUCHENDE)
+  emailVerifiedAt              DateTime?
+  verificationEmailSentAt      DateTime?
+  failedLoginAttempts          Int                    @default(0)
+  lockedUntil                  DateTime?
+  twoFactorSecret              String?
+  twoFactorEnabled             Boolean                @default(false)
+  facility                     Facility?              @relation("FacilityOperator")
+  refreshTokens                RefreshToken[]
+  recoveryCodes                RecoveryCode[]
+  favorites                    Favorite[]
+  passwordResetTokens          PasswordResetToken[]
   // AES-256-GCM encrypted (see packages/api/src/crypto.ts) - a real
   // Sozialversicherungsnummer is Sozialdatum under SGB X, not just
   // ordinary PII, so it gets the same at-rest treatment as TOTP secrets.
   versicherungsnummerEncrypted String?
   // 0-5, null = not specified. Only meaningful for SUCHENDE.
-  pflegegrad              Int?
+  pflegegrad                   Int?
   // True while a Pflegegrad-Erstantrag or -Höherstufung is pending at the
   // Pflegekasse (outside Woodaa) - which label applies depends on whether
   // pflegegrad is null/0 (Erstantrag) or >=1 (Höherstufung).
-  pflegegradAntragLaeuft  Boolean   @default(false)
-  careApplications        CareApplication[]
-  createdAt               DateTime  @default(now())
+  pflegegradAntragLaeuft       Boolean                @default(false)
+  // Free-text (no fixed list of ~90 Kassen) - kept simple on purpose.
+  krankenkasse                 String?
+  // Bevollmächtigte/r Angehörige/r: the fields above (krankenkasse,
+  // versicherungsnummerEncrypted, pflegegrad, ...) already describe "the
+  // person this account books care for", which for a representative is
+  // someone else, not the account holder themselves - name/email above
+  // stay the representative's own identity. careRecipientName is the one
+  // extra field needed so BookingForm prefills the right name; everything
+  // else per-booking (birth date, address, ...) is already typed fresh
+  // every time regardless of account type.
+  careRecipientName            String?
+  // R2 object key of the uploaded Vollmacht PDF - same private,
+  // presigned-only-access treatment as Booking.kostenuebernahmeDocumentKey
+  // (never a public URL). Uploading one is what makes this account
+  // "bevollmächtigt" at all - there's no separate on/off toggle.
+  vollmachtDocumentKey         String?
+  vollmachtReviewStatus        VollmachtReviewStatus?
+  vollmachtReviewedAt          DateTime?
+  careApplications             CareApplication[]
+  bookings                     Booking[]
+  createdAt                    DateTime               @default(now())
 }
 
 // Per-booking-type tracking of whether a SUCHENDE has already applied for
@@ -164,45 +228,45 @@ model PasswordResetToken {
 }
 
 model Facility {
-  id                     String                   @id @default(cuid())
-  slug                   String                   @unique
-  name                   String
+  id              String             @id @default(cuid())
+  slug            String             @unique
+  name            String
   // Empty ("") until the operator fills it in - only required to go public
   // (ACTIVE), not to use the internal availability tool (PENDING_REVIEW is
   // fully functional). See requireDescriptionForPublicListing in
   // operator.ts.
-  description            String                   @default("")
-  street                 String
-  postalCode             String
-  city                   String
-  state                  String
-  amenities              String[]
+  description     String             @default("")
+  street          String
+  postalCode      String
+  city            String
+  state           String
+  amenities       String[]
   // Best-effort geocoded from street/postalCode/city on create/update
   // (packages/api/src/geocoding.ts) - null if geocoding failed or hasn't
   // run yet, in which case the facility just doesn't show on the map.
-  latitude               Float?
-  longitude              Float?
+  latitude        Float?
+  longitude       Float?
   // Pflegegrad-Eignung (0-5). Facility-level, not per-capacity - suitability
   // realistically doesn't vary by booking type within one home. Both null =
   // "not specified", so the facility stays visible under any Pflegegrad
   // filter rather than silently disappearing (fail-open, not fail-closed).
-  minPflegegrad          Int?
-  maxPflegegrad          Int?
-  status                 FacilityStatus           @default(PENDING_REVIEW)
-  operatorName           String
-  operatorEmail          String
-  operatorPhone          String?
-  operatorUserId         String?                  @unique
-  operator               User?                    @relation("FacilityOperator", fields: [operatorUserId], references: [id])
-  capacities             FacilityCapacity[]
-  units                  FacilityUnit[]
-  bookings               Booking[]
-  bookingRequests        BookingRequest[]
-  favoritedBy            Favorite[]
-  photos                 FacilityPhoto[]
-  reviews                Review[]
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
+  minPflegegrad   Int?
+  maxPflegegrad   Int?
+  status          FacilityStatus     @default(PENDING_REVIEW)
+  operatorName    String
+  operatorEmail   String
+  operatorPhone   String?
+  operatorUserId  String?            @unique
+  operator        User?              @relation("FacilityOperator", fields: [operatorUserId], references: [id])
+  capacities      FacilityCapacity[]
+  units           FacilityUnit[]
+  bookings        Booking[]
+  bookingRequests BookingRequest[]
+  favoritedBy     Favorite[]
+  photos          FacilityPhoto[]
+  reviews         Review[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 }
 
 model Favorite {
@@ -217,24 +281,24 @@ model Favorite {
 }
 
 model FacilityCapacity {
-  id             String      @id @default(cuid())
-  facility       Facility    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  facilityId     String
-  bookingType    BookingType
+  id                String      @id @default(cuid())
+  facility          Facility    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId        String
+  bookingType       BookingType
   // totalSlots/availableSlots are a maintained cache, not operator input:
   // the single writer is availability.ts (syncCapacityCache), called
   // transactionally after every FacilityUnit/Booking change. Source of
   // truth is always FacilityUnit + Booking - these two columns exist only
   // so search/list can filter and display without recomputing per request.
-  totalSlots     Int
-  availableSlots Int
+  totalSlots        Int
+  availableSlots    Int
   // Geschätzter monatlicher Eigenanteil, in Cent (avoids float rounding on
   // sort/compare). Null = not entered yet -> "Preis auf Anfrage", sorts last
   // under price_asc, never excludes a facility unless maxPriceCents is set.
   monthlyPriceCents Int?
   // STATIONAERE_AUFNAHME: earliest date a place opens up (e.g. all slots
   // currently full, but one frees up on this date).
-  availableFrom  DateTime?
+  availableFrom     DateTime?
 
   @@unique([facilityId, bookingType])
 }
@@ -246,12 +310,12 @@ model FacilityCapacity {
 // können. label ist auto-generiert ("Platz 1", ...) und vom Betreiber
 // umbenennbar (z.B. "Zimmer 4").
 model FacilityUnit {
-  id          String            @id @default(cuid())
-  facility    Facility          @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  id          String      @id @default(cuid())
+  facility    Facility    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   facilityId  String
   bookingType BookingType
   label       String
-  createdAt   DateTime          @default(now())
+  createdAt   DateTime    @default(now())
   bookings    Booking[]
 
   @@index([facilityId, bookingType])
@@ -272,25 +336,80 @@ model FacilityUnit {
 // 20260804_availability_engine) - das ist die eigentliche
 // Doppelbuchungssperre, nicht Applikationscode mit Locking/Retries.
 model Booking {
-  id          String            @id @default(cuid())
-  facility    Facility          @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  facilityId  String
-  unit        FacilityUnit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  unitId      String
-  bookingType BookingType
-  source      UnitBookingSource
-  status      UnitBookingStatus @default(BESTAETIGT)
-  startDate   DateTime?
-  endDate     DateTime?
-  guestName   String?
-  guestEmail  String?
-  guestPhone  String?
-  note        String?
-  createdAt   DateTime          @default(now())
-  cancelledAt DateTime?
+  id                           String                     @id @default(cuid())
+  facility                     Facility                   @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId                   String
+  unit                         FacilityUnit               @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unitId                       String
+  bookingType                  BookingType
+  source                       UnitBookingSource
+  status                       UnitBookingStatus          @default(BESTAETIGT)
+  // NULL endDate with a set startDate = "Ende offen" (open-ended, common
+  // for ongoing Tages-/Nachtpflege) - the GIST exclusion constraint already
+  // handles this correctly via daterange()'s unbounded-upper-bound
+  // semantics, same mechanism as STATIONAERE_AUFNAHME's both-null case.
+  startDate                    DateTime?
+  endDate                      DateTime?
+  // The logged-in Suchende who made this booking - null for phone/walk-in
+  // bookings entered by facility staff (no Woodaa account involved).
+  user                         User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId                       String?
+  guestName                    String?
+  guestEmail                   String?
+  guestPhone                   String?
+  // Structured guest details, collected for online bookings (prefilled
+  // from the booking user's own profile, but editable per-booking since
+  // a Bevollmächtigte/r Angehörige/r books on behalf of someone else with
+  // different data). All optional - phone/walk-in bookings via the
+  // operator dashboard don't collect this level of detail.
+  guestFirstName               String?
+  guestLastName                String?
+  guestBirthDate               DateTime?
+  guestStreet                  String?
+  guestPostalCode              String?
+  guestCity                    String?
+  krankenkasse                 String?
+  // AES-256-GCM encrypted, same as User.versicherungsnummerEncrypted.
+  versicherungsnummerEncrypted String?
+  pflegegrad                   Int?
+  pflegegradAntragLaeuft       Boolean                    @default(false)
+  // STATIONAERE_AUFNAHME only, informational: the family's stated preferred
+  // move-in date. Doesn't change occupancy/exclusion-constraint semantics
+  // (a confirmed STATIONAERE_AUFNAHME booking still occupies the unit
+  // indefinitely from creation, as before) - it's a coordination signal
+  // for the facility, not a future-dated reservation.
+  desiredStartDate             DateTime?
+  note                         String?
+  // Only set for ONLINE bookings - phone/walk-in bookings settle directly
+  // between facility and customer, outside these fields entirely.
+  paymentMethod                PaymentMethod?
+  paymentStatus                PaymentStatus?
+  // KARTE/KLARNA/PAYPAL only.
+  stripePaymentIntentId        String?
+  // RECHNUNG/KOSTENUEBERNAHME_KASSE only, set once the facility clicks
+  // "Freigeben"/"Ablehnen" on their dashboard.
+  facilityApprovedAt           DateTime?
+  // KOSTENUEBERNAHME_KASSE only: R2 object key of the uploaded
+  // Kostenübernahmebestätigung PDF. Deliberately NOT resolved through
+  // withPhotoUrl/R2_PUBLIC_URL like facility photos - this document carries
+  // Sozialdaten (name, Versicherungsnummer, Pflegegrad), so it's only ever
+  // served via a short-lived presigned GET URL (see r2.ts), never a stable
+  // public URL.
+  kostenuebernahmeDocumentKey  String?
+  // Set at creation from the booking user's isBevollmaechtigt state (see
+  // User.vollmachtDocumentKey) - NICHT_ERFORDERLICH for everyone else.
+  // Independent of paymentStatus/facilityApprovedAt above: a Bevollmächtigte
+  // account's RECHNUNG booking needs both this AND the facility's payment
+  // freigabe before it's fully confirmed.
+  adminApprovalStatus          BookingAdminApprovalStatus @default(NICHT_ERFORDERLICH)
+  adminApprovedAt              DateTime?
+  createdAt                    DateTime                   @default(now())
+  cancelledAt                  DateTime?
 
   @@index([facilityId, bookingType])
   @@index([unitId, status])
+  @@index([userId])
+  @@index([stripePaymentIntentId])
 }
 
 // Object storage lives in Cloudflare R2 - only the bucket object `key` is
@@ -305,12 +424,12 @@ model Booking {
 // of an <img>. Lets demo/seed facilities show a full gallery without a real
 // photo upload pipeline, using the exact same gallery UI real uploads use.
 model FacilityPhoto {
-  id         String        @id @default(cuid())
-  facility   Facility      @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  id         String         @id @default(cuid())
+  facility   Facility       @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   facilityId String
   key        String?
   category   PhotoCategory?
-  createdAt  DateTime      @default(now())
+  createdAt  DateTime       @default(now())
 
   @@index([facilityId])
 }

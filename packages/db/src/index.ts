@@ -55,7 +55,16 @@ type FacilityWithOperatorDetailsRaw = Prisma.FacilityGetPayload<{
     capacities: true;
     photos: true;
     reviews: true;
-    units: { include: { bookings: true } };
+    units: {
+      include: {
+        // isBevollmaechtigt lets the operator dashboard flag a booking as
+        // coming from a Bevollmächtigte/r Angehörige/r account (see
+        // User.vollmachtDocumentKey) - name/email intentionally not
+        // included here, the operator already sees guestName on the
+        // booking itself.
+        bookings: { include: { user: { select: { vollmachtDocumentKey: true } } } };
+      };
+    };
   };
 }>;
 export type FacilityWithOperatorDetails = Omit<

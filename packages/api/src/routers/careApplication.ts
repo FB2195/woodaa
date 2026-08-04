@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import {
+  ConfirmVollmachtUploadInput,
   SetCareApplicationStatusInput,
   SubmitCareApplicationInput,
   UpdateCareProfileInput,
@@ -7,6 +8,7 @@ import {
 import { generateCareApplicationPdf } from "../carePdf";
 import { decryptSecret, encryptSecret } from "../crypto";
 import { sendCareApplicationEmail } from "../email";
+import { createPresignedUploadUrl, newUserDocumentKey } from "../r2";
 import { protectedProcedure, router } from "../trpc";
 
 // Single pilot Krankenkasse for now (see conversation - "erst eine Kasse
@@ -36,13 +38,18 @@ export const careApplicationRouter = router({
     });
 
     return {
+      name: user.name,
       versicherungsnummer: user.versicherungsnummerEncrypted
         ? decryptSecret(user.versicherungsnummerEncrypted)
         : null,
       pflegegrad: user.pflegegrad,
       pflegegradAntragLaeuft: user.pflegegradAntragLaeuft,
+      krankenkasse: user.krankenkasse,
       applications: user.careApplications,
       krankenkasseConfigured: pilotKrankenkasse() !== null,
+      careRecipientName: user.careRecipientName,
+      isBevollmaechtigt: user.vollmachtDocumentKey !== null,
+      vollmachtReviewStatus: user.vollmachtReviewStatus,
     };
   }),
 
@@ -59,6 +66,34 @@ export const careApplicationRouter = router({
           ...(input.pflegegradAntragLaeuft !== undefined
             ? { pflegegradAntragLaeuft: input.pflegegradAntragLaeuft }
             : {}),
+          ...(input.krankenkasse !== undefined ? { krankenkasse: input.krankenkasse } : {}),
+          ...(input.careRecipientName !== undefined
+            ? { careRecipientName: input.careRecipientName }
+            : {}),
+        },
+      });
+    }),
+
+  // Two-step upload like operator.requestPhotoUpload/confirmPhotoUpload -
+  // uploading a Vollmacht is what makes this account "bevollmächtigt" at
+  // all (see User.vollmachtDocumentKey), so confirming it also (re)sets
+  // vollmachtReviewStatus to AUSSTEHEND, even on a re-upload after a
+  // rejection.
+  requestVollmachtUpload: protectedProcedure.mutation(async ({ ctx }) => {
+    const key = newUserDocumentKey(ctx.user.id, "pdf");
+    const uploadUrl = await createPresignedUploadUrl(key, "application/pdf");
+    return { uploadUrl, key };
+  }),
+
+  confirmVollmachtUpload: protectedProcedure
+    .input(ConfirmVollmachtUploadInput)
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.user.update({
+        where: { id: ctx.user.id },
+        data: {
+          vollmachtDocumentKey: input.key,
+          vollmachtReviewStatus: "AUSSTEHEND",
+          vollmachtReviewedAt: null,
         },
       });
     }),

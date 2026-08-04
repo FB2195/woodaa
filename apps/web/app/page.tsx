@@ -96,7 +96,10 @@ export default async function HomePage() {
           </p>
         </div>
 
-        <SearchForm className="relative mx-auto mt-10 flex max-w-2xl flex-col gap-3 rounded-brand-lg bg-brand-surface p-4 shadow-lg sm:flex-row" />
+        <SearchForm
+          showRadius
+          className="relative mx-auto mt-10 flex max-w-2xl flex-col gap-3 rounded-brand-lg bg-brand-surface p-4 shadow-lg sm:flex-row"
+        />
 
         <div className="relative mx-auto mt-10 flex max-w-2xl flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-white/70">
           <span>

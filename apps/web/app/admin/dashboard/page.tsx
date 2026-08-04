@@ -1,17 +1,22 @@
 import { Header } from "@/components/Header";
+import { PendingBookingApprovalRow } from "@/components/admin/PendingBookingApprovalRow";
 import { PendingFacilityRow } from "@/components/admin/PendingFacilityRow";
 import { PendingReviewRow } from "@/components/admin/PendingReviewRow";
+import { PendingVollmachtRow } from "@/components/admin/PendingVollmachtRow";
 import { TwoFactorSetup } from "@/components/admin/TwoFactorSetup";
 import { getTrpcServer } from "@/lib/trpc-server";
 
 export default async function AdminDashboardPage() {
   const trpcServer = await getTrpcServer();
-  const [pending, active, me, pendingReviews] = await Promise.all([
-    trpcServer.admin.pendingFacilities(),
-    trpcServer.admin.activeFacilities(),
-    trpcServer.auth.me(),
-    trpcServer.admin.pendingReviews(),
-  ]);
+  const [pending, active, me, pendingReviews, pendingVollmachten, pendingBookingApprovals] =
+    await Promise.all([
+      trpcServer.admin.pendingFacilities(),
+      trpcServer.admin.activeFacilities(),
+      trpcServer.auth.me(),
+      trpcServer.admin.pendingReviews(),
+      trpcServer.admin.pendingVollmachten(),
+      trpcServer.admin.pendingBookingApprovals(),
+    ]);
 
   return (
     <main className="min-h-screen">
@@ -69,6 +74,45 @@ export default async function AdminDashboardPage() {
           ) : (
             pendingReviews.map((review) => (
               <PendingReviewRow key={review.id} review={review} />
+            ))
+          )}
+        </div>
+
+        <h2 className="mt-12 text-2xl font-bold text-brand-primary-dark">
+          Vollmachten prüfen
+        </h2>
+        <p className="mt-1 text-sm text-brand-text-muted">
+          {pendingVollmachten.length}{" "}
+          {pendingVollmachten.length === 1 ? "Konto wartet" : "Konten warten"} auf Prüfung
+        </p>
+        <div className="mt-6 flex flex-col gap-4">
+          {pendingVollmachten.length === 0 ? (
+            <p className="rounded-brand-lg border border-brand-border bg-brand-surface p-6 text-sm text-brand-text-muted">
+              Aktuell nichts zu prüfen.
+            </p>
+          ) : (
+            pendingVollmachten.map((vollmacht) => (
+              <PendingVollmachtRow key={vollmacht.id} vollmacht={vollmacht} />
+            ))
+          )}
+        </div>
+
+        <h2 className="mt-12 text-2xl font-bold text-brand-primary-dark">
+          Buchungen von Bevollmächtigten prüfen
+        </h2>
+        <p className="mt-1 text-sm text-brand-text-muted">
+          {pendingBookingApprovals.length}{" "}
+          {pendingBookingApprovals.length === 1 ? "Buchung wartet" : "Buchungen warten"} auf
+          Freigabe
+        </p>
+        <div className="mt-6 flex flex-col gap-4">
+          {pendingBookingApprovals.length === 0 ? (
+            <p className="rounded-brand-lg border border-brand-border bg-brand-surface p-6 text-sm text-brand-text-muted">
+              Aktuell nichts zu prüfen.
+            </p>
+          ) : (
+            pendingBookingApprovals.map((booking) => (
+              <PendingBookingApprovalRow key={booking.id} booking={booking} />
             ))
           )}
         </div>

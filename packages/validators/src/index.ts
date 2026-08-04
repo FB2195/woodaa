@@ -20,6 +20,19 @@ export const UnitBookingSource = z.enum([
 ]);
 export type UnitBookingSource = z.infer<typeof UnitBookingSource>;
 
+export const PaymentMethod = z.enum([
+  "KARTE",
+  "KLARNA",
+  "PAYPAL",
+  "RECHNUNG", // wird über das Heim abgewickelt, braucht dessen Freigabe
+  "KOSTENUEBERNAHME_KASSE", // Kasse zahlt das Heim direkt, braucht Beleg + Freigabe
+]);
+export type PaymentMethod = z.infer<typeof PaymentMethod>;
+
+// RECHNUNG/KOSTENUEBERNAHME_KASSE brauchen keine Stripe-Zahlung, laufen also
+// nicht über booking.create's Stripe-Zweig - siehe routers/booking.ts.
+export const paymentMethodsRequiringStripe: PaymentMethod[] = ["KARTE", "KLARNA", "PAYPAL"];
+
 export const Role = z.enum([
   "SUCHENDE", // Angehörige / Pflegebedürftige, die einen Platz suchen
   "BETREIBER", // Pflegeheim-Betreiber
@@ -36,6 +49,17 @@ export const Pflegegrad = z.union([
   z.literal(5),
 ]);
 export type Pflegegrad = z.infer<typeof Pflegegrad>;
+
+// A real Sozialversicherungsnummer, not just a display string - loosely
+// validated (12 chars: 2 digits, 6 digits birthdate, letter, 2 digits, 1
+// checksum digit per the official format) but not over-strict, since
+// getting this wrong shouldn't block submission - the Pflegekasse
+// validates it for real.
+export const Versicherungsnummer = z
+  .string()
+  .trim()
+  .regex(/^[0-9]{8}[A-Za-z][0-9]{3}$/, "Das sieht nicht wie eine gültige Versicherungsnummer aus.");
+export type Versicherungsnummer = z.infer<typeof Versicherungsnummer>;
 
 export const SortOption = z.enum(["newest", "price_asc", "distance_asc"]);
 export type SortOption = z.infer<typeof SortOption>;
@@ -162,24 +186,38 @@ export const RenameUnitInput = z.object({
 });
 export type RenameUnitInput = z.infer<typeof RenameUnitInput>;
 
-// Shared by the public instant-booking flow (source always "ONLINE", no
-// operator auth) and the operator's manual booking page (TELEFON/VOR_ORT).
-// startDate/endDate: required together for KURZZEITPFLEGE/TAGESPFLEGE/
-// NACHTPFLEGE (for Tages-/Nachtpflege, start === end, a single day), absent
-// for STATIONAERE_AUFNAHME (unbefristet).
+// The public instant-booking flow - requires login (see booking.ts:
+// protectedProcedure), so guestEmail/guestName aren't collected here
+// anymore (derived server-side from the authenticated user and
+// guestFirstName/guestLastName respectively). startDate/endDate: required
+// for KURZZEITPFLEGE/TAGESPFLEGE/NACHTPFLEGE (for Tages-/Nachtpflege,
+// start === end for a single day); endDate may be left off for "Ende
+// offen" (open-ended, common for ongoing Tages-/Nachtpflege); both absent
+// for STATIONAERE_AUFNAHME (unbefristet - use desiredStartDate instead,
+// purely informational).
 export const CreateBookingInput = z
   .object({
     facilityId: z.string().min(1),
     bookingType: BookingType,
     startDate: z.string().datetime().optional(),
     endDate: z.string().datetime().optional(),
-    guestName: z.string().trim().min(1).max(200),
-    guestEmail: z.string().trim().email().optional(),
+    desiredStartDate: z.string().datetime().optional(),
+    guestFirstName: z.string().trim().min(1).max(200),
+    guestLastName: z.string().trim().min(1).max(200),
+    guestBirthDate: z.string().datetime(),
+    guestStreet: z.string().trim().min(1).max(200),
+    guestPostalCode: z.string().trim().min(1).max(20),
+    guestCity: z.string().trim().min(1).max(200),
+    krankenkasse: z.string().trim().min(1).max(200),
+    versicherungsnummer: Versicherungsnummer,
+    pflegegrad: Pflegegrad,
+    pflegegradAntragLaeuft: z.boolean().optional(),
     guestPhone: z.string().trim().max(50).optional(),
     note: z.string().trim().max(1000).optional(),
+    paymentMethod: PaymentMethod,
   })
-  .refine((data) => (data.startDate === undefined) === (data.endDate === undefined), {
-    message: "Start- und Enddatum müssen beide gesetzt sein oder beide leer bleiben.",
+  .refine((data) => !(data.startDate === undefined && data.endDate !== undefined), {
+    message: "Ohne Startdatum kann kein Enddatum gesetzt werden.",
     path: ["endDate"],
   });
 export type CreateBookingInput = z.infer<typeof CreateBookingInput>;
@@ -252,22 +290,26 @@ export const CreateReviewInput = z.object({
 export type CreateReviewInput = z.infer<typeof CreateReviewInput>;
 
 // A real Sozialversicherungsnummer, not just a display string - loosely
-// validated (12 chars: 2 digits, 6 digits birthdate, letter, 2 digits, 1
-// checksum digit per the official format) but not over-strict, since
-// getting this wrong shouldn't block submission - the Pflegekasse
-// validates it for real.
-export const Versicherungsnummer = z
-  .string()
-  .trim()
-  .regex(/^[0-9]{8}[A-Za-z][0-9]{3}$/, "Das sieht nicht wie eine gültige Versicherungsnummer aus.");
-export type Versicherungsnummer = z.infer<typeof Versicherungsnummer>;
-
 export const UpdateCareProfileInput = z.object({
   versicherungsnummer: Versicherungsnummer.optional(),
   pflegegrad: Pflegegrad.optional(),
   pflegegradAntragLaeuft: z.boolean().optional(),
+  krankenkasse: z.string().trim().min(1).max(200).optional(),
+  // Bevollmächtigte/r Angehörige/r only - the person this account books
+  // care for, distinct from the account holder's own name.
+  careRecipientName: z.string().trim().min(1).max(200).optional(),
 });
 export type UpdateCareProfileInput = z.infer<typeof UpdateCareProfileInput>;
+
+// Vollmacht PDF upload - same request/confirm two-step as facility photos
+// (RequestPhotoUploadInput above) and the Kostenübernahme document
+// (RequestKostenuebernahmeUploadInput below), just scoped to the logged-in
+// user directly rather than a specific booking. Uploading one is what
+// makes an account "bevollmächtigt" - see User.vollmachtDocumentKey.
+export const ConfirmVollmachtUploadInput = z.object({
+  key: z.string().min(1).max(500),
+});
+export type ConfirmVollmachtUploadInput = z.infer<typeof ConfirmVollmachtUploadInput>;
 
 // Client-settable states only - EINGEREICHT_UEBER_WOODAA is set by the
 // server itself once submitCareApplication actually sends the PDF.
@@ -292,3 +334,28 @@ export const SubmitCareApplicationInput = z.object({
   confirmed: z.literal(true),
 });
 export type SubmitCareApplicationInput = z.infer<typeof SubmitCareApplicationInput>;
+
+// Kostenübernahmebestätigung upload (KOSTENUEBERNAHME_KASSE bookings only) -
+// same request/confirm two-step as facility photos (see RequestPhotoUploadInput
+// above), just PDF-only and scoped to one specific booking.
+export const RequestKostenuebernahmeUploadInput = z.object({
+  bookingId: z.string().min(1),
+});
+export type RequestKostenuebernahmeUploadInput = z.infer<
+  typeof RequestKostenuebernahmeUploadInput
+>;
+
+export const ConfirmKostenuebernahmeUploadInput = z.object({
+  bookingId: z.string().min(1),
+  key: z.string().min(1).max(500),
+});
+export type ConfirmKostenuebernahmeUploadInput = z.infer<
+  typeof ConfirmKostenuebernahmeUploadInput
+>;
+
+// RECHNUNG/KOSTENUEBERNAHME_KASSE bookings sit in WARTET_AUF_HEIM_FREIGABE
+// until the facility approves or rejects them on their dashboard.
+export const BookingPaymentApprovalInput = z.object({
+  bookingId: z.string().min(1),
+});
+export type BookingPaymentApprovalInput = z.infer<typeof BookingPaymentApprovalInput>;

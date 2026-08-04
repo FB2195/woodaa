@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import {
   AllowedPhotoContentType,
+  BookingPaymentApprovalInput,
   CancelBookingInput,
   ConfirmPhotoUploadInput,
   CreateFacilityInput,
@@ -16,7 +17,14 @@ import { z } from "zod";
 import { cancelBooking, createBooking, setUnitCount } from "../availability";
 import { geocodeAddress } from "../geocoding";
 import { slugify } from "../lib/slugify";
-import { createPresignedUploadUrl, deleteObject, newPhotoKey, withPhotoUrl } from "../r2";
+import {
+  createPresignedDownloadUrl,
+  createPresignedUploadUrl,
+  deleteObject,
+  newPhotoKey,
+  withPhotoUrl,
+} from "../r2";
+import { stripeClient } from "../stripe";
 import { operatorProcedure, router } from "../trpc";
 import type { Context } from "../trpc";
 
@@ -71,8 +79,14 @@ export const operatorRouter = router({
           orderBy: { createdAt: "asc" },
           include: {
             // Active bookings only - the manual booking page shows current
-            // occupancy, not full history.
-            bookings: { where: { status: "BESTAETIGT" }, orderBy: { createdAt: "desc" } },
+            // occupancy, not full history. user.vollmachtDocumentKey flags
+            // bookings from a Bevollmächtigte/r Angehörige/r account (see
+            // FacilityWithOperatorDetails in @woodaa/db).
+            bookings: {
+              where: { status: "BESTAETIGT" },
+              orderBy: { createdAt: "desc" },
+              include: { user: { select: { vollmachtDocumentKey: true } } },
+            },
           },
         },
       },
@@ -254,7 +268,59 @@ export const operatorRouter = router({
     .input(CancelBookingInput)
     .mutation(async ({ ctx, input }) => {
       const facility = await requireOwnFacility(ctx);
-      return cancelBooking(ctx.db, input.bookingId, { requireFacilityId: facility.id });
+      const booking = await cancelBooking(ctx.db, input.bookingId, {
+        requireFacilityId: facility.id,
+      });
+      if (booking.paymentStatus === "BEZAHLT" && booking.stripePaymentIntentId) {
+        await stripeClient().refunds.create({ payment_intent: booking.stripePaymentIntentId });
+      }
+      return booking;
+    }),
+
+  // RECHNUNG/KOSTENUEBERNAHME_KASSE-Buchungen brauchen das "Go" des Heims,
+  // bevor sie als zahlungsbestätigt gelten - das Heim trägt bei RECHNUNG das
+  // Ausfallrisiko selbst bzw. bestätigt bei KOSTENUEBERNAHME_KASSE, dass der
+  // hochgeladene Beleg plausibel ist.
+  approveBookingPayment: operatorProcedure
+    .input(BookingPaymentApprovalInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
+      }
+      return ctx.db.booking.update({
+        where: { id: booking.id },
+        data: { paymentStatus: "FREIGEGEBEN", facilityApprovedAt: new Date() },
+      });
+    }),
+
+  // Storniert die Buchung gleich mit - ohne Freigabe gibt es keinen
+  // gültigen Zahlungsweg mehr, der Platz darf nicht länger blockiert bleiben.
+  rejectBookingPayment: operatorProcedure
+    .input(BookingPaymentApprovalInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
+      }
+      await ctx.db.booking.update({
+        where: { id: booking.id },
+        data: { paymentStatus: "ABGELEHNT" },
+      });
+      return cancelBooking(ctx.db, booking.id, { requireFacilityId: facility.id });
+    }),
+
+  kostenuebernahmeDownloadUrl: operatorProcedure
+    .input(BookingPaymentApprovalInput)
+    .query(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.facilityId !== facility.id || !booking.kostenuebernahmeDocumentKey) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return { url: await createPresignedDownloadUrl(booking.kostenuebernahmeDocumentKey) };
     }),
 
   requestPhotoUpload: operatorProcedure

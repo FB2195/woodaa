@@ -166,7 +166,11 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
         </div>
 
         <div>
-          <BookingSidebar facilityId={facility.id} availableBookingTypes={availableBookingTypes} />
+          <BookingSidebar
+            facilityId={facility.id}
+            slug={slug}
+            availableBookingTypes={availableBookingTypes}
+          />
         </div>
       </section>
     </main>

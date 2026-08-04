@@ -37,7 +37,10 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/betreiber/dashboard") ||
     pathname.startsWith("/admin/dashboard") ||
     pathname.startsWith("/konto") ||
-    pathname.startsWith("/favoriten");
+    pathname.startsWith("/favoriten") ||
+    // Verbindliches Buchen braucht ein Konto (Sozialdaten, Nachvollziehbarkeit) -
+    // unverbindliches Anfragen auf der Einrichtungsseite selbst bleibt offen.
+    /^\/einrichtung\/[^/]+\/buchen$/.test(pathname);
 
   if (isDashboardRoute && !request.cookies.has(ACCESS_COOKIE)) {
     const url = request.nextUrl.clone();
