@@ -95,19 +95,37 @@ enum CareApplicationStatus {
   EINGEREICHT_UEBER_WOODAA
 }
 
+// Only meaningful once User.vollmachtDocumentKey is set (see there) -
+// uploading a Vollmacht is what makes an account "bevollmächtigt" at all.
+enum VollmachtReviewStatus {
+  AUSSTEHEND
+  GEPRUEFT
+  ABGELEHNT
+}
+
+// Every booking made from a bevollmächtigt account needs Woodaa staff's
+// explicit sign-off before it counts as confirmed - independent of, and in
+// addition to, any facility-side payment approval (see PaymentStatus).
+enum BookingAdminApprovalStatus {
+  NICHT_ERFORDERLICH
+  AUSSTEHEND
+  FREIGEGEBEN
+  ABGELEHNT
+}
+
 model User {
-  id                           String               @id @default(cuid())
-  email                        String               @unique
+  id                           String                 @id @default(cuid())
+  email                        String                 @unique
   passwordHash                 String
   name                         String
-  role                         Role                 @default(SUCHENDE)
+  role                         Role                   @default(SUCHENDE)
   emailVerifiedAt              DateTime?
   verificationEmailSentAt      DateTime?
-  failedLoginAttempts          Int                  @default(0)
+  failedLoginAttempts          Int                    @default(0)
   lockedUntil                  DateTime?
   twoFactorSecret              String?
-  twoFactorEnabled             Boolean              @default(false)
-  facility                     Facility?            @relation("FacilityOperator")
+  twoFactorEnabled             Boolean                @default(false)
+  facility                     Facility?              @relation("FacilityOperator")
   refreshTokens                RefreshToken[]
   recoveryCodes                RecoveryCode[]
   favorites                    Favorite[]
@@ -121,12 +139,28 @@ model User {
   // True while a Pflegegrad-Erstantrag or -Höherstufung is pending at the
   // Pflegekasse (outside Woodaa) - which label applies depends on whether
   // pflegegrad is null/0 (Erstantrag) or >=1 (Höherstufung).
-  pflegegradAntragLaeuft       Boolean              @default(false)
+  pflegegradAntragLaeuft       Boolean                @default(false)
   // Free-text (no fixed list of ~90 Kassen) - kept simple on purpose.
   krankenkasse                 String?
+  // Bevollmächtigte/r Angehörige/r: the fields above (krankenkasse,
+  // versicherungsnummerEncrypted, pflegegrad, ...) already describe "the
+  // person this account books care for", which for a representative is
+  // someone else, not the account holder themselves - name/email above
+  // stay the representative's own identity. careRecipientName is the one
+  // extra field needed so BookingForm prefills the right name; everything
+  // else per-booking (birth date, address, ...) is already typed fresh
+  // every time regardless of account type.
+  careRecipientName            String?
+  // R2 object key of the uploaded Vollmacht PDF - same private,
+  // presigned-only-access treatment as Booking.kostenuebernahmeDocumentKey
+  // (never a public URL). Uploading one is what makes this account
+  // "bevollmächtigt" at all - there's no separate on/off toggle.
+  vollmachtDocumentKey         String?
+  vollmachtReviewStatus        VollmachtReviewStatus?
+  vollmachtReviewedAt          DateTime?
   careApplications             CareApplication[]
   bookings                     Booking[]
-  createdAt                    DateTime             @default(now())
+  createdAt                    DateTime               @default(now())
 }
 
 // Per-booking-type tracking of whether a SUCHENDE has already applied for
@@ -302,14 +336,14 @@ model FacilityUnit {
 // 20260804_availability_engine) - das ist die eigentliche
 // Doppelbuchungssperre, nicht Applikationscode mit Locking/Retries.
 model Booking {
-  id                           String            @id @default(cuid())
-  facility                     Facility          @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  id                           String                     @id @default(cuid())
+  facility                     Facility                   @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   facilityId                   String
-  unit                         FacilityUnit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unit                         FacilityUnit               @relation(fields: [unitId], references: [id], onDelete: Cascade)
   unitId                       String
   bookingType                  BookingType
   source                       UnitBookingSource
-  status                       UnitBookingStatus @default(BESTAETIGT)
+  status                       UnitBookingStatus          @default(BESTAETIGT)
   // NULL endDate with a set startDate = "Ende offen" (open-ended, common
   // for ongoing Tages-/Nachtpflege) - the GIST exclusion constraint already
   // handles this correctly via daterange()'s unbounded-upper-bound
@@ -318,7 +352,7 @@ model Booking {
   endDate                      DateTime?
   // The logged-in Suchende who made this booking - null for phone/walk-in
   // bookings entered by facility staff (no Woodaa account involved).
-  user                         User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user                         User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId                       String?
   guestName                    String?
   guestEmail                   String?
@@ -338,7 +372,7 @@ model Booking {
   // AES-256-GCM encrypted, same as User.versicherungsnummerEncrypted.
   versicherungsnummerEncrypted String?
   pflegegrad                   Int?
-  pflegegradAntragLaeuft       Boolean           @default(false)
+  pflegegradAntragLaeuft       Boolean                    @default(false)
   // STATIONAERE_AUFNAHME only, informational: the family's stated preferred
   // move-in date. Doesn't change occupancy/exclusion-constraint semantics
   // (a confirmed STATIONAERE_AUFNAHME booking still occupies the unit
@@ -362,7 +396,14 @@ model Booking {
   // served via a short-lived presigned GET URL (see r2.ts), never a stable
   // public URL.
   kostenuebernahmeDocumentKey  String?
-  createdAt                    DateTime          @default(now())
+  // Set at creation from the booking user's isBevollmaechtigt state (see
+  // User.vollmachtDocumentKey) - NICHT_ERFORDERLICH for everyone else.
+  // Independent of paymentStatus/facilityApprovedAt above: a Bevollmächtigte
+  // account's RECHNUNG booking needs both this AND the facility's payment
+  // freigabe before it's fully confirmed.
+  adminApprovalStatus          BookingAdminApprovalStatus @default(NICHT_ERFORDERLICH)
+  adminApprovedAt              DateTime?
+  createdAt                    DateTime                   @default(now())
   cancelledAt                  DateTime?
 
   @@index([facilityId, bookingType])

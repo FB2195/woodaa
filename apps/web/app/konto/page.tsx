@@ -1,6 +1,7 @@
 import { CareApplicationsSection } from "@/components/account/CareApplicationsSection";
 import { DeleteAccountForm } from "@/components/account/DeleteAccountForm";
 import { ExportDataButton } from "@/components/account/ExportDataButton";
+import { VollmachtSection } from "@/components/account/VollmachtSection";
 import { Header } from "@/components/Header";
 import { getTrpcServer } from "@/lib/trpc-server";
 
@@ -48,7 +49,12 @@ export default async function AccountPage() {
           </div>
         </div>
 
-        {me.role === "SUCHENDE" && <CareApplicationsSection />}
+        {me.role === "SUCHENDE" && (
+          <>
+            <CareApplicationsSection />
+            <VollmachtSection />
+          </>
+        )}
 
         {me.role !== "ADMIN" && (
           <div className="mt-10 border-t border-brand-border pt-8">

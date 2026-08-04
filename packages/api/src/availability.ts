@@ -1,4 +1,9 @@
-import { Prisma, type PaymentStatus, type PrismaClient } from "@prisma/client";
+import {
+  Prisma,
+  type BookingAdminApprovalStatus,
+  type PaymentStatus,
+  type PrismaClient,
+} from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import type { BookingType, PaymentMethod } from "@woodaa/validators";
 
@@ -198,6 +203,10 @@ export type CreateBookingInput = {
   paymentMethod?: PaymentMethod | null;
   paymentStatus?: PaymentStatus | null;
   stripePaymentIntentId?: string | null;
+  // Set when the booking user is a bevollmächtigt account - see
+  // BookingAdminApprovalStatus in schema.prisma. Defaults to
+  // NICHT_ERFORDERLICH (the Prisma schema default) when omitted.
+  adminApprovalStatus?: BookingAdminApprovalStatus;
 };
 
 // Atomically claims one free unit and books it. Auto-assigns the unit -
@@ -262,6 +271,9 @@ export async function createBooking(db: PrismaClient, input: CreateBookingInput)
             paymentMethod: input.paymentMethod ?? null,
             paymentStatus: input.paymentStatus ?? null,
             stripePaymentIntentId: input.stripePaymentIntentId ?? null,
+            ...(input.adminApprovalStatus
+              ? { adminApprovalStatus: input.adminApprovalStatus }
+              : {}),
           },
         });
         await tx.$executeRaw`RELEASE SAVEPOINT claim_attempt`;

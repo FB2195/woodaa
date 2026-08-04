@@ -90,6 +90,13 @@ export function newDocumentKey(bookingId: string, extension: string): string {
   return `booking-documents/${bookingId}/${randomUUID()}.${extension}`;
 }
 
+// Vollmacht PDFs are scoped to the uploading user, not a booking (see
+// User.vollmachtDocumentKey) - same private, presigned-only access pattern
+// as newDocumentKey above.
+export function newUserDocumentKey(userId: string, extension: string): string {
+  return `user-documents/${userId}/${randomUUID()}.${extension}`;
+}
+
 export async function deleteObject(key: string): Promise<void> {
   await r2Client().send(
     new DeleteObjectCommand({ Bucket: requireEnv("R2_BUCKET_NAME"), Key: key }),

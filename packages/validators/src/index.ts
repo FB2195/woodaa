@@ -295,8 +295,21 @@ export const UpdateCareProfileInput = z.object({
   pflegegrad: Pflegegrad.optional(),
   pflegegradAntragLaeuft: z.boolean().optional(),
   krankenkasse: z.string().trim().min(1).max(200).optional(),
+  // Bevollmächtigte/r Angehörige/r only - the person this account books
+  // care for, distinct from the account holder's own name.
+  careRecipientName: z.string().trim().min(1).max(200).optional(),
 });
 export type UpdateCareProfileInput = z.infer<typeof UpdateCareProfileInput>;
+
+// Vollmacht PDF upload - same request/confirm two-step as facility photos
+// (RequestPhotoUploadInput above) and the Kostenübernahme document
+// (RequestKostenuebernahmeUploadInput below), just scoped to the logged-in
+// user directly rather than a specific booking. Uploading one is what
+// makes an account "bevollmächtigt" - see User.vollmachtDocumentKey.
+export const ConfirmVollmachtUploadInput = z.object({
+  key: z.string().min(1).max(500),
+});
+export type ConfirmVollmachtUploadInput = z.infer<typeof ConfirmVollmachtUploadInput>;
 
 // Client-settable states only - EINGEREICHT_UEBER_WOODAA is set by the
 // server itself once submitCareApplication actually sends the PDF.

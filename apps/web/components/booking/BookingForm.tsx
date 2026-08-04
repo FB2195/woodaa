@@ -26,6 +26,8 @@ type Profile = {
   pflegegrad: number | null;
   pflegegradAntragLaeuft: boolean;
   krankenkasse: string | null;
+  careRecipientName: string | null;
+  isBevollmaechtigt: boolean;
 };
 
 function splitName(name: string): { firstName: string; lastName: string } {
@@ -117,7 +119,13 @@ export function BookingForm({
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const createBooking = trpc.booking.create.useMutation();
 
-  const { firstName, lastName } = splitName(profile.name);
+  // Bevollmächtigte/r: prefill with the care recipient's name, not the
+  // account holder's own name (profile.name) - see VollmachtSection.tsx.
+  const { firstName, lastName } = splitName(
+    profile.isBevollmaechtigt && profile.careRecipientName
+      ? profile.careRecipientName
+      : profile.name,
+  );
   const isDateRanged = bookingType ? dateRangedBookingTypes.includes(bookingType) : false;
   const isStationaer = bookingType === "STATIONAERE_AUFNAHME";
   const capacity = capacities.find((c) => c.bookingType === bookingType);
@@ -180,6 +188,12 @@ export function BookingForm({
         )}
         {booking.paymentMethod === "KOSTENUEBERNAHME_KASSE" && (
           <KostenuebernahmeUpload bookingId={booking.id} />
+        )}
+        {booking.adminApprovalStatus === "AUSSTEHEND" && (
+          <p className="mt-2 text-sm text-brand-text-muted">
+            Da du als bevollmächtigte/r Angehörige/r buchst, prüft unser Team diese
+            Buchung noch zusätzlich - du hörst in Kürze von uns.
+          </p>
         )}
         <CancelBookingBox bookingId={booking.id} />
       </div>
@@ -457,6 +471,13 @@ export function BookingForm({
           </p>
         )}
       </fieldset>
+
+      {profile.isBevollmaechtigt && (
+        <p className="text-xs text-brand-text-muted">
+          Da du als bevollmächtigte/r Angehörige/r buchst, prüft unser Team diese Buchung
+          zusätzlich, bevor sie endgültig bestätigt wird.
+        </p>
+      )}
 
       <p className="text-xs text-brand-text-muted">
         Storno: Bis 48 Std. vorher kannst du kostenlos stornieren.
