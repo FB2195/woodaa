@@ -57,6 +57,17 @@ enum Role {
   ADMIN
 }
 
+enum CareApplicationStatus {
+  // User says they've already applied for this care type themselves,
+  // outside Woodaa (e.g. previous Kurzzeitpflege stay).
+  BEREITS_BEANTRAGT
+  // Not applied yet - the default for a freshly-tracked booking type.
+  MUSS_BEANTRAGT_WERDEN
+  // Filled out and signed the form on Woodaa; the PDF has been emailed to
+  // the Pflegekasse. submittedAt records when.
+  EINGEREICHT_UEBER_WOODAA
+}
+
 model User {
   id                      String    @id @default(cuid())
   email                   String    @unique
@@ -74,7 +85,35 @@ model User {
   recoveryCodes           RecoveryCode[]
   favorites               Favorite[]
   passwordResetTokens     PasswordResetToken[]
+  // AES-256-GCM encrypted (see packages/api/src/crypto.ts) - a real
+  // Sozialversicherungsnummer is Sozialdatum under SGB X, not just
+  // ordinary PII, so it gets the same at-rest treatment as TOTP secrets.
+  versicherungsnummerEncrypted String?
+  // 0-5, null = not specified. Only meaningful for SUCHENDE.
+  pflegegrad              Int?
+  // True while a Pflegegrad-Erstantrag or -Höherstufung is pending at the
+  // Pflegekasse (outside Woodaa) - which label applies depends on whether
+  // pflegegrad is null/0 (Erstantrag) or >=1 (Höherstufung).
+  pflegegradAntragLaeuft  Boolean   @default(false)
+  careApplications        CareApplication[]
   createdAt               DateTime  @default(now())
+}
+
+// Per-booking-type tracking of whether a SUCHENDE has already applied for
+// that care benefit at their Pflegekasse, still needs to, or has just
+// submitted the application through Woodaa (see careApplication.ts router
+// - generates a signed PDF and emails it to the Pflegekasse).
+model CareApplication {
+  id          String                @id @default(cuid())
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  bookingType BookingType
+  status      CareApplicationStatus @default(MUSS_BEANTRAGT_WERDEN)
+  submittedAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@unique([userId, bookingType])
 }
 
 // Hashed (SHA-256), not raw — a DB leak shouldn't yield directly reusable

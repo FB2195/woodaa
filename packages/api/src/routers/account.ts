@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { decryptSecret } from "../crypto";
 import { protectedProcedure, router } from "../trpc";
 
 export const accountRouter = router({
@@ -18,15 +19,32 @@ export const accountRouter = router({
         role: true,
         createdAt: true,
         emailVerifiedAt: true,
+        versicherungsnummerEncrypted: true,
+        pflegegrad: true,
+        pflegegradAntragLaeuft: true,
       },
     });
+    const { versicherungsnummerEncrypted, ...profile } = user;
+    const profileWithVersicherungsnummer = {
+      ...profile,
+      versicherungsnummer: versicherungsnummerEncrypted
+        ? decryptSecret(versicherungsnummerEncrypted)
+        : null,
+    };
 
     if (user.role === "SUCHENDE") {
-      const bookingRequests = await ctx.db.bookingRequest.findMany({
-        where: { requesterEmail: { equals: user.email, mode: "insensitive" } },
-        orderBy: { createdAt: "desc" },
-      });
-      return { profile: user, bookingRequests };
+      const [bookingRequests, careApplications] = await Promise.all([
+        ctx.db.bookingRequest.findMany({
+          where: { requesterEmail: { equals: user.email, mode: "insensitive" } },
+          orderBy: { createdAt: "desc" },
+        }),
+        ctx.db.careApplication.findMany({ where: { userId: user.id } }),
+      ]);
+      return {
+        profile: profileWithVersicherungsnummer,
+        bookingRequests,
+        careApplications,
+      };
     }
 
     if (user.role === "BETREIBER") {
@@ -34,10 +52,10 @@ export const accountRouter = router({
         where: { operatorUserId: user.id },
         include: { capacities: true, units: { include: { bookings: true } } },
       });
-      return { profile: user, facility };
+      return { profile: profileWithVersicherungsnummer, facility };
     }
 
-    return { profile: user };
+    return { profile: profileWithVersicherungsnummer };
   }),
 
   deleteAccount: protectedProcedure

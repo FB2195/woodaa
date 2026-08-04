@@ -250,3 +250,45 @@ export const CreateReviewInput = z.object({
   comment: z.string().trim().max(2000).optional(),
 });
 export type CreateReviewInput = z.infer<typeof CreateReviewInput>;
+
+// A real Sozialversicherungsnummer, not just a display string - loosely
+// validated (12 chars: 2 digits, 6 digits birthdate, letter, 2 digits, 1
+// checksum digit per the official format) but not over-strict, since
+// getting this wrong shouldn't block submission - the Pflegekasse
+// validates it for real.
+export const Versicherungsnummer = z
+  .string()
+  .trim()
+  .regex(/^[0-9]{8}[A-Za-z][0-9]{3}$/, "Das sieht nicht wie eine gültige Versicherungsnummer aus.");
+export type Versicherungsnummer = z.infer<typeof Versicherungsnummer>;
+
+export const UpdateCareProfileInput = z.object({
+  versicherungsnummer: Versicherungsnummer.optional(),
+  pflegegrad: Pflegegrad.optional(),
+  pflegegradAntragLaeuft: z.boolean().optional(),
+});
+export type UpdateCareProfileInput = z.infer<typeof UpdateCareProfileInput>;
+
+// Client-settable states only - EINGEREICHT_UEBER_WOODAA is set by the
+// server itself once submitCareApplication actually sends the PDF.
+export const SettableCareApplicationStatus = z.enum([
+  "BEREITS_BEANTRAGT",
+  "MUSS_BEANTRAGT_WERDEN",
+]);
+export type SettableCareApplicationStatus = z.infer<typeof SettableCareApplicationStatus>;
+
+export const SetCareApplicationStatusInput = z.object({
+  bookingType: BookingType,
+  status: SettableCareApplicationStatus,
+});
+export type SetCareApplicationStatusInput = z.infer<typeof SetCareApplicationStatusInput>;
+
+export const SubmitCareApplicationInput = z.object({
+  bookingType: BookingType,
+  // Typed full name as the signature, plus an explicit confirmation - see
+  // PublicListingPrompt-style pattern elsewhere for why this stays a
+  // simple typed-name confirmation rather than a drawn signature pad.
+  signatureName: z.string().trim().min(2).max(200),
+  confirmed: z.literal(true),
+});
+export type SubmitCareApplicationInput = z.infer<typeof SubmitCareApplicationInput>;

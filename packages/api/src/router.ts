@@ -3,6 +3,7 @@ import { adminRouter } from "./routers/admin";
 import { authRouter } from "./routers/auth";
 import { bookingRouter } from "./routers/booking";
 import { bookingRequestRouter } from "./routers/bookingRequest";
+import { careApplicationRouter } from "./routers/careApplication";
 import { facilityRouter } from "./routers/facility";
 import { favoriteRouter } from "./routers/favorite";
 import { operatorRouter } from "./routers/operator";
@@ -29,6 +30,7 @@ export const appRouter = router({
   account: accountRouter,
   favorite: favoriteRouter,
   review: reviewRouter,
+  careApplication: careApplicationRouter,
 });
 
 export type AppRouter = typeof appRouter;
