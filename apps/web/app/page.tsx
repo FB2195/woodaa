@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { bookingTypeOptions } from "@/lib/bookingTypeLabels";
 import { Header } from "@/components/Header";
@@ -34,12 +35,17 @@ export default async function HomePage() {
   const trpcServer = await getTrpcServer();
   const facilities = await trpcServer.facility.list({});
 
-  const cityCounts = new Map<string, number>();
+  const cityInfo = new Map<string, { count: number; photoUrl: string | null }>();
   for (const f of facilities) {
-    cityCounts.set(f.city, (cityCounts.get(f.city) ?? 0) + 1);
+    const existing = cityInfo.get(f.city);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      cityInfo.set(f.city, { count: 1, photoUrl: f.photos[0]?.url ?? null });
+    }
   }
-  const popularCities = [...cityCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
+  const popularCities = [...cityInfo.entries()]
+    .sort((a, b) => b[1].count - a[1].count)
     .slice(0, 8);
 
   return (
@@ -74,7 +80,7 @@ export default async function HomePage() {
             <strong className="text-white">{facilities.length}</strong> Einrichtungen
           </span>
           <span>
-            <strong className="text-white">{cityCounts.size}</strong> Städte
+            <strong className="text-white">{cityInfo.size}</strong> Städte
           </span>
           <span>
             <strong className="text-white">4</strong> Pflegearten
@@ -91,22 +97,32 @@ export default async function HomePage() {
             Beliebte Städte
           </h2>
           <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {popularCities.map(([city, count]) => (
+            {popularCities.map(([city, info]) => (
               <Link
                 key={city}
                 href={`/suche?city=${encodeURIComponent(city)}`}
                 className="group relative aspect-[4/3] overflow-hidden rounded-brand-lg shadow-sm transition hover:shadow-md"
               >
-                <PlaceholderPhoto
-                  category="AUSSENANSICHT"
-                  seed={city}
-                  className="absolute inset-0 h-full w-full transition duration-300 group-hover:scale-105"
-                />
+                {info.photoUrl ? (
+                  <Image
+                    src={info.photoUrl}
+                    alt=""
+                    fill
+                    sizes="(min-width: 640px) 25vw, 50vw"
+                    className="object-cover transition duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  <PlaceholderPhoto
+                    category="AUSSENANSICHT"
+                    seed={city}
+                    className="absolute inset-0 h-full w-full transition duration-300 group-hover:scale-105"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0" />
                 <div className="absolute bottom-3 left-3 text-white">
                   <p className="font-semibold">{city}</p>
                   <p className="text-xs text-white/80">
-                    {count} {count === 1 ? "Einrichtung" : "Einrichtungen"}
+                    {info.count} {info.count === 1 ? "Einrichtung" : "Einrichtungen"}
                   </p>
                 </div>
               </Link>

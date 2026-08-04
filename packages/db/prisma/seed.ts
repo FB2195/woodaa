@@ -361,19 +361,80 @@ const facilities = [
   },
 ] as const;
 
-// Standard-Foto-Set pro Einrichtung: 8 Platzhalter-Kacheln (Außenansicht
-// zuerst, damit die Suchkarte ein "Gebäude" statt ein Zimmer als Titelbild
-// zeigt), ohne echten Upload - siehe FacilityPhoto.key in schema.prisma.
-const photoPlan = [
-  "AUSSENANSICHT",
-  "AUSSENANSICHT",
-  "GARTEN",
-  "GARTEN",
-  "STATION",
-  "STATION",
-  "ZIMMER",
-  "ZIMMER",
-] as const;
+// Kuratierte, lizenzgeprüfte Fotos (Wikimedia Commons, CC-BY/CC-BY-SA/CC0),
+// als statische Assets unter apps/web/public/facility-photos abgelegt - siehe
+// CREDITS.md dort für Autor/Lizenz je Bild. Echte Fotos realer Orte (Heime,
+// Hotels, Gemeinschaftsräume), genutzt als Demo-Bildmaterial - keine
+// KI-Bilder und nicht die tatsächlichen (fiktiven) Woodaa-Testheime.
+const photoPool: Record<string, string[]> = {
+  AUSSENANSICHT: [
+    "/facility-photos/aussenansicht/20230131-altenheim-st-joseph-munich.jpg",
+    "/facility-photos/aussenansicht/altenheim-burghalde-sindelfingen-03.jpg",
+    "/facility-photos/aussenansicht/altenheim-burghalde-sindelfingen-07.jpg",
+    "/facility-photos/aussenansicht/altenheim-burghalde-sindelfingen-08.jpg",
+    "/facility-photos/aussenansicht/altenheim-burghalde-sindelfingen-09.jpg",
+    "/facility-photos/aussenansicht/altenheim-wolfstra-e-04.jpg",
+    "/facility-photos/aussenansicht/borsteler-chaussee-301-in-hamburg-gro-borstel.jpg",
+    "/facility-photos/aussenansicht/denkmalgesch-tztes-altenheim-penzberg-zugspitzstra-e-2011-04.jpg",
+    "/facility-photos/aussenansicht/haus-der-barmherzigkeit-geriatrisches-pflegeheim-am-maurer-b.jpg",
+    "/facility-photos/aussenansicht/katharinenhof-grosshennersdorf1.jpg",
+    "/facility-photos/aussenansicht/l-venich-altenheim-fassade.jpg",
+    "/facility-photos/aussenansicht/pflegeheim-frankfurt-praunheim-alt-praunheim-48-2.jpg",
+    "/facility-photos/aussenansicht/pflegeheim-oberpullendorf-au-en.jpg",
+    "/facility-photos/aussenansicht/seniorenwohnhaus-bolaring-01.jpg",
+    "/facility-photos/aussenansicht/bach-altenheim-st-josef.jpg",
+  ],
+  GARTEN: [
+    "/facility-photos/garten/aarondale-house-care-home-hornsea.jpg",
+    "/facility-photos/garten/care-home-garden-geograph-org-uk-4882256.jpg",
+    "/facility-photos/garten/castle-gardens-care-home-geograph-org-uk-5453722.jpg",
+    "/facility-photos/garten/castle-gardens-care-home-geograph-org-uk-6345764.jpg",
+    "/facility-photos/garten/crispin-court-care-home-stafford-garden.jpg",
+    "/facility-photos/garten/erbachrhgerbachrhgfranseckyhofnwgarten.jpg",
+    "/facility-photos/garten/himmelspforte-grenzach-wyhlen-ansicht-seniorenheim-vom-garte.jpg",
+    "/facility-photos/garten/katharinenhof-grosshennersdorf2.jpg",
+    "/facility-photos/garten/penhurst-gardens-care-home-on-new-street-geograph-org-uk-536.jpg",
+    "/facility-photos/garten/the-garden-at-highgate-care-home-geograph-org-uk-5845736.jpg",
+    "/facility-photos/garten/the-garden-at-highgate-care-home-geograph-org-uk-5845738.jpg",
+    "/facility-photos/garten/the-garden-at-highgate-care-home-geograph-org-uk-5853317.jpg",
+  ],
+  STATION: [
+    "/facility-photos/station/hotel-hall.jpg",
+    "/facility-photos/station/manila-hotel-lobby-lounge.jpg",
+    "/facility-photos/station/hotel-lobby-kathmandu-nepal-2020.jpg",
+    "/facility-photos/station/modern-hotel-baku-img-20190714-025335.jpg",
+    "/facility-photos/station/moseley-hall-lounge.jpg",
+    "/facility-photos/station/wodzis-aw-l-ski-szpital-chor-b-p-uc-wn-trza-wietlica-01.jpg",
+    "/facility-photos/station/wodzis-aw-l-ski-szpital-chor-b-p-uc-wn-trza-wietlica-02.jpg",
+  ],
+  ZIMMER: [
+    "/facility-photos/zimmer/centennial-inn-master-suite.jpg",
+    "/facility-photos/zimmer/cozy-hotel-room-with-modern-furnishings-and-natural-light-fl.jpg",
+    "/facility-photos/zimmer/cozy-hotel-room-with-warm-lighting-and-refreshments-on-a-sma.jpg",
+    "/facility-photos/zimmer/delmar-hotel-room-sea-side.jpg",
+    "/facility-photos/zimmer/deluxe-suite-bedroom.jpg",
+    "/facility-photos/zimmer/elegant-hotel-room-with-dining-setup-and-cozy-ambiance-near-.jpg",
+    "/facility-photos/zimmer/modern-hospital-room-with-bed-and-sofa.jpg",
+    "/facility-photos/zimmer/modern-hotel-room-with-large-window-and-stylish-furnishings-.jpg",
+  ],
+};
+
+// 2 Fotos je Kategorie pro Einrichtung (Außenansicht zuerst, damit die
+// Suchkarte ein Gebäude statt ein Zimmer als Titelbild zeigt), aus dem Pool
+// rotierend nach Einrichtungsindex ausgewählt, damit nicht jedes Heim
+// dieselben zwei Bilder bekommt.
+function photosFor(facilityIndex: number): { category: string; key: string }[] {
+  const categories = ["AUSSENANSICHT", "GARTEN", "STATION", "ZIMMER"];
+  const result: { category: string; key: string }[] = [];
+  for (const category of categories) {
+    const pool = photoPool[category]!;
+    for (let slot = 0; slot < 2; slot++) {
+      const key = pool[(facilityIndex * 2 + slot) % pool.length]!;
+      result.push({ category, key });
+    }
+  }
+  return result;
+}
 
 // Demo-Belegungszeitraum für date-basierte Kategorien (Kurzzeit-/Tages-/
 // Nachtpflege). Jede belegte Einheit bekommt einen leicht versetzten
@@ -396,7 +457,7 @@ function demoRangeFor(index: number): { startDate: Date; endDate: Date } {
 }
 
 async function main() {
-  for (const { capacities, ...facility } of facilities) {
+  for (const [facilityIndex, { capacities, ...facility }] of facilities.entries()) {
     const created = await prisma.facility.upsert({
       where: { slug: facility.slug },
       // Backfills fields added after the initial seed on already-seeded
@@ -485,9 +546,9 @@ async function main() {
       where: { facilityId: created.id },
     });
     if (existingPhotoCount === 0) {
-      for (const category of photoPlan) {
+      for (const { category, key } of photosFor(facilityIndex)) {
         await prisma.facilityPhoto.create({
-          data: { facilityId: created.id, category, key: null },
+          data: { facilityId: created.id, category, key },
         });
       }
     }
