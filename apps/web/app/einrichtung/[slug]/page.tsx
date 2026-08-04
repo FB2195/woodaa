@@ -11,6 +11,7 @@ import { formatDate, formatPriceEuro } from "@/lib/format";
 import { pflegegradLabels } from "@/lib/pflegegradLabels";
 import type { Pflegegrad } from "@woodaa/validators";
 import { getTrpcServer } from "@/lib/trpc-server";
+import { PflegekassenZuschussRechner } from "@/components/PflegekassenZuschussRechner";
 
 type FacilityPageProps = {
   params: Promise<{ slug: string }>;
@@ -115,9 +116,16 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
                 </div>
                 <p className="mt-1 text-sm text-brand-text-muted">
                   {capacity.monthlyPriceCents !== null
-                    ? `${formatPriceEuro(capacity.monthlyPriceCents)}/Monat (geschätzter Eigenanteil)`
+                    ? `${formatPriceEuro(capacity.monthlyPriceCents)}/Monat (Heimpreis vor Pflegekassen-Zuschuss)`
                     : "Preis auf Anfrage"}
                 </p>
+
+                {capacity.monthlyPriceCents !== null && (
+                  <PflegekassenZuschussRechner
+                    bookingType={capacity.bookingType}
+                    monthlyPriceCents={capacity.monthlyPriceCents}
+                  />
+                )}
 
                 {capacity.bookingType === "STATIONAERE_AUFNAHME" &&
                   capacity.availableSlots === 0 &&
