@@ -1,3 +1,4 @@
+import { CareApplicationsSection } from "@/components/account/CareApplicationsSection";
 import { DeleteAccountForm } from "@/components/account/DeleteAccountForm";
 import { ExportDataButton } from "@/components/account/ExportDataButton";
 import { Header } from "@/components/Header";
@@ -46,6 +47,8 @@ export default async function AccountPage() {
             <ExportDataButton />
           </div>
         </div>
+
+        {me.role === "SUCHENDE" && <CareApplicationsSection />}
 
         {me.role !== "ADMIN" && (
           <div className="mt-10 border-t border-brand-border pt-8">
