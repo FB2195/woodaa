@@ -8,8 +8,12 @@ export type AdminPendingReview = Review & { facility: { name: string; slug: stri
 
 export const adminRouter = router({
   pendingFacilities: adminProcedure.query(async ({ ctx }) => {
+    // Facilities that have only run the quick "get the tool" signup
+    // (empty description, never asked to go public) don't belong in the
+    // review queue - they show up here once they submit a description via
+    // requestPublicListing.
     const facilities = await ctx.db.facility.findMany({
-      where: { status: "PENDING_REVIEW" },
+      where: { status: "PENDING_REVIEW", description: { not: "" } },
       include: {
         capacities: true,
         photos: { take: 1, orderBy: { createdAt: "asc" } },

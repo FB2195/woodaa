@@ -84,15 +84,13 @@ export const operatorRouter = router({
   createFacility: operatorProcedure
     .input(CreateFacilityInput)
     .mutation(async ({ ctx, input }) => {
+      // No email-verification gate here on purpose - the free availability
+      // tool should be usable immediately after signup. Verification is
+      // required later, at requestPublicListing, where it actually matters
+      // (a real address going out to families searching Woodaa).
       const user = await ctx.db.user.findUniqueOrThrow({
         where: { id: ctx.user.id },
       });
-      if (!user.emailVerifiedAt) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Bitte bestätige zuerst deine E-Mail-Adresse.",
-        });
-      }
 
       const existing = await ctx.db.facility.findUnique({
         where: { operatorUserId: ctx.user.id },
@@ -129,6 +127,24 @@ export const operatorRouter = router({
     .input(UpdateFacilityInput)
     .mutation(async ({ ctx, input }) => {
       const facility = await requireOwnFacility(ctx);
+
+      // Going from no description to having one is the "request public
+      // listing" moment (see PublicListingPrompt.tsx / admin.pendingFacilities'
+      // description-not-empty filter) - that's the one action that actually
+      // needs a confirmed email, since it puts a real address in front of
+      // families searching Woodaa.
+      if (!facility.description && input.description) {
+        const user = await ctx.db.user.findUniqueOrThrow({
+          where: { id: ctx.user.id },
+        });
+        if (!user.emailVerifiedAt) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message:
+              "Bitte bestätige zuerst deine E-Mail-Adresse, bevor deine Einrichtung öffentlich sichtbar wird.",
+          });
+        }
+      }
 
       const addressChanged =
         (input.street !== undefined && input.street !== facility.street) ||

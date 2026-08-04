@@ -18,8 +18,8 @@ const copy: Record<Mode, { title: string; submit: string }> = {
     submit: "Konto erstellen",
   },
   "register-betreiber": {
-    title: "Einrichtung eintragen",
-    submit: "Als Einrichtung registrieren",
+    title: "Kostenlos starten",
+    submit: "Kostenlos loslegen",
   },
   "bootstrap-admin": {
     title: "Admin-Konto einrichten",

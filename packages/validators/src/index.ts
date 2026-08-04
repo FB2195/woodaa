@@ -99,7 +99,10 @@ export type ResetPasswordInput = z.infer<typeof ResetPasswordInput>;
 
 const FacilityFields = z.object({
   name: z.string().trim().min(1).max(200),
-  description: z.string().trim().min(1).max(5000),
+  // Empty by default - only required to request public listing (see
+  // requestPublicListing in operator.ts), not to create a facility and use
+  // the internal availability tool.
+  description: z.string().trim().max(5000).default(""),
   street: z.string().trim().min(1).max(200),
   postalCode: z.string().trim().min(1).max(20),
   city: z.string().trim().min(1).max(200),
