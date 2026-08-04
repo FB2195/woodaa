@@ -5,10 +5,20 @@ CREATE TYPE "UnitBookingSource" AS ENUM ('ONLINE', 'TELEFON', 'VOR_ORT');
 CREATE TYPE "UnitBookingStatus" AS ENUM ('BESTAETIGT', 'STORNIERT');
 
 -- AlterEnum
+-- The original BookingType only had 3 values, with TAGES_NACHTPFLEGE
+-- covering both day and night care as one combined category. Splitting it
+-- into TAGESPFLEGE/NACHTPFLEGE means existing rows holding the old
+-- combined label have no matching new label, so a plain text cast fails on
+-- any such row - remap it to TAGESPFLEGE (arbitrary but deterministic)
+-- as part of the cast instead of a bare ::"BookingType_new".
 BEGIN;
 CREATE TYPE "BookingType_new" AS ENUM ('STATIONAERE_AUFNAHME', 'KURZZEITPFLEGE', 'TAGESPFLEGE', 'NACHTPFLEGE');
-ALTER TABLE "FacilityCapacity" ALTER COLUMN "bookingType" TYPE "BookingType_new" USING ("bookingType"::text::"BookingType_new");
-ALTER TABLE "BookingRequest" ALTER COLUMN "bookingType" TYPE "BookingType_new" USING ("bookingType"::text::"BookingType_new");
+ALTER TABLE "FacilityCapacity" ALTER COLUMN "bookingType" TYPE "BookingType_new" USING (
+  CASE "bookingType"::text WHEN 'TAGES_NACHTPFLEGE' THEN 'TAGESPFLEGE' ELSE "bookingType"::text END
+)::"BookingType_new";
+ALTER TABLE "BookingRequest" ALTER COLUMN "bookingType" TYPE "BookingType_new" USING (
+  CASE "bookingType"::text WHEN 'TAGES_NACHTPFLEGE' THEN 'TAGESPFLEGE' ELSE "bookingType"::text END
+)::"BookingType_new";
 ALTER TYPE "BookingType" RENAME TO "BookingType_old";
 ALTER TYPE "BookingType_new" RENAME TO "BookingType";
 DROP TYPE "BookingType_old";
