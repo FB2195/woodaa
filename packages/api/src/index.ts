@@ -2,14 +2,19 @@ export { appRouter } from "./router";
 export type { AppRouter } from "./router";
 export { createContext } from "./trpc";
 export type { Context } from "./trpc";
+export { recomputeAllCapacityCaches } from "./availability";
 export { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from "./auth";
 export type { FacilityListItem } from "./routers/facility";
 export type { AdminPendingReview } from "./routers/admin";
 export type {
   FacilityCapacity,
   FacilityPhoto,
+  FacilityUnit,
   FacilityWithCapacities,
   FacilityWithDetails,
-  KurzzeitpflegeBooking,
+  FacilityWithOperatorDetails,
+  OccupiedRange,
+  PhotoCategory,
   Review,
+  UnitBooking,
 } from "@woodaa/db";

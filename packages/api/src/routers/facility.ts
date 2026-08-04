@@ -170,7 +170,6 @@ export const facilityRouter = router({
         where: { slug: input.slug, status: "ACTIVE" },
         include: {
           capacities: true,
-          kurzzeitpflegeBookings: { orderBy: { startDate: "asc" } },
           photos: { orderBy: { createdAt: "asc" } },
           reviews: { where: { status: "APPROVED" }, orderBy: { createdAt: "desc" } },
         },
@@ -180,9 +179,23 @@ export const facilityRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Einrichtung nicht gefunden." });
       }
 
+      // Belegte Zeiträume für die date-basierten Kategorien, ohne
+      // Gast-PII - nur zur Anzeige "diese Zeiträume sind schon belegt".
+      const occupiedRangeRows = await ctx.db.booking.findMany({
+        where: { facilityId: facility.id, status: "BESTAETIGT", startDate: { not: null } },
+        select: { bookingType: true, startDate: true, endDate: true },
+        orderBy: { startDate: "asc" },
+      });
+      const occupiedRanges = occupiedRangeRows.map((r) => ({
+        bookingType: r.bookingType,
+        startDate: r.startDate!,
+        endDate: r.endDate!,
+      }));
+
       return {
         ...facility,
         photos: facility.photos.map(withPhotoUrl),
+        occupiedRanges,
         ...reviewStats(facility.reviews),
       };
     }),

@@ -205,6 +205,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.1101.0
         version: 3.1101.0
+      '@prisma/client':
+        specifier: ^5.20.0
+        version: 5.22.0(prisma@5.22.0)
       '@trpc/server':
         specifier: ^11.0.0
         version: 11.18.0(typescript@5.9.3)

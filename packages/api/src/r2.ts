@@ -83,10 +83,21 @@ export function publicPhotoUrl(key: string): string {
 // resolved `url` before returning (see FacilityWithCapacities/
 // FacilityWithDetails in @woodaa/db) - centralized here so URL
 // construction (and its one env var) exists in exactly one place.
-export function withPhotoUrl<T extends { key: string }>(
+//
+// key has three possible shapes:
+// - null: a designed placeholder tile (no real image, see PhotoCategory) -
+//   url is null too, the frontend renders PlaceholderPhoto from `category`.
+// - starts with "/": a demo/seed photo bundled as a static asset under
+//   apps/web/public (see packages/db/prisma/seed.ts) - served as-is by
+//   Next.js, no R2 round-trip needed for content that ships with the repo.
+// - anything else: a real R2 object key from the operator upload flow -
+//   resolved against R2_PUBLIC_URL as before.
+export function withPhotoUrl<T extends { key: string | null }>(
   photo: T,
-): T & { url: string } {
-  return { ...photo, url: publicPhotoUrl(photo.key) };
+): T & { url: string | null } {
+  if (!photo.key) return { ...photo, url: null };
+  const url = photo.key.startsWith("/") ? photo.key : publicPhotoUrl(photo.key);
+  return { ...photo, url };
 }
 
 export function newPhotoKey(facilityId: string, extension: string): string {

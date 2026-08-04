@@ -1,10 +1,17 @@
-import type { FacilityWithDetails } from "@woodaa/api";
-import { CapacityForm } from "./CapacityForm";
-import { KurzzeitpflegeRanges } from "./KurzzeitpflegeRanges";
+import type { BookingType } from "@woodaa/validators";
+import type { FacilityWithOperatorDetails } from "@woodaa/api";
+import { CategoryPanel } from "./CategoryPanel";
 import { PflegegradSuitabilityForm } from "./PflegegradSuitabilityForm";
 import { PhotoManager } from "./PhotoManager";
 
-type Facility = FacilityWithDetails;
+type Facility = FacilityWithOperatorDetails;
+
+const allBookingTypes: BookingType[] = [
+  "STATIONAERE_AUFNAHME",
+  "KURZZEITPFLEGE",
+  "TAGESPFLEGE",
+  "NACHTPFLEGE",
+];
 
 const statusLabels: Record<Facility["status"], string> = {
   ACTIVE: "Live",
@@ -15,6 +22,12 @@ const statusLabels: Record<Facility["status"], string> = {
 export function FacilityDashboard({ facility }: { facility: Facility }) {
   const capacityByType = Object.fromEntries(
     facility.capacities.map((c) => [c.bookingType, c]),
+  );
+  const unitsByType = Object.fromEntries(
+    allBookingTypes.map((type) => [
+      type,
+      facility.units.filter((u) => u.bookingType === type),
+    ]),
   );
 
   return (
@@ -51,27 +64,21 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <CapacityForm
-          bookingType="STATIONAERE_AUFNAHME"
-          existing={capacityByType.STATIONAERE_AUFNAHME}
-        />
-        <CapacityForm
-          bookingType="KURZZEITPFLEGE"
-          existing={capacityByType.KURZZEITPFLEGE}
-        />
-        <CapacityForm
-          bookingType="TAGES_NACHTPFLEGE"
-          existing={capacityByType.TAGES_NACHTPFLEGE}
-        />
+      <div className="grid gap-6 lg:grid-cols-2">
+        {allBookingTypes.map((type) => (
+          <CategoryPanel
+            key={type}
+            bookingType={type}
+            capacity={capacityByType[type]}
+            units={unitsByType[type] ?? []}
+          />
+        ))}
       </div>
 
       <PflegegradSuitabilityForm
         minPflegegrad={facility.minPflegegrad}
         maxPflegegrad={facility.maxPflegegrad}
       />
-
-      <KurzzeitpflegeRanges bookings={facility.kurzzeitpflegeBookings} />
 
       <PhotoManager photos={facility.photos} />
     </div>

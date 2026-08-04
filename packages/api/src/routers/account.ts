@@ -32,7 +32,7 @@ export const accountRouter = router({
     if (user.role === "BETREIBER") {
       const facility = await ctx.db.facility.findUnique({
         where: { operatorUserId: user.id },
-        include: { capacities: true, kurzzeitpflegeBookings: true },
+        include: { capacities: true, units: { include: { bookings: true } } },
       });
       return { profile: user, facility };
     }
