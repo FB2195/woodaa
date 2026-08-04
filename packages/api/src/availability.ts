@@ -1,6 +1,6 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { Prisma, type PaymentStatus, type PrismaClient } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import type { BookingType } from "@woodaa/validators";
+import type { BookingType, PaymentMethod } from "@woodaa/validators";
 
 type Tx = Prisma.TransactionClient;
 
@@ -194,6 +194,10 @@ export type CreateBookingInput = {
   pflegegrad?: number | null;
   pflegegradAntragLaeuft?: boolean;
   note?: string | null;
+  // ONLINE bookings only - see PaymentMethod/PaymentStatus in schema.prisma.
+  paymentMethod?: PaymentMethod | null;
+  paymentStatus?: PaymentStatus | null;
+  stripePaymentIntentId?: string | null;
 };
 
 // Atomically claims one free unit and books it. Auto-assigns the unit -
@@ -255,6 +259,9 @@ export async function createBooking(db: PrismaClient, input: CreateBookingInput)
             pflegegrad: input.pflegegrad ?? null,
             pflegegradAntragLaeuft: input.pflegegradAntragLaeuft ?? false,
             note: input.note ?? null,
+            paymentMethod: input.paymentMethod ?? null,
+            paymentStatus: input.paymentStatus ?? null,
+            stripePaymentIntentId: input.stripePaymentIntentId ?? null,
           },
         });
         await tx.$executeRaw`RELEASE SAVEPOINT claim_attempt`;

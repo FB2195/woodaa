@@ -4,6 +4,7 @@ export { createContext } from "./trpc";
 export type { Context } from "./trpc";
 export { recomputeAllCapacityCaches } from "./availability";
 export { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from "./auth";
+export { handleStripeWebhook } from "./webhooks";
 export type { FacilityListItem } from "./routers/facility";
 export type { AdminPendingReview } from "./routers/admin";
 export type {

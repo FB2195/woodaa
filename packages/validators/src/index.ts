@@ -20,6 +20,19 @@ export const UnitBookingSource = z.enum([
 ]);
 export type UnitBookingSource = z.infer<typeof UnitBookingSource>;
 
+export const PaymentMethod = z.enum([
+  "KARTE",
+  "KLARNA",
+  "PAYPAL",
+  "RECHNUNG", // wird über das Heim abgewickelt, braucht dessen Freigabe
+  "KOSTENUEBERNAHME_KASSE", // Kasse zahlt das Heim direkt, braucht Beleg + Freigabe
+]);
+export type PaymentMethod = z.infer<typeof PaymentMethod>;
+
+// RECHNUNG/KOSTENUEBERNAHME_KASSE brauchen keine Stripe-Zahlung, laufen also
+// nicht über booking.create's Stripe-Zweig - siehe routers/booking.ts.
+export const paymentMethodsRequiringStripe: PaymentMethod[] = ["KARTE", "KLARNA", "PAYPAL"];
+
 export const Role = z.enum([
   "SUCHENDE", // Angehörige / Pflegebedürftige, die einen Platz suchen
   "BETREIBER", // Pflegeheim-Betreiber
@@ -201,6 +214,7 @@ export const CreateBookingInput = z
     pflegegradAntragLaeuft: z.boolean().optional(),
     guestPhone: z.string().trim().max(50).optional(),
     note: z.string().trim().max(1000).optional(),
+    paymentMethod: PaymentMethod,
   })
   .refine((data) => !(data.startDate === undefined && data.endDate !== undefined), {
     message: "Ohne Startdatum kann kein Enddatum gesetzt werden.",
@@ -307,3 +321,28 @@ export const SubmitCareApplicationInput = z.object({
   confirmed: z.literal(true),
 });
 export type SubmitCareApplicationInput = z.infer<typeof SubmitCareApplicationInput>;
+
+// Kostenübernahmebestätigung upload (KOSTENUEBERNAHME_KASSE bookings only) -
+// same request/confirm two-step as facility photos (see RequestPhotoUploadInput
+// above), just PDF-only and scoped to one specific booking.
+export const RequestKostenuebernahmeUploadInput = z.object({
+  bookingId: z.string().min(1),
+});
+export type RequestKostenuebernahmeUploadInput = z.infer<
+  typeof RequestKostenuebernahmeUploadInput
+>;
+
+export const ConfirmKostenuebernahmeUploadInput = z.object({
+  bookingId: z.string().min(1),
+  key: z.string().min(1).max(500),
+});
+export type ConfirmKostenuebernahmeUploadInput = z.infer<
+  typeof ConfirmKostenuebernahmeUploadInput
+>;
+
+// RECHNUNG/KOSTENUEBERNAHME_KASSE bookings sit in WARTET_AUF_HEIM_FREIGABE
+// until the facility approves or rejects them on their dashboard.
+export const BookingPaymentApprovalInput = z.object({
+  bookingId: z.string().min(1),
+});
+export type BookingPaymentApprovalInput = z.infer<typeof BookingPaymentApprovalInput>;

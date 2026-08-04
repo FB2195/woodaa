@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { BookingType, Pflegegrad } from "@woodaa/validators";
+import type { BookingType, PaymentMethod, Pflegegrad } from "@woodaa/validators";
 import { CancelBookingBox } from "@/components/CancelBookingBox";
+import { KostenuebernahmeUpload } from "@/components/booking/KostenuebernahmeUpload";
+import { StripePaymentStep } from "@/components/booking/StripePaymentStep";
 import { bookingTypeLabels, dateRangedBookingTypes } from "@/lib/bookingTypeLabels";
 import { formatPriceEuro } from "@/lib/format";
+import { paymentMethodLabels } from "@/lib/paymentMethodLabels";
+import { calculateZuschuss, calculateZuschussForDays } from "@/lib/pflegekassenZuschuss";
 import { pflegegradOptions } from "@/lib/pflegegradLabels";
 import { trpc } from "@/lib/trpc";
 
@@ -29,6 +33,68 @@ function splitName(name: string): { firstName: string; lastName: string } {
   return { firstName: parts[0] ?? "", lastName: parts.slice(1).join(" ") };
 }
 
+// Below the payment section, per Pflegegrad/Zeitraum - example wording and
+// the "ohne Gewähr" disclaimer are a deliberate product requirement, not
+// just a UI nicety.
+function SubsidyHint({
+  bookingType,
+  pflegegrad,
+  monthlyPriceCents,
+  days,
+}: {
+  bookingType: BookingType;
+  pflegegrad: Pflegegrad;
+  monthlyPriceCents: number;
+  days: number | null;
+}) {
+  const isStationaer = bookingType === "STATIONAERE_AUFNAHME";
+  const result =
+    isStationaer || days === null
+      ? calculateZuschuss(bookingType, pflegegrad, monthlyPriceCents)
+      : calculateZuschussForDays(
+          bookingType as Exclude<BookingType, "STATIONAERE_AUFNAHME">,
+          pflegegrad,
+          monthlyPriceCents,
+          days,
+        );
+  const eigenanteil = formatPriceEuro(result.eigenanteilCents);
+  const subsidy = formatPriceEuro(result.subsidyCents);
+
+  return (
+    <div className="rounded-brand-md bg-brand-background p-3 text-xs text-brand-text-muted">
+      {isStationaer ? (
+        <p>
+          Ihre Krankenkasse beteiligt sich an den Kosten mit bis zu {subsidy} pro Monat. Ihr
+          voraussichtlicher Eigenanteil beträgt damit {eigenanteil} pro Monat.
+        </p>
+      ) : bookingType === "KURZZEITPFLEGE" ? (
+        <p>
+          Ihre Krankenkasse beteiligt sich an den Kosten für Ihre Kurzzeitpflege. Im
+          Pflegegrad {pflegegrad} sind das bis zu {subsidy}{" "}
+          {days !== null ? `für ${days} Tage` : "pro Monat (Jahresbudget anteilig gerechnet)"},
+          für insgesamt maximal 8 Wochen pro Kalenderjahr. Ihr voraussichtlicher Eigenanteil
+          beträgt damit {eigenanteil}.
+        </p>
+      ) : (
+        <p>
+          Ihre Krankenkasse beteiligt sich an den Kosten mit bis zu {subsidy}
+          {days !== null ? ` für ${days} Tage` : " pro Monat"}. Ihr voraussichtlicher
+          Eigenanteil beträgt damit {eigenanteil}.
+        </p>
+      )}
+      {result.note && <p className="mt-1">{result.note}</p>}
+      <p className="mt-1">
+        Meist zahlst du den Betrag zunächst vollständig und bekommst den Zuschuss
+        anschließend von deiner Pflegekasse erstattet.
+      </p>
+      <p className="mt-1 font-semibold">
+        Alle Angaben ohne Gewähr - unverbindliche Orientierung, die tatsächliche Höhe
+        bestätigt eure Pflegekasse.
+      </p>
+    </div>
+  );
+}
+
 export function BookingForm({
   facilityId,
   capacities,
@@ -45,12 +111,23 @@ export function BookingForm({
     (profile.pflegegrad as Pflegegrad | null) ?? "",
   );
   const [endeOffen, setEndeOffen] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("KARTE");
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const createBooking = trpc.booking.create.useMutation();
 
   const { firstName, lastName } = splitName(profile.name);
   const isDateRanged = bookingType ? dateRangedBookingTypes.includes(bookingType) : false;
   const isStationaer = bookingType === "STATIONAERE_AUFNAHME";
   const capacity = capacities.find((c) => c.bookingType === bookingType);
+
+  const days =
+    isDateRanged && !endeOffen && startDate && endDate
+      ? Math.round(
+          (new Date(endDate).getTime() - new Date(startDate).getTime()) / (24 * 60 * 60 * 1000),
+        ) + 1
+      : null;
 
   const pflegegradAntragLabel =
     pflegegrad === "" || pflegegrad === 0
@@ -66,6 +143,28 @@ export function BookingForm({
   }
 
   if (createBooking.isSuccess) {
+    const { booking, stripeClientSecret } = createBooking.data;
+
+    if (stripeClientSecret && !paymentConfirmed) {
+      return (
+        <div className="mt-6 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
+          <p className="font-semibold text-brand-primary-dark">
+            Dein Platz ist reserviert - jetzt bezahlen
+          </p>
+          <p className="mt-1 text-sm text-brand-text-muted">
+            Der Platz ist für dich vorgemerkt. Schließe die Zahlung ab, um die Buchung
+            verbindlich zu machen.
+          </p>
+          <div className="mt-4">
+            <StripePaymentStep
+              clientSecret={stripeClientSecret}
+              onConfirmed={() => setPaymentConfirmed(true)}
+            />
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mt-6 rounded-brand-lg border border-brand-accent bg-brand-accent/10 p-6">
         <p className="font-semibold text-brand-primary-dark">Platz gebucht!</p>
@@ -73,7 +172,16 @@ export function BookingForm({
           Dein Platz ist reserviert. Die Einrichtung wurde informiert und meldet sich bei
           Rückfragen direkt bei dir.
         </p>
-        <CancelBookingBox bookingId={createBooking.data.id} />
+        {booking.paymentMethod === "RECHNUNG" && (
+          <p className="mt-2 text-sm text-brand-text-muted">
+            Die Einrichtung prüft die Buchung und gibt die Rechnungsstellung frei - du hörst
+            in Kürze von ihr.
+          </p>
+        )}
+        {booking.paymentMethod === "KOSTENUEBERNAHME_KASSE" && (
+          <KostenuebernahmeUpload bookingId={booking.id} />
+        )}
+        <CancelBookingBox bookingId={booking.id} />
       </div>
     );
   }
@@ -86,16 +194,14 @@ export function BookingForm({
         if (!bookingType) return;
         const form = new FormData(event.currentTarget);
         const get = (name: string) => String(form.get(name) ?? "").trim();
-        const startDateRaw = get("startDate");
-        const endDateRaw = endeOffen ? "" : get("endDate");
         const desiredStartDateRaw = get("desiredStartDate");
         const pflegegradRaw = get("pflegegrad");
 
         createBooking.mutate({
           facilityId,
           bookingType,
-          startDate: startDateRaw ? new Date(startDateRaw).toISOString() : undefined,
-          endDate: endDateRaw ? new Date(endDateRaw).toISOString() : undefined,
+          startDate: startDate ? new Date(startDate).toISOString() : undefined,
+          endDate: !endeOffen && endDate ? new Date(endDate).toISOString() : undefined,
           desiredStartDate: desiredStartDateRaw
             ? new Date(desiredStartDateRaw).toISOString()
             : undefined,
@@ -111,6 +217,7 @@ export function BookingForm({
           pflegegradAntragLaeuft: form.get("pflegegradAntragLaeuft") === "on",
           guestPhone: get("guestPhone") || undefined,
           note: get("note") || undefined,
+          paymentMethod,
         });
       }}
     >
@@ -155,6 +262,8 @@ export function BookingForm({
                 type="date"
                 name="startDate"
                 required
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
                 className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </label>
@@ -165,6 +274,8 @@ export function BookingForm({
                 name="endDate"
                 required={!endeOffen}
                 disabled={endeOffen}
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
                 className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent disabled:bg-brand-background disabled:text-brand-text-muted"
               />
             </label>
@@ -311,6 +422,46 @@ export function BookingForm({
         />
       </label>
 
+      {bookingType && pflegegrad !== "" && capacity?.monthlyPriceCents != null && (
+        <SubsidyHint
+          bookingType={bookingType}
+          pflegegrad={pflegegrad}
+          monthlyPriceCents={capacity.monthlyPriceCents}
+          days={days}
+        />
+      )}
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-medium text-brand-text">Zahlungsart</legend>
+        {(Object.keys(paymentMethodLabels) as PaymentMethod[]).map((method) => (
+          <label key={method} className="flex items-center gap-2 text-sm text-brand-text">
+            <input
+              type="radio"
+              name="paymentMethod"
+              checked={paymentMethod === method}
+              onChange={() => setPaymentMethod(method)}
+            />
+            {paymentMethodLabels[method]}
+          </label>
+        ))}
+        {paymentMethod === "RECHNUNG" && (
+          <p className="text-xs text-brand-text-muted">
+            Die Rechnung wird über die Einrichtung abgewickelt - sie muss diese Zahlungsart
+            für deine Buchung erst freigeben.
+          </p>
+        )}
+        {paymentMethod === "KOSTENUEBERNAHME_KASSE" && (
+          <p className="text-xs text-brand-text-muted">
+            Zahlt deine Pflegekasse die Einrichtung direkt, lädst du im nächsten Schritt die
+            Kostenübernahmebestätigung hoch - auch das muss die Einrichtung freigeben.
+          </p>
+        )}
+      </fieldset>
+
+      <p className="text-xs text-brand-text-muted">
+        Storno: Bis 48 Std. vorher kannst du kostenlos stornieren.
+      </p>
+
       {createBooking.isError && (
         <p className="text-sm text-red-600">{createBooking.error.message}</p>
       )}
@@ -320,8 +471,11 @@ export function BookingForm({
         disabled={createBooking.isPending}
         className="rounded-brand-md bg-brand-accent px-6 py-3 font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
       >
-        {createBooking.isPending ? "Wird gebucht…" : "Verbindlich buchen"}
+        {createBooking.isPending ? "Wird gebucht…" : "Verbindlich und zahlungspflichtig buchen"}
       </button>
+      <p className="-mt-2 text-center text-xs text-brand-text-muted">
+        Kein Risiko, bis zu 48 Std. vorher können Sie kostenfrei stornieren.
+      </p>
     </form>
   );
 }

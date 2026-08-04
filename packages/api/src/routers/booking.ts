@@ -1,7 +1,16 @@
 import { TRPCError } from "@trpc/server";
-import { CancelBookingInput, CreateBookingInput } from "@woodaa/validators";
+import {
+  CancelBookingInput,
+  ConfirmKostenuebernahmeUploadInput,
+  CreateBookingInput,
+  paymentMethodsRequiringStripe,
+  RequestKostenuebernahmeUploadInput,
+} from "@woodaa/validators";
 import { cancelBooking, createBooking } from "../availability";
 import { encryptSecret } from "../crypto";
+import { chargeAmountCents } from "../pricing";
+import { createPresignedDownloadUrl, createPresignedUploadUrl, newDocumentKey } from "../r2";
+import { stripeClient } from "../stripe";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
 
 // Verbindliche, sofort bestätigte Buchung ("wie Booking.com") - im
@@ -14,7 +23,10 @@ export const bookingRouter = router({
   create: protectedProcedure.input(CreateBookingInput).mutation(async ({ ctx, input }) => {
     const facility = await ctx.db.facility.findUnique({
       where: { id: input.facilityId, status: "ACTIVE" },
-      select: { id: true },
+      select: {
+        id: true,
+        capacities: { where: { bookingType: input.bookingType }, select: { monthlyPriceCents: true } },
+      },
     });
     if (!facility) {
       throw new TRPCError({ code: "NOT_FOUND", message: "Einrichtung nicht gefunden." });
@@ -22,7 +34,14 @@ export const bookingRouter = router({
 
     const user = await ctx.db.user.findUniqueOrThrow({ where: { id: ctx.user.id } });
 
-    return createBooking(ctx.db, {
+    const usesStripe = paymentMethodsRequiringStripe.includes(input.paymentMethod);
+    const initialPaymentStatus = usesStripe
+      ? ("AUSSTEHEND" as const)
+      : input.paymentMethod === "RECHNUNG"
+        ? ("WARTET_AUF_HEIM_FREIGABE" as const)
+        : ("AUSSTEHEND" as const); // KOSTENUEBERNAHME_KASSE: erst nach Beleg-Upload
+
+    const booking = await createBooking(ctx.db, {
       facilityId: input.facilityId,
       bookingType: input.bookingType,
       source: "ONLINE",
@@ -44,8 +63,93 @@ export const bookingRouter = router({
       pflegegrad: input.pflegegrad,
       pflegegradAntragLaeuft: input.pflegegradAntragLaeuft ?? false,
       note: input.note,
+      paymentMethod: input.paymentMethod,
+      paymentStatus: initialPaymentStatus,
     });
+
+    if (!usesStripe) {
+      return { booking, stripeClientSecret: null };
+    }
+
+    const monthlyPriceCents = facility.capacities[0]?.monthlyPriceCents ?? 0;
+    const amountCents = chargeAmountCents(
+      input.bookingType,
+      monthlyPriceCents,
+      booking.startDate,
+      booking.endDate,
+    );
+
+    const stripeMethodTypes: Record<"KARTE" | "KLARNA" | "PAYPAL", string[]> = {
+      KARTE: ["card"],
+      KLARNA: ["klarna"],
+      PAYPAL: ["paypal"],
+    };
+    const paymentIntent = await stripeClient().paymentIntents.create({
+      amount: amountCents,
+      currency: "eur",
+      payment_method_types: stripeMethodTypes[input.paymentMethod as "KARTE" | "KLARNA" | "PAYPAL"],
+      metadata: { bookingId: booking.id },
+      receipt_email: user.email,
+    });
+
+    const updated = await ctx.db.booking.update({
+      where: { id: booking.id },
+      data: { stripePaymentIntentId: paymentIntent.id },
+    });
+
+    return { booking: updated, stripeClientSecret: paymentIntent.client_secret };
   }),
+
+  // Kostenübernahmebestätigung hochladen (nur KOSTENUEBERNAHME_KASSE) - Zwei-
+  // Schritt-Flow wie operator.requestPhotoUpload/confirmPhotoUpload, hier
+  // aber ownership-geprüft gegen den einloggten Buchenden statt gegen eine
+  // Einrichtung.
+  requestKostenuebernahmeUpload: protectedProcedure
+    .input(RequestKostenuebernahmeUploadInput)
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
+      }
+      if (booking.paymentMethod !== "KOSTENUEBERNAHME_KASSE") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Diese Buchung erwartet keine Kostenübernahmebestätigung.",
+        });
+      }
+      const key = newDocumentKey(booking.id, "pdf");
+      const uploadUrl = await createPresignedUploadUrl(key, "application/pdf");
+      return { uploadUrl, key };
+    }),
+
+  confirmKostenuebernahmeUpload: protectedProcedure
+    .input(ConfirmKostenuebernahmeUploadInput)
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
+      }
+      return ctx.db.booking.update({
+        where: { id: booking.id },
+        data: {
+          kostenuebernahmeDocumentKey: input.key,
+          paymentStatus: "WARTET_AUF_HEIM_FREIGABE",
+        },
+      });
+    }),
+
+  // Presigned GET, frisch pro Aufruf - siehe Kommentar an
+  // kostenuebernahmeDocumentKey in schema.prisma zum Grund (Sozialdaten,
+  // keine dauerhaft gültige URL).
+  kostenuebernahmeDownloadUrl: protectedProcedure
+    .input(RequestKostenuebernahmeUploadInput)
+    .query(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.userId !== ctx.user.id || !booking.kostenuebernahmeDocumentKey) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return { url: await createPresignedDownloadUrl(booking.kostenuebernahmeDocumentKey) };
+    }),
 
   // Storno durch die Suchende/den Suchenden selbst - keine Login-Pflicht,
   // Nachweis ist die beim Buchen hinterlegte E-Mail-Adresse (gleiches
@@ -54,6 +158,16 @@ export const bookingRouter = router({
     if (!input.guestEmail) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "E-Mail-Adresse wird benötigt." });
     }
-    return cancelBooking(ctx.db, input.bookingId, { requireGuestEmail: input.guestEmail });
+    const booking = await cancelBooking(ctx.db, input.bookingId, {
+      requireGuestEmail: input.guestEmail,
+    });
+    // Volle Rückerstattung bei jeder Stornierung, unabhängig vom 48h-
+    // Hinweistext im Buchungsformular - eine anteilige Stornogebühr bei
+    // später Stornierung durchzusetzen bräuchte eine separate Abbuchung,
+    // die es in diesem MVP noch nicht gibt (siehe BookingForm.tsx).
+    if (booking.paymentStatus === "BEZAHLT" && booking.stripePaymentIntentId) {
+      await stripeClient().refunds.create({ payment_intent: booking.stripePaymentIntentId });
+    }
+    return booking;
   }),
 });

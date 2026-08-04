@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -67,6 +68,26 @@ export async function createPresignedUploadUrl(
   return getSignedUrl(r2Client(), command, {
     expiresIn: PRESIGNED_PUT_TTL_SECONDS,
   });
+}
+
+// Short-lived, generated fresh per view request - unlike facility photos,
+// documents in this bucket path carry Sozialdaten and must never be
+// resolvable through a stable public URL (see kostenuebernahmeDocumentKey
+// in schema.prisma).
+const PRESIGNED_GET_TTL_SECONDS = 5 * 60;
+
+export async function createPresignedDownloadUrl(key: string): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: requireEnv("R2_BUCKET_NAME"),
+    Key: key,
+  });
+  return getSignedUrl(r2Client(), command, {
+    expiresIn: PRESIGNED_GET_TTL_SECONDS,
+  });
+}
+
+export function newDocumentKey(bookingId: string, extension: string): string {
+  return `booking-documents/${bookingId}/${randomUUID()}.${extension}`;
 }
 
 export async function deleteObject(key: string): Promise<void> {

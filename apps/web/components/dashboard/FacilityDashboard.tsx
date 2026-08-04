@@ -1,6 +1,7 @@
 import type { BookingType } from "@woodaa/validators";
 import type { FacilityWithOperatorDetails } from "@woodaa/api";
 import { CategoryPanel } from "./CategoryPanel";
+import { PaymentApprovals } from "./PaymentApprovals";
 import { PflegegradSuitabilityForm } from "./PflegegradSuitabilityForm";
 import { PhotoManager } from "./PhotoManager";
 import { PublicListingPrompt } from "./PublicListingPrompt";
@@ -70,6 +71,8 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
       {facility.status === "PENDING_REVIEW" && !facility.description && (
         <PublicListingPrompt amenities={facility.amenities} />
       )}
+
+      <PaymentApprovals bookings={facility.units.flatMap((u) => u.bookings)} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         {allBookingTypes.map((type) => (

@@ -32,6 +32,33 @@ enum UnitBookingStatus {
   STORNIERT
 }
 
+// Nur für ONLINE-Buchungen gesetzt (siehe Booking.paymentMethod) - Telefon-/
+// Vor-Ort-Buchungen laufen komplett außerhalb dieser Felder, das Heim
+// rechnet direkt mit dem Kunden ab.
+enum PaymentMethod {
+  KARTE
+  KLARNA
+  PAYPAL
+  // Wird über das Heim abgewickelt, nicht über Woodaa/Stripe - braucht
+  // deshalb eine Freigabe durch das Heim (das Ausfallrisiko trägt es selbst).
+  RECHNUNG
+  // Die Pflegekasse zahlt das Heim direkt, belegt durch eine hochgeladene
+  // Kostenübernahmebestätigung - ebenfalls freigabepflichtig durchs Heim.
+  KOSTENUEBERNAHME_KASSE
+}
+
+enum PaymentStatus {
+  // KARTE/KLARNA/PAYPAL: noch keine Stripe-Bestätigung. RECHNUNG/
+  // KOSTENUEBERNAHME_KASSE: Kostenübernahmebestätigung noch nicht hochgeladen.
+  AUSSTEHEND
+  // Nur KARTE/KLARNA/PAYPAL: Stripe-Zahlung erfolgreich bestätigt.
+  BEZAHLT
+  // Nur RECHNUNG/KOSTENUEBERNAHME_KASSE: wartet auf das "Go" des Heims.
+  WARTET_AUF_HEIM_FREIGABE
+  FREIGEGEBEN
+  ABGELEHNT
+}
+
 enum FacilityStatus {
   ACTIVE
   PENDING_REVIEW
@@ -319,12 +346,29 @@ model Booking {
   // for the facility, not a future-dated reservation.
   desiredStartDate             DateTime?
   note                         String?
+  // Only set for ONLINE bookings - phone/walk-in bookings settle directly
+  // between facility and customer, outside these fields entirely.
+  paymentMethod                PaymentMethod?
+  paymentStatus                PaymentStatus?
+  // KARTE/KLARNA/PAYPAL only.
+  stripePaymentIntentId        String?
+  // RECHNUNG/KOSTENUEBERNAHME_KASSE only, set once the facility clicks
+  // "Freigeben"/"Ablehnen" on their dashboard.
+  facilityApprovedAt           DateTime?
+  // KOSTENUEBERNAHME_KASSE only: R2 object key of the uploaded
+  // Kostenübernahmebestätigung PDF. Deliberately NOT resolved through
+  // withPhotoUrl/R2_PUBLIC_URL like facility photos - this document carries
+  // Sozialdaten (name, Versicherungsnummer, Pflegegrad), so it's only ever
+  // served via a short-lived presigned GET URL (see r2.ts), never a stable
+  // public URL.
+  kostenuebernahmeDocumentKey  String?
   createdAt                    DateTime          @default(now())
   cancelledAt                  DateTime?
 
   @@index([facilityId, bookingType])
   @@index([unitId, status])
   @@index([userId])
+  @@index([stripePaymentIntentId])
 }
 
 // Object storage lives in Cloudflare R2 - only the bucket object `key` is
