@@ -51,6 +51,10 @@ export type ZuschussResult = {
   note: string | null;
 };
 
+export type ZuschussPeriodResult = ZuschussResult & {
+  totalCostCents: number;
+};
+
 export function calculateZuschuss(
   bookingType: BookingType,
   pflegegrad: Pflegegrad,
@@ -94,5 +98,69 @@ export function calculateZuschuss(
     eigenanteilCents: Math.max(0, monthlyPriceCents - monthlyEquivalentCents),
     note:
       "Kurzzeitpflege wird nicht monatlich, sondern als Jahresbudget von bis zu 3.539 € gezahlt, nutzbar für insgesamt bis zu 8 Wochen im Kalenderjahr - hier anteilig pro Monat umgerechnet, um mit dem Heimpreis vergleichbar zu sein.",
+  };
+}
+
+// Kurzzeitpflege-Jahresbudget ist nutzbar für bis zu 8 Wochen/Jahr - Tage
+// darüber hinaus zahlt die Kasse aus diesem Budget nicht mehr mit.
+const KURZZEITPFLEGE_MAX_TAGE_PRO_JAHR = 56;
+
+// Für Kurzzeit-/Tages-/Nachtpflege lässt sich der Bedarf meist in Tagen und
+// nicht in Monaten angeben (siehe calculateZuschuss oben, das nur den
+// Monatspreis kennt) - hier wird der Heimpreis über einen Tagessatz
+// (Monatspreis / 30) auf den gewünschten Zeitraum hochgerechnet, statt
+// wie oben grob pro Monat. Nicht für STATIONAERE_AUFNAHME gedacht - eine
+// dauerhafte Aufnahme ist nicht in "Tage" zu denken, dafür bleibt
+// calculateZuschuss (monatlich) die richtige Funktion.
+export function calculateZuschussForDays(
+  bookingType: Exclude<BookingType, "STATIONAERE_AUFNAHME">,
+  pflegegrad: Pflegegrad,
+  monthlyPriceCents: number,
+  days: number,
+): ZuschussPeriodResult {
+  const dailyPriceCents = monthlyPriceCents / 30;
+  const totalCostCents = Math.round(dailyPriceCents * days);
+
+  if (pflegegrad === 0 || pflegegrad === 1) {
+    const subsidyCents = Math.round((ENTLASTUNGSBETRAG_CENTS / 30) * days);
+    return {
+      subsidyCents,
+      totalCostCents,
+      eigenanteilCents: Math.max(0, totalCostCents - subsidyCents),
+      note:
+        pflegegrad === 0
+          ? "Ohne festgestellten Pflegegrad besteht nur Anspruch auf den anteiligen Entlastungsbetrag - ein Pflegegrad-Antrag lohnt sich."
+          : "Pflegegrad 1 hat keinen Anspruch auf die Pauschalbeträge der übrigen Pflegegrade, nur auf den anteiligen Entlastungsbetrag.",
+    };
+  }
+
+  if (bookingType === "KURZZEITPFLEGE") {
+    const gedeckteTage = Math.min(days, KURZZEITPFLEGE_MAX_TAGE_PRO_JAHR);
+    const subsidyCents = Math.min(
+      Math.round(dailyPriceCents * gedeckteTage),
+      KURZZEITPFLEGE_JAHRESBUDGET_CENTS,
+    );
+    return {
+      subsidyCents,
+      totalCostCents,
+      eigenanteilCents: Math.max(0, totalCostCents - subsidyCents),
+      note:
+        days > KURZZEITPFLEGE_MAX_TAGE_PRO_JAHR
+          ? `Das Jahresbudget deckt nur bis zu ${KURZZEITPFLEGE_MAX_TAGE_PRO_JAHR} Tage (8 Wochen) Kurzzeitpflege pro Kalenderjahr - für die ${days - KURZZEITPFLEGE_MAX_TAGE_PRO_JAHR} Tage darüber hinaus zahlt die Kasse aus diesem Budget nichts mehr dazu.`
+          : "Das Jahresbudget von bis zu 3.539 € (gemeinsam mit Verhinderungspflege) gilt für insgesamt bis zu 8 Wochen Kurzzeitpflege pro Kalenderjahr - ist es bereits (teilweise) für andere Zeiträume verbraucht, fällt der tatsächliche Zuschuss entsprechend niedriger aus.",
+    };
+  }
+
+  // TAGESPFLEGE / NACHTPFLEGE
+  const monthlyBudgetCents = TAGES_NACHTPFLEGE_CENTS[pflegegrad] ?? 0;
+  const subsidyCents = Math.min(
+    Math.round((monthlyBudgetCents / 30) * days),
+    totalCostCents,
+  );
+  return {
+    subsidyCents,
+    totalCostCents,
+    eigenanteilCents: Math.max(0, totalCostCents - subsidyCents),
+    note: null,
   };
 }
