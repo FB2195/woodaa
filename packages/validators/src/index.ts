@@ -37,6 +37,17 @@ export const Pflegegrad = z.union([
 ]);
 export type Pflegegrad = z.infer<typeof Pflegegrad>;
 
+// A real Sozialversicherungsnummer, not just a display string - loosely
+// validated (12 chars: 2 digits, 6 digits birthdate, letter, 2 digits, 1
+// checksum digit per the official format) but not over-strict, since
+// getting this wrong shouldn't block submission - the Pflegekasse
+// validates it for real.
+export const Versicherungsnummer = z
+  .string()
+  .trim()
+  .regex(/^[0-9]{8}[A-Za-z][0-9]{3}$/, "Das sieht nicht wie eine gültige Versicherungsnummer aus.");
+export type Versicherungsnummer = z.infer<typeof Versicherungsnummer>;
+
 export const SortOption = z.enum(["newest", "price_asc", "distance_asc"]);
 export type SortOption = z.infer<typeof SortOption>;
 
@@ -162,24 +173,37 @@ export const RenameUnitInput = z.object({
 });
 export type RenameUnitInput = z.infer<typeof RenameUnitInput>;
 
-// Shared by the public instant-booking flow (source always "ONLINE", no
-// operator auth) and the operator's manual booking page (TELEFON/VOR_ORT).
-// startDate/endDate: required together for KURZZEITPFLEGE/TAGESPFLEGE/
-// NACHTPFLEGE (for Tages-/Nachtpflege, start === end, a single day), absent
-// for STATIONAERE_AUFNAHME (unbefristet).
+// The public instant-booking flow - requires login (see booking.ts:
+// protectedProcedure), so guestEmail/guestName aren't collected here
+// anymore (derived server-side from the authenticated user and
+// guestFirstName/guestLastName respectively). startDate/endDate: required
+// for KURZZEITPFLEGE/TAGESPFLEGE/NACHTPFLEGE (for Tages-/Nachtpflege,
+// start === end for a single day); endDate may be left off for "Ende
+// offen" (open-ended, common for ongoing Tages-/Nachtpflege); both absent
+// for STATIONAERE_AUFNAHME (unbefristet - use desiredStartDate instead,
+// purely informational).
 export const CreateBookingInput = z
   .object({
     facilityId: z.string().min(1),
     bookingType: BookingType,
     startDate: z.string().datetime().optional(),
     endDate: z.string().datetime().optional(),
-    guestName: z.string().trim().min(1).max(200),
-    guestEmail: z.string().trim().email().optional(),
+    desiredStartDate: z.string().datetime().optional(),
+    guestFirstName: z.string().trim().min(1).max(200),
+    guestLastName: z.string().trim().min(1).max(200),
+    guestBirthDate: z.string().datetime(),
+    guestStreet: z.string().trim().min(1).max(200),
+    guestPostalCode: z.string().trim().min(1).max(20),
+    guestCity: z.string().trim().min(1).max(200),
+    krankenkasse: z.string().trim().min(1).max(200),
+    versicherungsnummer: Versicherungsnummer,
+    pflegegrad: Pflegegrad,
+    pflegegradAntragLaeuft: z.boolean().optional(),
     guestPhone: z.string().trim().max(50).optional(),
     note: z.string().trim().max(1000).optional(),
   })
-  .refine((data) => (data.startDate === undefined) === (data.endDate === undefined), {
-    message: "Start- und Enddatum müssen beide gesetzt sein oder beide leer bleiben.",
+  .refine((data) => !(data.startDate === undefined && data.endDate !== undefined), {
+    message: "Ohne Startdatum kann kein Enddatum gesetzt werden.",
     path: ["endDate"],
   });
 export type CreateBookingInput = z.infer<typeof CreateBookingInput>;
@@ -252,20 +276,11 @@ export const CreateReviewInput = z.object({
 export type CreateReviewInput = z.infer<typeof CreateReviewInput>;
 
 // A real Sozialversicherungsnummer, not just a display string - loosely
-// validated (12 chars: 2 digits, 6 digits birthdate, letter, 2 digits, 1
-// checksum digit per the official format) but not over-strict, since
-// getting this wrong shouldn't block submission - the Pflegekasse
-// validates it for real.
-export const Versicherungsnummer = z
-  .string()
-  .trim()
-  .regex(/^[0-9]{8}[A-Za-z][0-9]{3}$/, "Das sieht nicht wie eine gültige Versicherungsnummer aus.");
-export type Versicherungsnummer = z.infer<typeof Versicherungsnummer>;
-
 export const UpdateCareProfileInput = z.object({
   versicherungsnummer: Versicherungsnummer.optional(),
   pflegegrad: Pflegegrad.optional(),
   pflegegradAntragLaeuft: z.boolean().optional(),
+  krankenkasse: z.string().trim().min(1).max(200).optional(),
 });
 export type UpdateCareProfileInput = z.infer<typeof UpdateCareProfileInput>;
 

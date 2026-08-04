@@ -36,11 +36,13 @@ export const careApplicationRouter = router({
     });
 
     return {
+      name: user.name,
       versicherungsnummer: user.versicherungsnummerEncrypted
         ? decryptSecret(user.versicherungsnummerEncrypted)
         : null,
       pflegegrad: user.pflegegrad,
       pflegegradAntragLaeuft: user.pflegegradAntragLaeuft,
+      krankenkasse: user.krankenkasse,
       applications: user.careApplications,
       krankenkasseConfigured: pilotKrankenkasse() !== null,
     };
@@ -59,6 +61,7 @@ export const careApplicationRouter = router({
           ...(input.pflegegradAntragLaeuft !== undefined
             ? { pflegegradAntragLaeuft: input.pflegegradAntragLaeuft }
             : {}),
+          ...(input.krankenkasse !== undefined ? { krankenkasse: input.krankenkasse } : {}),
         },
       });
     }),

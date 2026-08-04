@@ -32,6 +32,7 @@ export function SearchForm({
   defaultPflegegrad,
   defaultSort,
   showFilters = false,
+  showRadius = false,
   className,
 }: {
   defaultCity?: string;
@@ -41,6 +42,10 @@ export function SearchForm({
   defaultPflegegrad?: number;
   defaultSort?: string;
   showFilters?: boolean;
+  // Just the radius selector, without the rest of showFilters' set
+  // (price/Pflegegrad/sort) - for compact search boxes like the homepage
+  // hero, where the full filter row would be too much.
+  showRadius?: boolean;
   className?: string;
 }) {
   return (
@@ -71,22 +76,24 @@ export function SearchForm({
         ))}
       </select>
 
+      {(showFilters || showRadius) && (
+        <select
+          name="radius"
+          defaultValue={defaultRadiusKm ?? ""}
+          onChange={showFilters ? submitOnChange : undefined}
+          className={selectClassName}
+        >
+          <option value="">Beliebige Entfernung</option>
+          {radiusOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      )}
+
       {showFilters && (
         <>
-          <select
-            name="radius"
-            defaultValue={defaultRadiusKm ?? ""}
-            onChange={submitOnChange}
-            className={selectClassName}
-          >
-            <option value="">Beliebige Entfernung</option>
-            {radiusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
           <input
             type="number"
             name="maxPrice"

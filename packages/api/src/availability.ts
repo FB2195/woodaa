@@ -110,10 +110,15 @@ function normalizeRange(
 ): { startDate: Date | null; endDate: Date | null } {
   const start = startDate ? startOfDay(startDate) : null;
   const end = endDate ? startOfDay(endDate) : null;
-  if ((start === null) !== (end === null)) {
+  // end without a start is never sensible; start without an end is "Ende
+  // offen" (open-ended, e.g. ongoing Tages-/Nachtpflege) and is allowed -
+  // freeUnitCandidates' conflict query and the DB's GIST exclusion
+  // constraint both already treat a null upper bound as unbounded going
+  // forward, so no further special-casing is needed downstream.
+  if (start === null && end !== null) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "Start- und Enddatum müssen beide gesetzt sein oder beide leer bleiben.",
+      message: "Ohne Startdatum kann kein Enddatum gesetzt werden.",
     });
   }
   if (start && end && end < start) {
@@ -173,9 +178,21 @@ export type CreateBookingInput = {
   source: "ONLINE" | "TELEFON" | "VOR_ORT";
   startDate?: Date | null;
   endDate?: Date | null;
+  desiredStartDate?: Date | null;
+  userId?: string | null;
   guestName?: string | null;
   guestEmail?: string | null;
   guestPhone?: string | null;
+  guestFirstName?: string | null;
+  guestLastName?: string | null;
+  guestBirthDate?: Date | null;
+  guestStreet?: string | null;
+  guestPostalCode?: string | null;
+  guestCity?: string | null;
+  krankenkasse?: string | null;
+  versicherungsnummerEncrypted?: string | null;
+  pflegegrad?: number | null;
+  pflegegradAntragLaeuft?: boolean;
   note?: string | null;
 };
 
@@ -222,9 +239,21 @@ export async function createBooking(db: PrismaClient, input: CreateBookingInput)
             source: input.source,
             startDate,
             endDate,
+            desiredStartDate: input.desiredStartDate ?? null,
+            userId: input.userId ?? null,
             guestName: input.guestName ?? null,
             guestEmail: input.guestEmail ?? null,
             guestPhone: input.guestPhone ?? null,
+            guestFirstName: input.guestFirstName ?? null,
+            guestLastName: input.guestLastName ?? null,
+            guestBirthDate: input.guestBirthDate ?? null,
+            guestStreet: input.guestStreet ?? null,
+            guestPostalCode: input.guestPostalCode ?? null,
+            guestCity: input.guestCity ?? null,
+            krankenkasse: input.krankenkasse ?? null,
+            versicherungsnummerEncrypted: input.versicherungsnummerEncrypted ?? null,
+            pflegegrad: input.pflegegrad ?? null,
+            pflegegradAntragLaeuft: input.pflegegradAntragLaeuft ?? false,
             note: input.note ?? null,
           },
         });

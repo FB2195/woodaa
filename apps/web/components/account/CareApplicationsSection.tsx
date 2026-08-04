@@ -49,6 +49,7 @@ export function CareApplicationsSection() {
           const form = new FormData(event.currentTarget);
           const versicherungsnummer = String(form.get("versicherungsnummer") ?? "").trim();
           const pflegegradRaw = String(form.get("pflegegrad") ?? "");
+          const krankenkasse = String(form.get("krankenkasse") ?? "").trim();
 
           try {
             await updateProfile.mutateAsync({
@@ -56,6 +57,7 @@ export function CareApplicationsSection() {
               ...(pflegegradRaw !== ""
                 ? { pflegegrad: Number(pflegegradRaw) as 0 | 1 | 2 | 3 | 4 | 5 }
                 : {}),
+              ...(krankenkasse ? { krankenkasse } : {}),
             });
           } catch (err) {
             setProfileError(
@@ -70,6 +72,16 @@ export function CareApplicationsSection() {
             name="versicherungsnummer"
             defaultValue={data.versicherungsnummer ?? ""}
             placeholder="z. B. A123456789"
+            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Krankenkasse
+          <input
+            name="krankenkasse"
+            defaultValue={data.krankenkasse ?? ""}
+            placeholder="z. B. AOK, TK, Barmer…"
             className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
         </label>
