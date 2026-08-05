@@ -81,7 +81,7 @@ const facilities = [
     state: "Nordrhein-Westfalen",
     latitude: 50.9203,
     longitude: 6.9662,
-    amenities: ["Garten", "Barrierefreiheit", "Cafeteria", "Seelsorge"],
+    amenities: ["Garten", "Barrierefreiheit", "Cafeteria", "Seelsorge/religiöse Angebote"],
     operatorName: "Thomas Krämer",
     operatorEmail: "leitung@haus-rheinblick.de",
     operatorPhone: "0221 3456789",
@@ -169,7 +169,7 @@ const facilities = [
     state: "Baden-Württemberg",
     latitude: 48.7758,
     longitude: 9.1829,
-    amenities: ["Garten", "Physiotherapie", "Einzelzimmer", "Friseur"],
+    amenities: ["Garten", "Physiotherapie", "Einzelzimmer", "Friseursalon"],
     operatorName: "Markus Feldmann",
     operatorEmail: "info@schlossgarten-seniorenzentrum.de",
     operatorPhone: "0711 3456712",
@@ -214,7 +214,7 @@ const facilities = [
     state: "Niedersachsen",
     latitude: 52.3759,
     longitude: 9.732,
-    amenities: ["Garten", "Barrierefreiheit", "Cafeteria", "Seelsorge"],
+    amenities: ["Garten", "Barrierefreiheit", "Cafeteria", "Seelsorge/religiöse Angebote"],
     operatorName: "Frank Ahlers",
     operatorEmail: "leitung@haus-maschsee.de",
     operatorPhone: "0511 5678934",
@@ -258,7 +258,7 @@ const facilities = [
     state: "Bremen",
     latitude: 53.0793,
     longitude: 8.8017,
-    amenities: ["Garten", "Seelsorge", "Barrierefreiheit", "Einzelzimmer"],
+    amenities: ["Garten", "Seelsorge/religiöse Angebote", "Barrierefreiheit", "Einzelzimmer"],
     operatorName: "Dirk Meinecke",
     operatorEmail: "leitung@weserdeich-seniorenheim.de",
     operatorPhone: "0421 7890156",
@@ -303,7 +303,7 @@ const facilities = [
     state: "Nordrhein-Westfalen",
     latitude: 51.5136,
     longitude: 7.4653,
-    amenities: ["Barrierefreiheit", "Garten", "Cafeteria", "Friseur"],
+    amenities: ["Barrierefreiheit", "Garten", "Cafeteria", "Friseursalon"],
     operatorName: "Bernd Kaiser",
     operatorEmail: "kontakt@haus-westfalenpark.de",
     operatorPhone: "0231 9012378",
@@ -325,7 +325,7 @@ const facilities = [
     state: "Baden-Württemberg",
     latitude: 49.4875,
     longitude: 8.466,
-    amenities: ["Palliativpflege", "Einzelzimmer", "Cafeteria", "Seelsorge"],
+    amenities: ["Palliativpflege", "Einzelzimmer", "Cafeteria", "Seelsorge/religiöse Angebote"],
     operatorName: "Susanne Ott",
     operatorEmail: "leitung@wasserturm-residenz.de",
     operatorPhone: "0621 0123489",
@@ -456,6 +456,53 @@ function demoRangeFor(index: number): { startDate: Date; endDate: Date } {
   return { startDate, endDate };
 }
 
+// Demo-Staffelung je Pflegegrad, relativ zum bereits vorhandenen
+// monthlyPriceCents (der als grobe Anker-/Anzeigegröße um Pflegegrad 3
+// herum gedacht ist) - erzeugt plausible, aufsteigende Sätze je Pflegegrad
+// für die drei neuen Preisarten (Tages-/Monatssatz, Tagessatz, Stundensatz).
+const PFLEGEGRAD_MULTIPLIER: Record<number, number> = {
+  1: 0.82,
+  2: 0.9,
+  3: 1.0,
+  4: 1.1,
+  5: 1.2,
+};
+
+function stationaerRates(monthlyPriceCents: number) {
+  return Object.entries(PFLEGEGRAD_MULTIPLIER).map(([pg, mult]) => {
+    const monthlyRateCents = Math.round((monthlyPriceCents * mult) / 100) * 100;
+    return {
+      pflegegrad: Number(pg),
+      monthlyRateCents,
+      dailyRateCents: Math.round(monthlyRateCents / 30 / 100) * 100,
+    };
+  });
+}
+
+function kurzzeitpflegeRates(monthlyPriceCents: number) {
+  const baseDailyCents = monthlyPriceCents / 30;
+  return Object.entries(PFLEGEGRAD_MULTIPLIER).map(([pg, mult]) => ({
+    pflegegrad: Number(pg),
+    dailyRateCents: Math.round((baseDailyCents * mult) / 100) * 100,
+  }));
+}
+
+// Grobe Annahme 22 Betreuungstage/Monat, 6 Std./Tag, um aus dem
+// bestehenden Monatswert einen plausiblen Stundensatz abzuleiten.
+function tagesNachtpflegeRates(monthlyPriceCents: number) {
+  const baseHourlyCents = monthlyPriceCents / 22 / 6;
+  return Object.entries(PFLEGEGRAD_MULTIPLIER).map(([pg, mult]) => ({
+    pflegegrad: Number(pg),
+    hourlyRateCents: Math.round((baseHourlyCents * mult) / 10) * 10,
+  }));
+}
+
+function pflegegradRatesFor(bookingType: string, monthlyPriceCents: number) {
+  if (bookingType === "STATIONAERE_AUFNAHME") return stationaerRates(monthlyPriceCents);
+  if (bookingType === "KURZZEITPFLEGE") return kurzzeitpflegeRates(monthlyPriceCents);
+  return tagesNachtpflegeRates(monthlyPriceCents);
+}
+
 async function main() {
   for (const [facilityIndex, { capacities, ...facility }] of facilities.entries()) {
     const created = await prisma.facility.upsert({
@@ -485,6 +532,19 @@ async function main() {
           monthlyPriceCents: capacity.monthlyPriceCents,
         },
       });
+
+      // Per-Pflegegrad-Sätze aus dem Anker-Monatswert ableiten und stabil
+      // upserten, damit erneute Seed-Läufe sie aktualisieren statt zu
+      // duplizieren.
+      for (const rate of pflegegradRatesFor(capacity.bookingType, capacity.monthlyPriceCents)) {
+        await prisma.capacityPflegegradPricing.upsert({
+          where: {
+            capacityId_pflegegrad: { capacityId: cap.id, pflegegrad: rate.pflegegrad },
+          },
+          update: rate,
+          create: { capacityId: cap.id, ...rate },
+        });
+      }
 
       // Units + Bookings sind der Wahrheitsträger - nur beim allerersten
       // Seed-Lauf für diese Kategorie provisionieren, sonst würde jeder

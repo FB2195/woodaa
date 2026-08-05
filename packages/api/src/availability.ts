@@ -184,6 +184,8 @@ export type CreateBookingInput = {
   startDate?: Date | null;
   endDate?: Date | null;
   desiredStartDate?: Date | null;
+  // TAGESPFLEGE/NACHTPFLEGE only - see Booking.hoursPerDay.
+  hoursPerDay?: number | null;
   userId?: string | null;
   guestName?: string | null;
   guestEmail?: string | null;
@@ -253,6 +255,7 @@ export async function createBooking(db: PrismaClient, input: CreateBookingInput)
             startDate,
             endDate,
             desiredStartDate: input.desiredStartDate ?? null,
+            hoursPerDay: input.hoursPerDay ?? null,
             userId: input.userId ?? null,
             guestName: input.guestName ?? null,
             guestEmail: input.guestEmail ?? null,

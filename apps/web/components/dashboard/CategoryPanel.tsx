@@ -5,6 +5,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { bookingTypeLabels, dateRangedBookingTypes } from "@/lib/bookingTypeLabels";
 import { formatDate } from "@/lib/format";
+import { PflegegradPricingTable } from "./PflegegradPricingTable";
 import type { BookingType } from "@woodaa/validators";
 import type { FacilityCapacity, FacilityUnit, UnitBooking } from "@woodaa/api";
 
@@ -304,6 +305,8 @@ export function CategoryPanel({
           {updatePricing.isPending ? "…" : "Preis speichern"}
         </button>
       </form>
+
+      <PflegegradPricingTable bookingType={bookingType} rates={capacity?.pflegegradPricing ?? []} />
 
       <form
         className="flex items-end gap-3"

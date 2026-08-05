@@ -120,10 +120,10 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
                     : "Preis auf Anfrage"}
                 </p>
 
-                {capacity.monthlyPriceCents !== null && (
+                {capacity.pflegegradPricing.length > 0 && (
                   <PflegekassenZuschussRechner
                     bookingType={capacity.bookingType}
-                    monthlyPriceCents={capacity.monthlyPriceCents}
+                    pflegegradPricing={capacity.pflegegradPricing}
                   />
                 )}
 

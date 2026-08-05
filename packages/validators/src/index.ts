@@ -174,6 +174,25 @@ export const UpdatePricingInput = z.object({
 });
 export type UpdatePricingInput = z.infer<typeof UpdatePricingInput>;
 
+// Real per-Pflegegrad rates, the actual basis for every Eigenanteil/
+// Zuschuss calculation - see CapacityPflegegradPricing in schema.prisma
+// for which fields apply to which bookingType. A field left undefined
+// clears that rate (the form always resubmits the whole per-Pflegegrad
+// row, so "not sent" means "operator left it blank").
+export const PflegegradRateInput = z.object({
+  pflegegrad: Pflegegrad,
+  dailyRateCents: z.number().int().min(0).optional(),
+  monthlyRateCents: z.number().int().min(0).optional(),
+  hourlyRateCents: z.number().int().min(0).optional(),
+});
+export type PflegegradRateInput = z.infer<typeof PflegegradRateInput>;
+
+export const SetPflegegradPricingInput = z.object({
+  bookingType: BookingType,
+  rates: z.array(PflegegradRateInput).max(6),
+});
+export type SetPflegegradPricingInput = z.infer<typeof SetPflegegradPricingInput>;
+
 export const SetUnitCountInput = z.object({
   bookingType: BookingType,
   totalUnits: z.number().int().min(0).max(500),
@@ -215,11 +234,24 @@ export const CreateBookingInput = z
     guestPhone: z.string().trim().max(50).optional(),
     note: z.string().trim().max(1000).optional(),
     paymentMethod: PaymentMethod,
+    // TAGESPFLEGE/NACHTPFLEGE only - siehe Booking.hoursPerDay.
+    hoursPerDay: z.number().int().min(1).max(24).optional(),
   })
   .refine((data) => !(data.startDate === undefined && data.endDate !== undefined), {
     message: "Ohne Startdatum kann kein Enddatum gesetzt werden.",
     path: ["endDate"],
-  });
+  })
+  .refine(
+    (data) =>
+      !(
+        (data.bookingType === "TAGESPFLEGE" || data.bookingType === "NACHTPFLEGE") &&
+        data.hoursPerDay === undefined
+      ),
+    {
+      message: "Bitte gib die Stunden pro Tag an.",
+      path: ["hoursPerDay"],
+    },
+  );
 export type CreateBookingInput = z.infer<typeof CreateBookingInput>;
 
 // Same shape as CreateBookingInput but without facilityId - used by the

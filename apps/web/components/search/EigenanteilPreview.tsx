@@ -2,15 +2,36 @@
 
 import { useState } from "react";
 import type { BookingType, Pflegegrad } from "@woodaa/validators";
-import { bookingTypeLabels, dateRangedBookingTypes } from "@/lib/bookingTypeLabels";
+import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { formatPriceEuro } from "@/lib/format";
-import { calculateZuschuss, calculateZuschussForDays } from "@/lib/pflegekassenZuschuss";
+import {
+  calculateKurzzeitpflegeEigenanteil,
+  calculateStationaerEigenanteil,
+  calculateTagesNachtpflegeEigenanteil,
+} from "@/lib/pflegekassenZuschuss";
 
+type PflegegradRate = {
+  pflegegrad: number;
+  dailyRateCents: number | null;
+  monthlyRateCents: number | null;
+  hourlyRateCents: number | null;
+};
 type Capacity = {
   bookingType: BookingType;
-  monthlyPriceCents: number | null;
   availableSlots: number;
+  pflegegradPricing: PflegegradRate[];
 };
+
+// Which capacities actually have a usable rate for this Pflegegrad depends
+// on the booking type - see CapacityPflegegradPricing in schema.prisma.
+function hasRate(rate: PflegegradRate | undefined, bookingType: BookingType): boolean {
+  if (!rate) return false;
+  if (bookingType === "STATIONAERE_AUFNAHME") {
+    return rate.monthlyRateCents !== null || rate.dailyRateCents !== null;
+  }
+  if (bookingType === "KURZZEITPFLEGE") return rate.dailyRateCents !== null;
+  return rate.hourlyRateCents !== null;
+}
 
 export function EigenanteilPreview({
   capacities,
@@ -21,15 +42,16 @@ export function EigenanteilPreview({
 }) {
   const [open, setOpen] = useState(false);
   const [days, setDays] = useState(14);
+  const [hoursPerDay, setHoursPerDay] = useState(6);
 
   const options = capacities.filter(
-    (c): c is Capacity & { monthlyPriceCents: number } =>
-      c.monthlyPriceCents !== null && c.availableSlots > 0,
+    (c) => c.availableSlots > 0 && hasRate(c.pflegegradPricing.find((r) => r.pflegegrad === pflegegrad), c.bookingType),
   );
   const [bookingType, setBookingType] = useState<BookingType | undefined>(options[0]?.bookingType);
   const selected = options.find((c) => c.bookingType === bookingType) ?? options[0];
+  const rate = selected?.pflegegradPricing.find((r) => r.pflegegrad === pflegegrad);
 
-  if (options.length === 0) {
+  if (options.length === 0 || !selected || !rate) {
     return null;
   }
 
@@ -47,7 +69,7 @@ export function EigenanteilPreview({
         <div className="flex flex-col gap-2 text-xs">
           {options.length > 1 && (
             <select
-              value={selected?.bookingType}
+              value={selected.bookingType}
               onChange={(event) => setBookingType(event.target.value as BookingType)}
               className="rounded-brand-md border border-brand-border px-2 py-1 text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
             >
@@ -59,7 +81,7 @@ export function EigenanteilPreview({
             </select>
           )}
 
-          {selected && dateRangedBookingTypes.includes(selected.bookingType) && (
+          {selected.bookingType === "KURZZEITPFLEGE" && (
             <label className="flex items-center gap-2 text-brand-text-muted">
               Anzahl Tage
               <input
@@ -73,44 +95,93 @@ export function EigenanteilPreview({
             </label>
           )}
 
-          {selected &&
+          {(selected.bookingType === "TAGESPFLEGE" || selected.bookingType === "NACHTPFLEGE") && (
+            <label className="flex items-center gap-2 text-brand-text-muted">
+              Stunden pro Tag
+              <input
+                type="number"
+                min={1}
+                max={24}
+                value={hoursPerDay}
+                onChange={(event) => setHoursPerDay(Math.max(1, Number(event.target.value) || 1))}
+                className="w-16 rounded-brand-md border border-brand-border px-2 py-1 text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+              />
+            </label>
+          )}
+
+          {selected.bookingType === "STATIONAERE_AUFNAHME" &&
             (() => {
-              const result = dateRangedBookingTypes.includes(selected.bookingType)
-                ? calculateZuschussForDays(
-                    selected.bookingType as Exclude<BookingType, "STATIONAERE_AUFNAHME">,
-                    pflegegrad,
-                    selected.monthlyPriceCents,
-                    days,
-                  )
-                : {
-                    ...calculateZuschuss(selected.bookingType, pflegegrad, selected.monthlyPriceCents),
-                    totalCostCents: selected.monthlyPriceCents,
-                  };
+              const result = calculateStationaerEigenanteil(pflegegrad, rate);
+              if (!result) return null;
               return (
-                <div className="flex flex-col gap-1 rounded-brand-md bg-brand-background p-2">
-                  <div className="flex justify-between text-brand-text-muted">
-                    <span>Kosten{dateRangedBookingTypes.includes(selected.bookingType) ? ` (${days} Tage)` : "/Monat"}</span>
-                    <span>{formatPriceEuro(result.totalCostCents)}</span>
-                  </div>
-                  <div className="flex justify-between text-brand-accent">
-                    <span>− Zuschuss der Pflegekasse</span>
-                    <span>−{formatPriceEuro(result.subsidyCents)}</span>
-                  </div>
-                  <div className="flex justify-between border-t border-brand-border pt-1 font-semibold text-brand-primary-dark">
-                    <span>Voraussichtlicher Eigenanteil</span>
-                    <span>{formatPriceEuro(result.eigenanteilCents)}</span>
-                  </div>
+                <ResultBox>
+                  <Row label="Kosten/Monat" value={formatPriceEuro(rate.monthlyRateCents ?? (rate.dailyRateCents ?? 0) * 30)} />
+                  <Row label="− Zuschuss der Pflegekasse" value={`−${formatPriceEuro(result.subsidyCents)}`} accent />
+                  <Row label="Voraussichtlicher Eigenanteil" value={formatPriceEuro(result.eigenanteilCents)} bold />
                   {result.note && <p className="text-brand-text-muted">{result.note}</p>}
-                  <p className="text-brand-text-muted">
-                    Unverbindliche Orientierung auf Basis von Pflegegrad {pflegegrad} und der
-                    amtlichen Pauschalbeträge 2026 - alle Angaben ohne Gewähr, die tatsächliche
-                    Höhe bestätigt eure Pflegekasse.
-                  </p>
-                </div>
+                  <Disclaimer pflegegrad={pflegegrad} />
+                </ResultBox>
+              );
+            })()}
+
+          {selected.bookingType === "KURZZEITPFLEGE" &&
+            rate.dailyRateCents !== null &&
+            (() => {
+              const result = calculateKurzzeitpflegeEigenanteil(pflegegrad, rate.dailyRateCents!, days);
+              return (
+                <ResultBox>
+                  <Row label="Verfügbares Jahresbudget" value={formatPriceEuro(result.jahresbudgetCents)} />
+                  <Row label={`Kosten (${days} Tage)`} value={formatPriceEuro(result.totalCostCents)} />
+                  <Row label="− Zuschuss der Pflegekasse" value={`−${formatPriceEuro(result.subsidyCents)}`} accent />
+                  <Row label="Voraussichtlicher Eigenanteil" value={formatPriceEuro(result.eigenanteilCents)} bold />
+                  <Row label="Danach noch verfügbares Budget" value={formatPriceEuro(result.remainingBudgetCents)} />
+                  {result.note && <p className="text-brand-text-muted">{result.note}</p>}
+                  <Disclaimer pflegegrad={pflegegrad} />
+                </ResultBox>
+              );
+            })()}
+
+          {(selected.bookingType === "TAGESPFLEGE" || selected.bookingType === "NACHTPFLEGE") &&
+            rate.hourlyRateCents !== null &&
+            (() => {
+              const result = calculateTagesNachtpflegeEigenanteil(pflegegrad, rate.hourlyRateCents!, hoursPerDay);
+              return (
+                <ResultBox>
+                  <Row label="Kosten pro Tag" value={formatPriceEuro(result.dailyCostCents)} />
+                  <Row label="− Zuschuss der Pflegekasse" value={`−${formatPriceEuro(result.dailySubsidyCents)}`} accent />
+                  <Row label="Voraussichtlicher Eigenanteil pro Tag" value={formatPriceEuro(result.dailyEigenanteilCents)} bold />
+                  {result.note && <p className="text-brand-text-muted">{result.note}</p>}
+                  <Disclaimer pflegegrad={pflegegrad} />
+                </ResultBox>
               );
             })()}
         </div>
       )}
     </div>
+  );
+}
+
+function ResultBox({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-col gap-1 rounded-brand-md bg-brand-background p-2">{children}</div>;
+}
+
+function Row({ label, value, accent, bold }: { label: string; value: string; accent?: boolean; bold?: boolean }) {
+  return (
+    <div
+      className={`flex justify-between ${accent ? "text-brand-accent" : bold ? "border-t border-brand-border pt-1 font-semibold text-brand-primary-dark" : "text-brand-text-muted"}`}
+    >
+      <span>{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+function Disclaimer({ pflegegrad }: { pflegegrad: Pflegegrad }) {
+  return (
+    <p className="text-brand-text-muted">
+      Unverbindliche Orientierung auf Basis von Pflegegrad {pflegegrad} und der amtlichen
+      Pauschalbeträge 2026 - alle Angaben ohne Gewähr, die tatsächliche Höhe bestätigt eure
+      Pflegekasse.
+    </p>
   );
 }

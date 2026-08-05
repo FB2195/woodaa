@@ -27,7 +27,7 @@ export const adminRouter = router({
     const facilities = await ctx.db.facility.findMany({
       where: { status: "PENDING_REVIEW", description: { not: "" } },
       include: {
-        capacities: true,
+        capacities: { include: { pflegegradPricing: true } },
         photos: { take: 1, orderBy: { createdAt: "asc" } },
       },
       orderBy: { createdAt: "asc" },

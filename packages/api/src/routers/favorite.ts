@@ -47,7 +47,7 @@ export const favoriteRouter = router({
       include: {
         facility: {
           include: {
-            capacities: true,
+            capacities: { include: { pflegegradPricing: true } },
             photos: { take: 1, orderBy: { createdAt: "asc" } },
           },
         },

@@ -1,8 +1,21 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import type { FacilityPhoto as PrismaFacilityPhoto } from "@prisma/client";
 
-export type { FacilityCapacity, FacilityUnit, PhotoCategory, Review } from "@prisma/client";
+export type {
+  CapacityPflegegradPricing,
+  FacilityUnit,
+  PhotoCategory,
+  Review,
+} from "@prisma/client";
 export type { Booking as UnitBooking } from "@prisma/client";
+
+// FacilityCapacity now always carries its per-Pflegegrad pricing rows
+// alongside it (see CapacityPflegegradPricing in schema.prisma) - every
+// consumer needs both together, so this re-exported name is the payload
+// shape, not the bare Prisma model.
+export type FacilityCapacity = Prisma.FacilityCapacityGetPayload<{
+  include: { pflegegradPricing: true };
+}>;
 
 // R2 stores only the object `key` (see the FacilityPhoto model comment in
 // schema.prisma) - every router enriches each row with a derived absolute
@@ -19,7 +32,7 @@ export type FacilityPhoto = PrismaFacilityPhoto & { url: string | null };
  * shape used by the client-side tRPC React Query link.
  */
 type FacilityWithCapacitiesRaw = Prisma.FacilityGetPayload<{
-  include: { capacities: true; photos: true };
+  include: { capacities: { include: { pflegegradPricing: true } }; photos: true };
 }>;
 export type FacilityWithCapacities = Omit<
   FacilityWithCapacitiesRaw,
@@ -37,7 +50,7 @@ export type OccupiedRange = {
 
 type FacilityWithDetailsRaw = Prisma.FacilityGetPayload<{
   include: {
-    capacities: true;
+    capacities: { include: { pflegegradPricing: true } };
     photos: true;
     reviews: true;
   };
@@ -52,7 +65,7 @@ export type FacilityWithDetails = Omit<FacilityWithDetailsRaw, "photos"> & {
 // manual booking page (packages/api/src/routers/operator.ts).
 type FacilityWithOperatorDetailsRaw = Prisma.FacilityGetPayload<{
   include: {
-    capacities: true;
+    capacities: { include: { pflegegradPricing: true } };
     photos: true;
     reviews: true;
     units: {

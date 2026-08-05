@@ -25,7 +25,10 @@ export const bookingRouter = router({
       where: { id: input.facilityId, status: "ACTIVE" },
       select: {
         id: true,
-        capacities: { where: { bookingType: input.bookingType }, select: { monthlyPriceCents: true } },
+        capacities: {
+          where: { bookingType: input.bookingType },
+          select: { pflegegradPricing: true },
+        },
       },
     });
     if (!facility) {
@@ -41,6 +44,29 @@ export const bookingRouter = router({
         ? ("WARTET_AUF_HEIM_FREIGABE" as const)
         : ("AUSSTEHEND" as const); // KOSTENUEBERNAHME_KASSE: erst nach Beleg-Upload
 
+    const rate = facility.capacities[0]?.pflegegradPricing.find(
+      (r) => r.pflegegrad === input.pflegegrad,
+    );
+
+    // Fail before reserving a slot - a booking whose payment can never
+    // succeed shouldn't block the unit for anyone else.
+    let amountCents: number | null = null;
+    if (usesStripe) {
+      amountCents = chargeAmountCents(
+        input.bookingType,
+        rate,
+        input.startDate ? new Date(input.startDate) : null,
+        input.endDate ? new Date(input.endDate) : null,
+        input.hoursPerDay ?? null,
+      );
+      if (amountCents === null) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Für diesen Pflegegrad hat die Einrichtung noch keinen Preis hinterlegt.",
+        });
+      }
+    }
+
     const booking = await createBooking(ctx.db, {
       facilityId: input.facilityId,
       bookingType: input.bookingType,
@@ -48,6 +74,7 @@ export const bookingRouter = router({
       startDate: input.startDate ? new Date(input.startDate) : null,
       endDate: input.endDate ? new Date(input.endDate) : null,
       desiredStartDate: input.desiredStartDate ? new Date(input.desiredStartDate) : null,
+      hoursPerDay: input.hoursPerDay ?? null,
       userId: user.id,
       guestName: `${input.guestFirstName} ${input.guestLastName}`.trim(),
       guestEmail: user.email,
@@ -71,17 +98,9 @@ export const bookingRouter = router({
       adminApprovalStatus: user.vollmachtDocumentKey ? "AUSSTEHEND" : "NICHT_ERFORDERLICH",
     });
 
-    if (!usesStripe) {
+    if (!usesStripe || amountCents === null) {
       return { booking, stripeClientSecret: null };
     }
-
-    const monthlyPriceCents = facility.capacities[0]?.monthlyPriceCents ?? 0;
-    const amountCents = chargeAmountCents(
-      input.bookingType,
-      monthlyPriceCents,
-      booking.startDate,
-      booking.endDate,
-    );
 
     const stripeMethodTypes: Record<"KARTE" | "KLARNA" | "PAYPAL", string[]> = {
       KARTE: ["card"],
