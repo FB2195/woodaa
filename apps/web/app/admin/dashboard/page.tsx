@@ -66,7 +66,8 @@ export default async function AdminDashboardPage() {
           {active.map((facility) => (
             <li key={facility.id}>
               {facility.name} — {facility.city} · {facility.operatorName}
-              {facility.operatorPhone ? ` · ${facility.operatorPhone}` : ""} ·{" "}
+              {facility.operatorPhone ? ` · ${facility.operatorPhone}` : ""}
+              {facility.operatorPhoneDurchwahl ? ` (${facility.operatorPhoneDurchwahl})` : ""} ·{" "}
               {facility.operatorEmail}
             </li>
           ))}

@@ -14,6 +14,7 @@ type Facility = {
   operatorName: string;
   operatorEmail: string;
   operatorPhone: string | null;
+  operatorPhoneDurchwahl: string | null;
 };
 
 // Name/Adresse/Ansprechpartner sind trust-sensitive öffentliche Angaben -
@@ -68,6 +69,9 @@ export function FacilityContactForm({
             {pendingChangeRequest.operatorPhone != null && (
               <li>Telefon: {pendingChangeRequest.operatorPhone}</li>
             )}
+            {pendingChangeRequest.operatorPhoneDurchwahl != null && (
+              <li>Durchwahl: {pendingChangeRequest.operatorPhoneDurchwahl}</li>
+            )}
           </ul>
           <button
             type="button"
@@ -103,13 +107,18 @@ export function FacilityContactForm({
             operatorName: String(form.get("operatorName") ?? "").trim(),
             operatorEmail: String(form.get("operatorEmail") ?? "").trim(),
             operatorPhone: String(form.get("operatorPhone") ?? "").trim(),
+            operatorPhoneDurchwahl: String(form.get("operatorPhoneDurchwahl") ?? "").trim(),
           };
 
           // Nur tatsächlich geänderte Felder gehen in die Anfrage - siehe
           // RequestFacilityChangeInput ("Mindestens ein Feld muss geändert werden").
+          // Nullable facility fields (operatorPhone/operatorPhoneDurchwahl)
+          // normalize to "" for the comparison so an untouched empty field
+          // doesn't look "changed" just because null !== "".
           const changed = Object.fromEntries(
             Object.entries(values).filter(
-              ([key, value]) => value !== (facility as Record<string, string | null>)[key],
+              ([key, value]) =>
+                value !== ((facility as Record<string, string | null>)[key] ?? ""),
             ),
           );
 
@@ -211,6 +220,15 @@ export function FacilityContactForm({
           <input
             name="operatorPhone"
             defaultValue={facility.operatorPhone ?? ""}
+            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Durchwahl
+          <input
+            name="operatorPhoneDurchwahl"
+            defaultValue={facility.operatorPhoneDurchwahl ?? ""}
             className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
         </label>

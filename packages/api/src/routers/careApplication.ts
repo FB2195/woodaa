@@ -39,6 +39,13 @@ export const careApplicationRouter = router({
 
     return {
       name: user.name,
+      vorname: user.vorname,
+      nachname: user.nachname,
+      geburtsdatum: user.geburtsdatum,
+      street: user.street,
+      postalCode: user.postalCode,
+      city: user.city,
+      phone: user.phone,
       versicherungsnummer: user.versicherungsnummerEncrypted
         ? decryptSecret(user.versicherungsnummerEncrypted)
         : null,

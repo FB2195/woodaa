@@ -17,8 +17,7 @@ import {
 } from "@woodaa/validators";
 import { z } from "zod";
 import { cancelBooking, createBooking, setUnitCount } from "../availability";
-import { geocodeAddress } from "../geocoding";
-import { slugify } from "../lib/slugify";
+import { createFacilityForOperator } from "../lib/facility";
 import { cheapestMonthlyEquivalentCents } from "../pricing";
 import {
   createPresignedDownloadUrl,
@@ -50,21 +49,6 @@ async function requireOwnFacility(
     });
   }
   return facility;
-}
-
-async function uniqueSlugFor(
-  ctx: Context,
-  name: string,
-  city: string,
-): Promise<string> {
-  const base = slugify(`${name}-${city}`);
-  let slug = base;
-  let suffix = 1;
-  while (await ctx.db.facility.findUnique({ where: { slug } })) {
-    suffix += 1;
-    slug = `${base}-${suffix}`;
-  }
-  return slug;
 }
 
 export const operatorRouter = router({
@@ -129,25 +113,7 @@ export const operatorRouter = router({
         });
       }
 
-      const slug = await uniqueSlugFor(ctx, input.name, input.city);
-      // Best-effort - a facility is still created even if geocoding fails
-      // or Nominatim is unreachable, it just won't show on the map yet.
-      const geo = await geocodeAddress(
-        `${input.street}, ${input.postalCode} ${input.city}, Germany`,
-      );
-
-      return ctx.db.facility.create({
-        data: {
-          ...input,
-          slug,
-          status: "PENDING_REVIEW",
-          operatorName: user.name,
-          operatorEmail: user.email,
-          operatorUserId: user.id,
-          latitude: geo?.latitude ?? null,
-          longitude: geo?.longitude ?? null,
-        },
-      });
+      return createFacilityForOperator(ctx.db, user, input);
     }),
 
   // Non-critical fields only (description, amenities, Pflegegrad-Eignung,

@@ -25,12 +25,14 @@ import {
   verifyRefreshToken,
   verifyTwoFactorChallengeToken,
 } from "../auth";
+import { encryptSecret } from "../crypto";
 import {
   sendEmailChangeNewAddressEmail,
   sendEmailChangeOldAddressEmail,
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "../email";
+import { createFacilityForOperator } from "../lib/facility";
 import { hashToken } from "../tokenHash";
 import { decryptSecret, verifyTotpCode } from "../twoFactor";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
@@ -115,15 +117,79 @@ export const authRouter = router({
     }
 
     const passwordHash = await bcrypt.hash(input.password, 12);
-    const user = await ctx.db.user.create({
-      data: {
-        name: input.name,
-        email: input.email,
-        passwordHash,
-        role: input.role,
-        verificationEmailSentAt: new Date(),
-      },
-    });
+    const now = new Date();
+
+    // SUCHENDE: name/address/Pflegegrad/... collected once here so
+    // BookingForm can prefill instead of asking fresh every booking (see
+    // careApplication.myCareProfile). BETREIBER: facility created in the
+    // same transaction as the account - see RegisterBetreiberInput.
+    const user =
+      input.role === "SUCHENDE"
+        ? await ctx.db.user.create({
+            data: {
+              name: `${input.vorname} ${input.nachname}`.trim(),
+              vorname: input.vorname,
+              nachname: input.nachname,
+              email: input.email,
+              passwordHash,
+              role: "SUCHENDE",
+              geburtsdatum: new Date(input.geburtsdatum),
+              street: input.street,
+              postalCode: input.postalCode,
+              city: input.city,
+              phone: input.phone,
+              pflegegrad: input.pflegegrad ?? null,
+              pflegegradAntragLaeuft: input.pflegegradAntragLaeuft,
+              krankenkasse: input.krankenkasse ?? null,
+              versicherungsnummerEncrypted: input.versicherungsnummer
+                ? encryptSecret(input.versicherungsnummer)
+                : null,
+              hatBevollmaechtigten: input.hatBevollmaechtigten,
+              bevollmaechtigterVorname: input.hatBevollmaechtigten
+                ? input.bevollmaechtigterVorname
+                : null,
+              bevollmaechtigterNachname: input.hatBevollmaechtigten
+                ? input.bevollmaechtigterNachname
+                : null,
+              bevollmaechtigterAdresse: input.hatBevollmaechtigten
+                ? input.bevollmaechtigterAdresse
+                : null,
+              bevollmaechtigterTelefon: input.hatBevollmaechtigten
+                ? input.bevollmaechtigterTelefon
+                : null,
+              bevollmaechtigterEmail: input.hatBevollmaechtigten
+                ? input.bevollmaechtigterEmail
+                : null,
+              newsletterOptIn: input.newsletterOptIn,
+              agbAcceptedAt: now,
+              datenschutzAcceptedAt: now,
+              verificationEmailSentAt: now,
+            },
+          })
+        : await ctx.db.$transaction(async (tx) => {
+            const betreiberUser = await tx.user.create({
+              data: {
+                name: input.name,
+                email: input.email,
+                passwordHash,
+                role: "BETREIBER",
+                agbAcceptedAt: now,
+                verificationEmailSentAt: now,
+              },
+            });
+            await createFacilityForOperator(tx, betreiberUser, {
+              name: input.facilityName,
+              description: "",
+              street: input.street,
+              postalCode: input.postalCode,
+              city: input.city,
+              state: input.state,
+              amenities: [],
+              operatorPhone: input.operatorPhone,
+              operatorPhoneDurchwahl: input.operatorPhoneDurchwahl,
+            });
+            return betreiberUser;
+          });
 
     await dispatchVerificationEmail(user);
 

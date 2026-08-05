@@ -3,49 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { establishSession, redirectFor } from "@/lib/authSession";
 import { trpc } from "@/lib/trpc";
 
-type Mode =
-  | "login"
-  | "register-suchende"
-  | "register-betreiber"
-  | "bootstrap-admin";
+type Mode = "login" | "bootstrap-admin";
 
 const copy: Record<Mode, { title: string; submit: string }> = {
   login: { title: "Anmelden", submit: "Anmelden" },
-  "register-suchende": {
-    title: "Konto erstellen",
-    submit: "Konto erstellen",
-  },
-  "register-betreiber": {
-    title: "Kostenlos starten",
-    submit: "Kostenlos loslegen",
-  },
   "bootstrap-admin": {
     title: "Admin-Konto einrichten",
     submit: "Admin-Konto erstellen",
   },
 };
-
-function redirectFor(role: "SUCHENDE" | "BETREIBER" | "ADMIN"): string {
-  if (role === "ADMIN") return "/admin/dashboard";
-  if (role === "BETREIBER") return "/betreiber/dashboard";
-  return "/";
-}
-
-async function establishSession(tokens: {
-  accessToken: string;
-  refreshToken: string;
-}) {
-  const res = await fetch("/api/auth/session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(tokens),
-  });
-  if (!res.ok) {
-    throw new Error("Sitzung konnte nicht gestartet werden.");
-  }
-}
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -53,14 +22,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [challengeToken, setChallengeToken] = useState<string | null>(null);
 
   const login = trpc.auth.login.useMutation();
-  const register = trpc.auth.register.useMutation();
   const bootstrapAdmin = trpc.auth.bootstrapAdmin.useMutation();
   const verifyTwoFactor = trpc.auth.verifyTwoFactor.useMutation();
-  const pending =
-    login.isPending ||
-    register.isPending ||
-    bootstrapAdmin.isPending ||
-    verifyTwoFactor.isPending;
+  const pending = login.isPending || bootstrapAdmin.isPending || verifyTwoFactor.isPending;
 
   if (challengeToken) {
     return (
@@ -136,17 +100,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           }
 
           const name = String(form.get("name") ?? "");
-
-          if (mode === "bootstrap-admin") {
-            const result = await bootstrapAdmin.mutateAsync({ name, email, password });
-            await establishSession(result);
-            router.push(redirectFor(result.user.role));
-            router.refresh();
-            return;
-          }
-
-          const role = mode === "register-betreiber" ? "BETREIBER" : "SUCHENDE";
-          const result = await register.mutateAsync({ name, email, password, role });
+          const result = await bootstrapAdmin.mutateAsync({ name, email, password });
           await establishSession(result);
           router.push(redirectFor(result.user.role));
           router.refresh();
@@ -161,7 +115,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         {copy[mode].title}
       </h1>
 
-      {mode !== "login" && (
+      {mode === "bootstrap-admin" && (
         <label className="flex flex-col gap-1 text-sm text-brand-text">
           Name
           <input

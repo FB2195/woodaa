@@ -39,6 +39,8 @@ export function CreateFacilityForm() {
               description: "",
               amenities: [],
               operatorPhone: String(form.get("operatorPhone") ?? "") || undefined,
+              operatorPhoneDurchwahl:
+                String(form.get("operatorPhoneDurchwahl") ?? "") || undefined,
             });
             router.refresh();
           } catch (err) {
@@ -106,6 +108,16 @@ export function CreateFacilityForm() {
             name="operatorPhone"
             type="tel"
             placeholder="030 12345678"
+            className="rounded-brand-md border border-brand-border px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Durchwahl Ansprechpartner (optional)
+          <input
+            name="operatorPhoneDurchwahl"
+            type="tel"
+            placeholder="-42"
             className="rounded-brand-md border border-brand-border px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
         </label>
