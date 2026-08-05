@@ -71,4 +71,9 @@ export const tr: Messages = {
     fr: "Français",
     es: "Español",
   },
+  theme: {
+    label: "Tema",
+    light: "Açık",
+    dark: "Koyu",
+  },
 };

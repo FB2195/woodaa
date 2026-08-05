@@ -14,7 +14,7 @@ export function PublicListingPrompt() {
     return (
       <div className="flex flex-col items-start gap-3 rounded-brand-lg border border-dashed border-brand-accent bg-brand-accent/5 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="font-semibold text-brand-primary-dark">
+          <h3 className="font-semibold text-brand-heading">
             🌍 Öffentlich auf woodaa sichtbar werden
           </h3>
           <p className="mt-1 text-sm text-brand-text-muted">
@@ -58,7 +58,7 @@ export function PublicListingPrompt() {
       }}
     >
       <div>
-        <h3 className="font-semibold text-brand-primary-dark">
+        <h3 className="font-semibold text-brand-heading">
           Öffentliche Sichtbarkeit vervollständigen
         </h3>
         <p className="mt-1 text-sm text-brand-text-muted">

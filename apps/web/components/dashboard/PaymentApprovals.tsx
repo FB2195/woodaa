@@ -103,7 +103,7 @@ export function PaymentApprovals({ bookings }: { bookings: BookingWithVollmachtF
 
   return (
     <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
-      <h3 className="font-semibold text-brand-primary-dark">
+      <h3 className="font-semibold text-brand-heading">
         Zahlungsfreigaben ({pending.length})
       </h3>
       <p className="text-sm text-brand-text-muted">

@@ -21,7 +21,7 @@ export function ReviewForm({
   if (createReview.isSuccess) {
     return (
       <div className="rounded-brand-lg border border-brand-accent bg-brand-accent/10 p-6">
-        <p className="font-semibold text-brand-primary-dark">Danke für deine Bewertung!</p>
+        <p className="font-semibold text-brand-heading">Danke für deine Bewertung!</p>
         <p className="mt-1 text-sm text-brand-text-muted">
           Sie wird nach kurzer Prüfung durch unser Team veröffentlicht.
         </p>

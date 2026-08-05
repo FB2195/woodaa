@@ -13,7 +13,7 @@ export function CreateFacilityForm() {
     <div className="mx-auto max-w-lg">
       <div className="mb-6 text-center">
         <span className="text-3xl">👋</span>
-        <h1 className="mt-2 text-2xl font-bold text-brand-primary-dark">
+        <h1 className="mt-2 text-2xl font-bold text-brand-heading">
           Fast geschafft
         </h1>
         <p className="mt-1 text-sm text-brand-text-muted">

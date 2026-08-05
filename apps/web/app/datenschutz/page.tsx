@@ -5,7 +5,7 @@ export default function DatenschutzPage() {
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-2xl font-bold text-brand-primary-dark">Datenschutzerklärung</h1>
+        <h1 className="text-2xl font-bold text-brand-heading">Datenschutzerklärung</h1>
         <p className="mt-2 text-sm text-brand-text-muted">
           Diese Seite fasst zusammen, welche Daten woodaa verarbeitet und wofür. Sie ersetzt
           keine rechtliche Prüfung - bitte vor Live-Schaltung von einer/einem
@@ -14,7 +14,7 @@ export default function DatenschutzPage() {
 
         <div className="mt-8 flex flex-col gap-6 text-brand-text">
           <div>
-            <h2 className="font-semibold text-brand-primary-dark">Verantwortlicher</h2>
+            <h2 className="font-semibold text-brand-heading">Verantwortlicher</h2>
             <p className="mt-1 text-sm">
               [Firmenname], [Adresse] - siehe{" "}
               <a href="/impressum" className="underline">
@@ -25,7 +25,7 @@ export default function DatenschutzPage() {
           </div>
 
           <div>
-            <h2 className="font-semibold text-brand-primary-dark">Welche Daten wir verarbeiten</h2>
+            <h2 className="font-semibold text-brand-heading">Welche Daten wir verarbeiten</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
               <li>Kontodaten: Name, E-Mail-Adresse, Passwort (verschlüsselt gespeichert)</li>
               <li>
@@ -42,7 +42,7 @@ export default function DatenschutzPage() {
           </div>
 
           <div>
-            <h2 className="font-semibold text-brand-primary-dark">Wofür wir sie nutzen</h2>
+            <h2 className="font-semibold text-brand-heading">Wofür wir sie nutzen</h2>
             <p className="mt-1 text-sm">
               Ausschließlich zur Bereitstellung des Dienstes: Kontoverwaltung, Suche und
               Buchung von Pflegeplätzen, Kommunikation mit Einrichtungen, Zahlungsabwicklung,
@@ -52,7 +52,7 @@ export default function DatenschutzPage() {
           </div>
 
           <div>
-            <h2 className="font-semibold text-brand-primary-dark">Eingesetzte Dienstleister</h2>
+            <h2 className="font-semibold text-brand-heading">Eingesetzte Dienstleister</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
               <li>Stripe (Zahlungsabwicklung)</li>
               <li>Resend (Versand von E-Mails, z. B. Buchungsbestätigungen)</li>
@@ -63,7 +63,7 @@ export default function DatenschutzPage() {
           </div>
 
           <div>
-            <h2 className="font-semibold text-brand-primary-dark">Deine Rechte</h2>
+            <h2 className="font-semibold text-brand-heading">Deine Rechte</h2>
             <p className="mt-1 text-sm">
               Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der
               Verarbeitung, Datenübertragbarkeit und Widerspruch gegen die Verarbeitung deiner
@@ -77,7 +77,7 @@ export default function DatenschutzPage() {
           </div>
 
           <div>
-            <h2 className="font-semibold text-brand-primary-dark">Speicherdauer</h2>
+            <h2 className="font-semibold text-brand-heading">Speicherdauer</h2>
             <p className="mt-1 text-sm">
               Wir speichern Daten nur so lange, wie es für die genannten Zwecke oder aufgrund
               gesetzlicher Aufbewahrungspflichten erforderlich ist. Konten und zugehörige Daten

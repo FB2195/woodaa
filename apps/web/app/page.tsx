@@ -79,7 +79,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      <section className="bg-brand-surface-alt px-6 py-16">
+      <section className="bg-brand-surface px-6 py-16">
         <div className="mx-auto max-w-6xl">
           <h2 className="text-2xl font-semibold text-brand-text">
             Welche Art von Pflege wird gesucht?
@@ -92,7 +92,7 @@ export default async function HomePage() {
                 className="group rounded-brand-lg border border-brand-border bg-brand-surface p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-accent hover:shadow-md"
               >
                 <span className="text-3xl">{bookingTypeIcons[option.value]}</span>
-                <h3 className="mt-3 text-lg font-semibold text-brand-primary-dark">
+                <h3 className="mt-3 text-lg font-semibold text-brand-heading">
                   {option.label}
                 </h3>
                 <p className="mt-2 text-sm text-brand-text-muted">

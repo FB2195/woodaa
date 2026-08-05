@@ -8,7 +8,7 @@ export default function KundenservicePage() {
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-2xl font-bold text-brand-primary-dark">Kundenservice</h1>
+        <h1 className="text-2xl font-bold text-brand-heading">Kundenservice</h1>
         <p className="mt-2 text-brand-text-muted">
           Häufige Fragen, Telefon, Chat oder eine persönliche Nachricht - so erreichst du uns.
         </p>

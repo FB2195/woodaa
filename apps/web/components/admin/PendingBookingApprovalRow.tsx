@@ -41,7 +41,7 @@ export function PendingBookingApprovalRow({
     <div className="rounded-brand-lg border border-brand-border bg-brand-surface p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-brand-primary-dark">
+          <h3 className="text-lg font-semibold text-brand-heading">
             {booking.guestFirstName} {booking.guestLastName}
           </h3>
           <p className="text-sm text-brand-text-muted">

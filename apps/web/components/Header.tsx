@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTranslations } from "@/lib/i18n/LocaleProvider";
 import { trpc } from "@/lib/trpc";
 
@@ -155,6 +156,7 @@ export function Header() {
           <div className="my-2 border-t border-brand-border" />
 
           <LanguageSwitcher />
+          <ThemeToggle />
 
           <div className="my-2 border-t border-brand-border" />
 

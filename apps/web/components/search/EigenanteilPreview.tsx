@@ -168,7 +168,7 @@ function ResultBox({ children }: { children: React.ReactNode }) {
 function Row({ label, value, accent, bold }: { label: string; value: string; accent?: boolean; bold?: boolean }) {
   return (
     <div
-      className={`flex justify-between ${accent ? "text-brand-accent" : bold ? "border-t border-brand-border pt-1 font-semibold text-brand-primary-dark" : "text-brand-text-muted"}`}
+      className={`flex justify-between ${accent ? "text-brand-accent" : bold ? "border-t border-brand-border pt-1 font-semibold text-brand-heading" : "text-brand-text-muted"}`}
     >
       <span>{label}</span>
       <span>{value}</span>

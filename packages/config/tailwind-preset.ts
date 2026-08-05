@@ -15,7 +15,6 @@ const preset: Partial<Config> = {
           accent: colors.accent,
           background: colors.background,
           surface: colors.surface,
-          "surface-alt": colors.surfaceAlt,
           text: colors.text,
           "text-muted": colors.textMuted,
           border: colors.border,

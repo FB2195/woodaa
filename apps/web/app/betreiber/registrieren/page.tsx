@@ -61,7 +61,7 @@ export default function OperatorRegisterPage() {
               className="rounded-brand-lg border border-brand-border bg-brand-surface p-5 shadow-sm"
             >
               <span className="text-2xl">{b.icon}</span>
-              <h3 className="mt-3 text-base font-semibold text-brand-primary-dark">
+              <h3 className="mt-3 text-base font-semibold text-brand-heading">
                 {b.title}
               </h3>
               <p className="mt-2 text-sm text-brand-text-muted">{b.text}</p>

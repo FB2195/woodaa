@@ -66,6 +66,11 @@ export type Messages = {
     fr: string;
     es: string;
   };
+  theme: {
+    label: string;
+    light: string;
+    dark: string;
+  };
 };
 
 export const SUPPORTED_LOCALES = ["de", "en", "tr", "it", "fr", "es"] as const;

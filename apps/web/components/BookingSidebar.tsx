@@ -42,7 +42,7 @@ export function BookingSidebar({
 
   return (
     <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
-      <h3 className="text-lg font-semibold text-brand-primary-dark">Jetzt buchen</h3>
+      <h3 className="text-lg font-semibold text-brand-heading">Jetzt buchen</h3>
       <p className="text-sm text-brand-text-muted">
         Verfügbar für{" "}
         {availableBookingTypes.map((type) => bookingTypeLabels[type]).join(", ")}. Deine

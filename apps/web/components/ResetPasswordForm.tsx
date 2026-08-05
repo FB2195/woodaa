@@ -26,7 +26,7 @@ export function ResetPasswordForm() {
   if (resetPassword.isSuccess) {
     return (
       <div className="rounded-brand-lg border border-brand-accent bg-brand-accent/10 p-6">
-        <p className="font-semibold text-brand-primary-dark">
+        <p className="font-semibold text-brand-heading">
           Passwort geändert!
         </p>
         <p className="mt-1 text-sm text-brand-text-muted">
@@ -58,7 +58,7 @@ export function ResetPasswordForm() {
         resetPassword.mutate({ token, password });
       }}
     >
-      <h1 className="text-lg font-semibold text-brand-primary-dark">
+      <h1 className="text-lg font-semibold text-brand-heading">
         Neues Passwort setzen
       </h1>
 

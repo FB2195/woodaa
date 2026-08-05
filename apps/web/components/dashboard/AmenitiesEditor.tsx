@@ -31,7 +31,7 @@ export function AmenitiesEditor({ amenities }: { amenities: string[] }) {
   return (
     <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
       <div>
-        <h3 className="font-semibold text-brand-primary-dark">Ausstattung</h3>
+        <h3 className="font-semibold text-brand-heading">Ausstattung</h3>
         <p className="mt-1 text-sm text-brand-text-muted">
           Erscheint als Schlagwörter auf eurer Einrichtungsseite - hilft Familien schnell zu
           sehen, was ihr zusätzlich bietet.

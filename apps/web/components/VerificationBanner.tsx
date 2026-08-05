@@ -11,7 +11,7 @@ export function VerificationBanner({ email }: { email: string }) {
 
   return (
     <div className="rounded-brand-lg border border-brand-accent/40 bg-brand-accent/10 p-6">
-      <p className="font-semibold text-brand-primary-dark">
+      <p className="font-semibold text-brand-heading">
         Bitte bestätige deine E-Mail-Adresse
       </p>
       <p className="mt-1 text-sm text-brand-text-muted">

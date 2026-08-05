@@ -29,7 +29,7 @@ export function BookingRequestForm({
   if (createRequest.isSuccess) {
     return (
       <div className="rounded-brand-lg border border-brand-accent bg-brand-accent/10 p-6">
-        <p className="font-semibold text-brand-primary-dark">
+        <p className="font-semibold text-brand-heading">
           Anfrage gesendet!
         </p>
         <p className="mt-1 text-sm text-brand-text-muted">
@@ -57,7 +57,7 @@ export function BookingRequestForm({
         });
       }}
     >
-      <h3 className="text-lg font-semibold text-brand-primary-dark">
+      <h3 className="text-lg font-semibold text-brand-heading">
         Anfrage senden
       </h3>
 

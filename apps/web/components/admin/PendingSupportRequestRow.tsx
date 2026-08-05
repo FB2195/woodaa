@@ -24,7 +24,7 @@ export function PendingSupportRequestRow({ request }: { request: SupportRequest 
           <span className="rounded-brand-full bg-brand-accent/10 px-2 py-0.5 text-xs font-medium text-brand-accent">
             {typeLabels[request.type]}
           </span>
-          <h3 className="mt-2 text-lg font-semibold text-brand-primary-dark">{request.name}</h3>
+          <h3 className="mt-2 text-lg font-semibold text-brand-heading">{request.name}</h3>
           <p className="text-sm text-brand-text-muted">
             {request.email}
             {request.phone && ` · ${request.phone}`}

@@ -11,7 +11,7 @@ export default async function FavoritesPage() {
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-6xl px-6 py-12">
-        <h1 className="text-2xl font-bold text-brand-primary-dark">
+        <h1 className="text-2xl font-bold text-brand-heading">
           Meine Favoriten
         </h1>
 

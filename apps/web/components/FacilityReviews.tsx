@@ -21,7 +21,7 @@ export function FacilityReviews({
       {reviewCount > 0 ? (
         <div className="mt-3 flex items-center gap-3">
           <StarRating rating={avgRating ?? 0} />
-          <span className="font-semibold text-brand-primary-dark">
+          <span className="font-semibold text-brand-heading">
             {avgRating!.toLocaleString("de-DE", { maximumFractionDigits: 1 })}
           </span>
           <span className="text-sm text-brand-text-muted">

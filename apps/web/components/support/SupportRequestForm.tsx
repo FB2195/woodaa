@@ -17,7 +17,7 @@ export function SupportRequestForm({
   if (create.isSuccess) {
     return (
       <div className="rounded-brand-lg border border-brand-accent bg-brand-accent/10 p-6">
-        <p className="font-semibold text-brand-primary-dark">Danke, deine Nachricht ist da!</p>
+        <p className="font-semibold text-brand-heading">Danke, deine Nachricht ist da!</p>
         <p className="mt-1 text-sm text-brand-text-muted">
           Wir melden uns so schnell wie möglich bei dir.
         </p>
