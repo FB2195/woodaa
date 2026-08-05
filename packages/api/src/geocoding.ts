@@ -96,10 +96,17 @@ type GooglePlacePrediction = {
   };
 };
 
+// Returns null (rather than []) on a failed request, so the caller can
+// distinguish "Google is unreachable/misconfigured, fall back to Nominatim"
+// from "Google answered with zero matches" - e.g. a referrer-restricted key
+// (correct for the client-side Maps JS key, but wrong for this server-side
+// call, which never carries a browser Referer) fails every request here,
+// and used to surface as a silently empty autocomplete instead of falling
+// back.
 async function searchLocationsGoogle(
   query: string,
   apiKey: string,
-): Promise<LocationSuggestion[]> {
+): Promise<LocationSuggestion[] | null> {
   const res = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
     method: "POST",
     headers: {
@@ -118,7 +125,7 @@ async function searchLocationsGoogle(
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     console.error(`Google Places Autocomplete error ${res.status}: ${body}`);
-    return [];
+    return null;
   }
 
   const data = (await res.json()) as { suggestions?: GooglePlacePrediction[] };
@@ -189,14 +196,18 @@ export async function searchLocations(query: string): Promise<LocationSuggestion
 
   try {
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-    const results = apiKey
-      ? await searchLocationsGoogle(query, apiKey)
-      : await searchLocationsNominatim(query);
+    const googleResults = apiKey ? await searchLocationsGoogle(query, apiKey) : null;
+    const results = googleResults ?? (await searchLocationsNominatim(query));
 
     suggestionCache.set(key, { expires: Date.now() + CACHE_TTL_MS, value: results });
     return results;
   } catch (err) {
     console.error("Location search failed:", err);
-    return [];
+    try {
+      return await searchLocationsNominatim(query);
+    } catch (fallbackErr) {
+      console.error("Nominatim fallback also failed:", fallbackErr);
+      return [];
+    }
   }
 }
