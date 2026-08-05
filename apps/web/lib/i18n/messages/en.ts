@@ -29,7 +29,7 @@ export const en: Messages = {
   },
   home: {
     badge: "Nationwide · vetted facilities · real-time availability",
-    heroTitle: "Looking for a care home? Wo? Da!",
+    heroTitle: "Looking for a care home?",
     heroSubtitle:
       "As easy as booking a hotel: woodaa connects families with vetted care facilities across Germany.",
     statsFacilitiesLabel: "facilities",

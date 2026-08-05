@@ -32,7 +32,7 @@ export const de: Messages = {
   },
   home: {
     badge: "Deutschlandweit · geprüfte Einrichtungen · Verfügbarkeit in Echtzeit",
-    heroTitle: "Pflegeplatz gesucht? Wo? Da!",
+    heroTitle: "Pflegeplatz gesucht?",
     heroSubtitle:
       "So einfach wie ein Hotel buchen: woodaa verbindet Familien mit geprüften Pflegeeinrichtungen in ganz Deutschland.",
     statsFacilitiesLabel: "Einrichtungen",

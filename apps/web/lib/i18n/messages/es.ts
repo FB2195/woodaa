@@ -29,7 +29,7 @@ export const es: Messages = {
   },
   home: {
     badge: "En toda Alemania · centros verificados · disponibilidad en tiempo real",
-    heroTitle: "¿Buscas una plaza de residencia? Wo? Da!",
+    heroTitle: "¿Buscas una plaza de residencia?",
     heroSubtitle:
       "Tan fácil como reservar un hotel: woodaa conecta a las familias con centros de cuidados verificados en toda Alemania.",
     statsFacilitiesLabel: "centros",
