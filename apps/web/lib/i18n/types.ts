@@ -13,6 +13,7 @@ export type Messages = {
     imprint: string;
     cookieInfo: string;
     reportIssue: string;
+    operatorLogin: string;
     myProfile: string;
     openMenu: string;
     closeMenu: string;

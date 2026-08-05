@@ -3,6 +3,7 @@ import { DeleteAccountForm } from "@/components/account/DeleteAccountForm";
 import { ExportDataButton } from "@/components/account/ExportDataButton";
 import { VollmachtSection } from "@/components/account/VollmachtSection";
 import { Header } from "@/components/Header";
+import { TwoFactorSetup } from "@/components/TwoFactorSetup";
 import { getTrpcServer } from "@/lib/trpc-server";
 
 const roleLabels: Record<"SUCHENDE" | "BETREIBER" | "ADMIN", string> = {
@@ -48,6 +49,12 @@ export default async function AccountPage() {
             <ExportDataButton />
           </div>
         </div>
+
+        {me.role !== "ADMIN" && (
+          <div className="mt-8">
+            <TwoFactorSetup enabled={me.twoFactorEnabled} />
+          </div>
+        )}
 
         {me.role === "SUCHENDE" && (
           <>

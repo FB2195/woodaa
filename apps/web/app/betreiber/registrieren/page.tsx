@@ -78,7 +78,7 @@ export default function OperatorRegisterPage() {
           <AuthForm mode="register-betreiber" />
           <p className="mt-4 text-center text-xs text-brand-text-muted">
             Schon dabei?{" "}
-            <Link href="/login" className="text-brand-accent underline">
+            <Link href="/betreiber/login" className="text-brand-accent underline">
               Anmelden
             </Link>
           </p>

@@ -156,7 +156,7 @@ export const authRouter = router({
       data: { failedLoginAttempts: 0, lockedUntil: null },
     });
 
-    if (user.role === "ADMIN" && user.twoFactorEnabled) {
+    if (user.twoFactorEnabled) {
       return {
         twoFactorRequired: true as const,
         challengeToken: signTwoFactorChallengeToken({ sub: user.id }),

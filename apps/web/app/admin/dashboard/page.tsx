@@ -4,7 +4,7 @@ import { PendingFacilityRow } from "@/components/admin/PendingFacilityRow";
 import { PendingReviewRow } from "@/components/admin/PendingReviewRow";
 import { PendingSupportRequestRow } from "@/components/admin/PendingSupportRequestRow";
 import { PendingVollmachtRow } from "@/components/admin/PendingVollmachtRow";
-import { TwoFactorSetup } from "@/components/admin/TwoFactorSetup";
+import { TwoFactorSetup } from "@/components/TwoFactorSetup";
 import { getTrpcServer } from "@/lib/trpc-server";
 
 export default async function AdminDashboardPage() {
