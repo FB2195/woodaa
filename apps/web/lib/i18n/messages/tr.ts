@@ -15,6 +15,7 @@ export const tr: Messages = {
     imprint: "Yasal bilgiler",
     cookieInfo: "Çerez bilgisi",
     reportIssue: "Sorun bildir",
+    operatorLogin: "Bakım kuruluşları için giriş",
     myProfile: "Profilim",
     openMenu: "Menüyü aç",
     closeMenu: "Menüyü kapat",

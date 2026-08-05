@@ -150,7 +150,8 @@ export function TwoFactorSetup({ enabled }: { enabled: boolean }) {
         Zwei-Faktor-Authentifizierung
       </h2>
       <p className="mt-1 text-sm text-brand-text-muted">
-        2FA ist für dieses Konto noch nicht aktiv. Empfohlen für Admin-Konten.
+        2FA ist für dieses Konto noch nicht aktiv. Schützt dein Konto zusätzlich
+        zum Passwort - empfohlen, besonders wenn hier sensible Daten hinterlegt sind.
       </p>
       <button
         type="button"

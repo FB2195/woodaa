@@ -15,6 +15,7 @@ export const fr: Messages = {
     imprint: "Mentions légales",
     cookieInfo: "Informations sur les cookies",
     reportIssue: "Signaler un problème",
+    operatorLogin: "Connexion pour les établissements de soins",
     myProfile: "Mon profil",
     openMenu: "Ouvrir le menu",
     closeMenu: "Fermer le menu",

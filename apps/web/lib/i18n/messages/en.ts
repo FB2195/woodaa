@@ -15,6 +15,7 @@ export const en: Messages = {
     imprint: "Legal notice",
     cookieInfo: "Cookie info",
     reportIssue: "Report a problem",
+    operatorLogin: "Login for care facilities",
     myProfile: "My profile",
     openMenu: "Open menu",
     closeMenu: "Close menu",

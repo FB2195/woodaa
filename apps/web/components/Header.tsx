@@ -107,6 +107,11 @@ export function Header() {
           <Link href="/betreiber/registrieren" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
             {t("registerFacility")}
           </Link>
+          {!me.data && (
+            <Link href="/betreiber/login" onClick={closeMenu} className="rounded-brand-md px-2 py-2 pl-6 hover:bg-brand-background hover:text-brand-text">
+              {t("operatorLogin")}
+            </Link>
+          )}
 
           {me.data ? (
             <>

@@ -18,6 +18,7 @@ export const de: Messages = {
     imprint: "Impressum",
     cookieInfo: "Cookie-Infos",
     reportIssue: "Fehler/Problem melden",
+    operatorLogin: "Login für Pflegeeinrichtungen",
     myProfile: "Mein Profil",
     openMenu: "Menü öffnen",
     closeMenu: "Menü schließen",

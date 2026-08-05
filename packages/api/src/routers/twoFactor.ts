@@ -10,13 +10,15 @@ import {
   totpKeyUri,
   verifyTotpCode,
 } from "../twoFactor";
-import { adminProcedure, router } from "../trpc";
+import { protectedProcedure, router } from "../trpc";
 
 export const twoFactorRouter = router({
   // Starts (or restarts) setup: generates a fresh secret, stores it
-  // encrypted but NOT yet enabled - enabling only happens once the admin
-  // proves they can produce a matching code in setupConfirm.
-  setupInitiate: adminProcedure.mutation(async ({ ctx }) => {
+  // encrypted but NOT yet enabled - enabling only happens once the user
+  // proves they can produce a matching code in setupConfirm. Available to
+  // any logged-in role (not just ADMIN) - see the matching login-time
+  // check in routers/auth.ts.
+  setupInitiate: protectedProcedure.mutation(async ({ ctx }) => {
     const secret = generateTotpSecret();
     await ctx.db.user.update({
       where: { id: ctx.user.id },
@@ -29,7 +31,7 @@ export const twoFactorRouter = router({
     return { secret, qrDataUrl };
   }),
 
-  setupConfirm: adminProcedure
+  setupConfirm: protectedProcedure
     .input(z.object({ code: z.string().length(6) }))
     .mutation(async ({ ctx, input }) => {
       const user = await ctx.db.user.findUniqueOrThrow({ where: { id: ctx.user.id } });
@@ -60,7 +62,7 @@ export const twoFactorRouter = router({
       return { success: true as const, recoveryCodes };
     }),
 
-  disable: adminProcedure
+  disable: protectedProcedure
     .input(z.object({ code: z.string().length(6) }))
     .mutation(async ({ ctx, input }) => {
       const user = await ctx.db.user.findUniqueOrThrow({ where: { id: ctx.user.id } });
