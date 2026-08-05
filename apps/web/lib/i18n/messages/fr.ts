@@ -8,6 +8,7 @@ export const fr: Messages = {
     myAccount: "Mon compte",
     logout: "Se déconnecter",
     login: "Se connecter",
+    register: "S'inscrire",
     helpSupport: "Aide & Support",
     customerService: "Service client",
     aboutUs: "À propos",

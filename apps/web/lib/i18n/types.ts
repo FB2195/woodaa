@@ -6,6 +6,7 @@ export type Messages = {
     myAccount: string;
     logout: string;
     login: string;
+    register: string;
     helpSupport: string;
     customerService: string;
     aboutUs: string;
