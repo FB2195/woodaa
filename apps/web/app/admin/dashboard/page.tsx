@@ -2,21 +2,30 @@ import { Header } from "@/components/Header";
 import { PendingBookingApprovalRow } from "@/components/admin/PendingBookingApprovalRow";
 import { PendingFacilityRow } from "@/components/admin/PendingFacilityRow";
 import { PendingReviewRow } from "@/components/admin/PendingReviewRow";
+import { PendingSupportRequestRow } from "@/components/admin/PendingSupportRequestRow";
 import { PendingVollmachtRow } from "@/components/admin/PendingVollmachtRow";
 import { TwoFactorSetup } from "@/components/admin/TwoFactorSetup";
 import { getTrpcServer } from "@/lib/trpc-server";
 
 export default async function AdminDashboardPage() {
   const trpcServer = await getTrpcServer();
-  const [pending, active, me, pendingReviews, pendingVollmachten, pendingBookingApprovals] =
-    await Promise.all([
-      trpcServer.admin.pendingFacilities(),
-      trpcServer.admin.activeFacilities(),
-      trpcServer.auth.me(),
-      trpcServer.admin.pendingReviews(),
-      trpcServer.admin.pendingVollmachten(),
-      trpcServer.admin.pendingBookingApprovals(),
-    ]);
+  const [
+    pending,
+    active,
+    me,
+    pendingReviews,
+    pendingVollmachten,
+    pendingBookingApprovals,
+    openSupportRequests,
+  ] = await Promise.all([
+    trpcServer.admin.pendingFacilities(),
+    trpcServer.admin.activeFacilities(),
+    trpcServer.auth.me(),
+    trpcServer.admin.pendingReviews(),
+    trpcServer.admin.pendingVollmachten(),
+    trpcServer.admin.pendingBookingApprovals(),
+    trpcServer.admin.openSupportRequests(),
+  ]);
 
   return (
     <main className="min-h-screen">
@@ -113,6 +122,26 @@ export default async function AdminDashboardPage() {
           ) : (
             pendingBookingApprovals.map((booking) => (
               <PendingBookingApprovalRow key={booking.id} booking={booking} />
+            ))
+          )}
+        </div>
+
+        <h2 className="mt-12 text-2xl font-bold text-brand-primary-dark">
+          Kundenservice-Anfragen
+        </h2>
+        <p className="mt-1 text-sm text-brand-text-muted">
+          {openSupportRequests.length}{" "}
+          {openSupportRequests.length === 1 ? "Anfrage wartet" : "Anfragen warten"} auf
+          Bearbeitung
+        </p>
+        <div className="mt-6 flex flex-col gap-4">
+          {openSupportRequests.length === 0 ? (
+            <p className="rounded-brand-lg border border-brand-border bg-brand-surface p-6 text-sm text-brand-text-muted">
+              Aktuell nichts zu prüfen.
+            </p>
+          ) : (
+            openSupportRequests.map((request) => (
+              <PendingSupportRequestRow key={request.id} request={request} />
             ))
           )}
         </div>

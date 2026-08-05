@@ -102,6 +102,28 @@ export const adminRouter = router({
       });
     }),
 
+  // Kontaktformular, Rückruf-Anfragen und Fehlermeldungen aus dem Hilfe-
+  // Menü landen alle hier - ein gemeinsamer Posteingang statt drei.
+  openSupportRequests: adminProcedure.query(async ({ ctx }) => {
+    return ctx.db.supportRequest.findMany({
+      where: { status: { not: "ERLEDIGT" } },
+      orderBy: { createdAt: "asc" },
+    });
+  }),
+
+  resolveSupportRequest: adminProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const request = await ctx.db.supportRequest.findUnique({ where: { id: input.id } });
+      if (!request) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return ctx.db.supportRequest.update({
+        where: { id: input.id },
+        data: { status: "ERLEDIGT" },
+      });
+    }),
+
   // Bevollmächtigte/r Angehörige/r: uploading a Vollmacht is what makes an
   // account bevollmächtigt at all (see User.vollmachtDocumentKey) - this is
   // the account-level trust check, separate from (and in addition to) the

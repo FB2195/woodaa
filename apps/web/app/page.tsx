@@ -244,22 +244,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-brand-border px-6 py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 text-center text-sm text-brand-text-muted sm:flex-row sm:justify-between sm:text-left">
-          <p>Woodaa · in Entwicklung · Phase 1</p>
-          <nav className="flex gap-6">
-            <Link href="/suche" className="hover:text-brand-text">
-              Pflegeplätze suchen
-            </Link>
-            <Link href="/betreiber/registrieren" className="hover:text-brand-text">
-              Für Pflegeeinrichtungen
-            </Link>
-            <Link href="/login" className="hover:text-brand-text">
-              Login
-            </Link>
-          </nav>
-        </div>
-      </footer>
     </main>
   );
 }

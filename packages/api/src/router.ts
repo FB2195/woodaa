@@ -8,6 +8,7 @@ import { facilityRouter } from "./routers/facility";
 import { favoriteRouter } from "./routers/favorite";
 import { operatorRouter } from "./routers/operator";
 import { reviewRouter } from "./routers/review";
+import { supportRouter } from "./routers/support";
 import { twoFactorRouter } from "./routers/twoFactor";
 import { publicProcedure, router } from "./trpc";
 
@@ -31,6 +32,7 @@ export const appRouter = router({
   favorite: favoriteRouter,
   review: reviewRouter,
   careApplication: careApplicationRouter,
+  support: supportRouter,
 });
 
 export type AppRouter = typeof appRouter;
