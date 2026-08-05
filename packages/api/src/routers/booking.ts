@@ -175,8 +175,7 @@ export const bookingRouter = router({
     }),
 
   // Storno durch die Suchende/den Suchenden selbst - keine Login-Pflicht,
-  // Nachweis ist die beim Buchen hinterlegte E-Mail-Adresse (gleiches
-  // Vertrauensmodell wie bei Review.reviewerEmail).
+  // Nachweis ist die beim Buchen hinterlegte E-Mail-Adresse.
   cancel: publicProcedure.input(CancelBookingInput).mutation(async ({ ctx, input }) => {
     if (!input.guestEmail) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "E-Mail-Adresse wird benötigt." });

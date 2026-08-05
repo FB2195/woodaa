@@ -311,7 +311,6 @@ export type Rating = z.infer<typeof Rating>;
 export const CreateReviewInput = z.object({
   facilityId: z.string().min(1),
   reviewerName: z.string().trim().min(1).max(200),
-  reviewerEmail: z.string().trim().email(),
   rating: Rating,
   careRating: Rating.optional(),
   cleanlinessRating: Rating.optional(),

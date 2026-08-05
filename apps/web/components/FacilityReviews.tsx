@@ -1,15 +1,15 @@
+import Link from "next/link";
 import type { Review } from "@woodaa/api";
-import { ReviewForm } from "@/components/ReviewForm";
 import { StarRating } from "@/components/StarRating";
 import { formatDate } from "@/lib/format";
 
 export function FacilityReviews({
-  facilityId,
+  facilitySlug,
   reviews,
   avgRating,
   reviewCount,
 }: {
-  facilityId: string;
+  facilitySlug: string;
   reviews: Review[];
   avgRating: number | null;
   reviewCount: number;
@@ -48,7 +48,12 @@ export function FacilityReviews({
       </div>
 
       <div className="mt-6">
-        <ReviewForm facilityId={facilityId} />
+        <Link
+          href={`/einrichtung/${facilitySlug}/bewerten`}
+          className="inline-block rounded-brand-md border border-brand-border px-5 py-2.5 text-sm font-semibold text-brand-text transition hover:bg-brand-background"
+        >
+          Pflegeheim bewerten
+        </Link>
       </div>
     </div>
   );

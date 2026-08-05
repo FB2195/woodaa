@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { CreateReviewInput } from "@woodaa/validators";
-import { publicProcedure, router } from "../trpc";
+import { protectedProcedure, router } from "../trpc";
 
 // Duck-typed rather than `instanceof Prisma.PrismaClientKnownRequestError`:
 // packages/api and @woodaa/db can end up with distinct resolved copies of
@@ -17,66 +17,71 @@ function isUniqueConstraintError(err: unknown): boolean {
 }
 
 export const reviewRouter = router({
-  create: publicProcedure
-    .input(CreateReviewInput)
-    .mutation(async ({ ctx, input }) => {
-      const facility = await ctx.db.facility.findUnique({
-        where: { id: input.facilityId, status: "ACTIVE" },
-        select: { id: true },
-      });
-      if (!facility) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Einrichtung nicht gefunden." });
-      }
-
-      // Verified-reviewer gate: any BookingRequest (any status counts -
-      // OFFEN/KONTAKTIERT/ABGESCHLOSSEN/ABGELEHNT all represent genuine
-      // contact) with a case-insensitive matching email proves the
-      // submitter actually contacted this facility - same email-match
-      // pattern as account.ts.
-      const hasContact = await ctx.db.bookingRequest.findFirst({
-        where: {
-          facilityId: input.facilityId,
-          requesterEmail: { equals: input.reviewerEmail, mode: "insensitive" },
-        },
-        select: { id: true },
-      });
-      if (!hasContact) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message:
-            "Nur Personen, die zuvor eine Buchungsanfrage bei dieser Einrichtung gestellt haben, können eine Bewertung abgeben.",
-        });
-      }
-
-      try {
-        return await ctx.db.review.create({
-          data: {
-            facilityId: input.facilityId,
-            reviewerName: input.reviewerName,
-            // Normalized to lowercase before storing - the @@unique
-            // constraint on (facilityId, reviewerEmail) is a plain,
-            // case-sensitive Postgres comparison, unlike the
-            // case-insensitive `mode: "insensitive"` match used for the
-            // eligibility check above. Without normalizing here, "one
-            // review per person" could be bypassed by resubmitting with
-            // different email casing.
-            reviewerEmail: input.reviewerEmail.toLowerCase(),
-            rating: input.rating,
-            careRating: input.careRating,
-            cleanlinessRating: input.cleanlinessRating,
-            foodRating: input.foodRating,
-            staffRating: input.staffRating,
-            comment: input.comment,
-          },
-        });
-      } catch (err) {
-        if (isUniqueConstraintError(err)) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "Du hast diese Einrichtung bereits bewertet.",
-          });
-        }
-        throw err;
-      }
+  // Drives the dedicated "Pflegeheim bewerten" page: whether the logged-in
+  // user may review this facility, and whether they already have.
+  checkEligibility: protectedProcedure
+    .input(CreateReviewInput.pick({ facilityId: true }))
+    .query(async ({ ctx, input }) => {
+      const [eligible, existingReview] = await Promise.all([
+        ctx.db.booking.findFirst({
+          where: { userId: ctx.user.id, facilityId: input.facilityId, status: "BESTAETIGT" },
+          select: { id: true },
+        }),
+        ctx.db.review.findUnique({
+          where: { facilityId_userId: { facilityId: input.facilityId, userId: ctx.user.id } },
+          select: { id: true },
+        }),
+      ]);
+      return { eligible: eligible !== null, alreadyReviewed: existingReview !== null };
     }),
+
+  create: protectedProcedure.input(CreateReviewInput).mutation(async ({ ctx, input }) => {
+    const facility = await ctx.db.facility.findUnique({
+      where: { id: input.facilityId, status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (!facility) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Einrichtung nicht gefunden." });
+    }
+
+    // Verified-reviewer gate: a confirmed Booking by this account at this
+    // facility proves genuine prior use - stronger than the previous
+    // self-reported-email-matches-a-BookingRequest check, since it's tied
+    // to the authenticated session rather than a client-supplied string.
+    const eligible = await ctx.db.booking.findFirst({
+      where: { userId: ctx.user.id, facilityId: input.facilityId, status: "BESTAETIGT" },
+      select: { id: true },
+    });
+    if (!eligible) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message:
+          "Nur Personen, die diese Einrichtung bereits gebucht haben, können eine Bewertung abgeben.",
+      });
+    }
+
+    try {
+      return await ctx.db.review.create({
+        data: {
+          facilityId: input.facilityId,
+          userId: ctx.user.id,
+          reviewerName: input.reviewerName,
+          rating: input.rating,
+          careRating: input.careRating,
+          cleanlinessRating: input.cleanlinessRating,
+          foodRating: input.foodRating,
+          staffRating: input.staffRating,
+          comment: input.comment,
+        },
+      });
+    } catch (err) {
+      if (isUniqueConstraintError(err)) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Du hast diese Einrichtung bereits bewertet.",
+        });
+      }
+      throw err;
+    }
+  }),
 });
