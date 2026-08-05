@@ -1,6 +1,7 @@
 import { Header } from "@/components/Header";
 import { FAQAccordion } from "@/components/support/FAQAccordion";
 import { AIChatWidget } from "@/components/support/AIChatWidget";
+import { OperatorSupportChannels } from "@/components/support/OperatorSupportChannels";
 import { SupportRequestForm } from "@/components/support/SupportRequestForm";
 
 export default function KundenservicePage() {
@@ -52,6 +53,8 @@ export default function KundenservicePage() {
         <div className="mt-4">
           <SupportRequestForm type="KONTAKT" submitLabel="Nachricht senden" />
         </div>
+
+        <OperatorSupportChannels />
       </section>
     </main>
   );

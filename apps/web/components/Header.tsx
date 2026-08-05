@@ -104,9 +104,11 @@ export function Header() {
 
       {menuOpen && (
         <nav className="flex flex-col gap-1 border-t border-brand-border px-6 py-5 text-sm text-brand-text-muted">
-          <Link href="/betreiber/registrieren" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-            {t("registerFacility")}
-          </Link>
+          {me.data?.role !== "BETREIBER" && (
+            <Link href="/betreiber/registrieren" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
+              {t("registerFacility")}
+            </Link>
+          )}
           {!me.data && (
             <Link href="/betreiber/login" onClick={closeMenu} className="rounded-brand-md px-2 py-2 pl-6 hover:bg-brand-background hover:text-brand-text">
               {t("operatorLogin")}
@@ -120,9 +122,11 @@ export function Header() {
                   {t("dashboard")}
                 </Link>
               )}
-              <Link href="/favoriten" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-                {t("favorites")}
-              </Link>
+              {me.data.role !== "BETREIBER" && (
+                <Link href="/favoriten" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
+                  {t("favorites")}
+                </Link>
+              )}
               <Link href="/konto" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
                 {t("myAccount")} ({me.data.name})
               </Link>
