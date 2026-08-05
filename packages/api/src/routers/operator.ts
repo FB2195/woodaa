@@ -18,6 +18,7 @@ import { z } from "zod";
 import { cancelBooking, createBooking, setUnitCount } from "../availability";
 import { geocodeAddress } from "../geocoding";
 import { slugify } from "../lib/slugify";
+import { cheapestMonthlyEquivalentCents } from "../pricing";
 import {
   createPresignedDownloadUrl,
   createPresignedUploadUrl,
@@ -185,9 +186,12 @@ export const operatorRouter = router({
       });
     }),
 
-  // Nur Preis/availableFrom - totalSlots/availableSlots werden nie mehr
-  // per Formular getippt, sondern ausschließlich von setUnitCount/
+  // Nur availableFrom - totalSlots/availableSlots werden nie mehr per
+  // Formular getippt, sondern ausschließlich von setUnitCount/
   // createManualBooking/cancelBooking über availability.ts gepflegt.
+  // monthlyPriceCents ist kein Formularfeld mehr - siehe
+  // setPflegegradPricing, das es automatisch aus den echten
+  // Pflegegrad-Sätzen herleitet.
   updatePricing: operatorProcedure
     .input(UpdatePricingInput)
     .mutation(async ({ ctx, input }) => {
@@ -205,21 +209,24 @@ export const operatorRouter = router({
           bookingType: input.bookingType,
           totalSlots: 0,
           availableSlots: 0,
-          monthlyPriceCents: input.monthlyPriceCents,
           availableFrom,
         },
         update: {
-          monthlyPriceCents: input.monthlyPriceCents,
           availableFrom,
         },
       });
     }),
 
-  // Real per-Pflegegrad rates behind the coarse monthlyPriceCents estimate
-  // above - see CapacityPflegegradPricing in schema.prisma. Always
-  // resubmits every row for this bookingType (the operator UI is one table
-  // per category), so this both creates/updates and clears rows whose
-  // Pflegegrad isn't present in the new `rates` array.
+  // Real per-Pflegegrad rates - the actual basis for every Eigenanteil/
+  // Zuschuss calculation, see CapacityPflegegradPricing in schema.prisma.
+  // Always resubmits every row for this bookingType (the operator UI is
+  // one table per category), so this both creates/updates and clears rows
+  // whose Pflegegrad isn't present in the new `rates` array. Also
+  // recomputes FacilityCapacity.monthlyPriceCents as the cheapest of these
+  // rates (see cheapestMonthlyEquivalentCents) - the single "ab X €/Monat"
+  // figure search result cards show, kept derived rather than a second
+  // manually-typed number that could drift out of sync with the real
+  // per-Pflegegrad prices below it.
   setPflegegradPricing: operatorProcedure
     .input(SetPflegegradPricingInput)
     .mutation(async ({ ctx, input }) => {
@@ -238,7 +245,20 @@ export const operatorRouter = router({
         update: {},
       });
 
+      const monthlyPriceCents = cheapestMonthlyEquivalentCents(
+        input.bookingType,
+        input.rates.map((rate) => ({
+          dailyRateCents: rate.dailyRateCents ?? null,
+          monthlyRateCents: rate.monthlyRateCents ?? null,
+          hourlyRateCents: rate.hourlyRateCents ?? null,
+        })),
+      );
+
       await ctx.db.$transaction([
+        ctx.db.facilityCapacity.update({
+          where: { id: capacity.id },
+          data: { monthlyPriceCents },
+        }),
         ctx.db.capacityPflegegradPricing.deleteMany({
           where: {
             capacityId: capacity.id,

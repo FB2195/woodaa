@@ -252,59 +252,56 @@ export function CategoryPanel({
         </span>
       </div>
 
-      <form
-        className="flex flex-wrap items-end gap-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const form = new FormData(event.currentTarget);
-          const monthlyPriceRaw = String(form.get("monthlyPrice") ?? "");
-          const availableFromRaw = String(form.get("availableFrom") ?? "");
-          runMutation(() =>
-            updatePricing.mutateAsync({
-              bookingType,
-              monthlyPriceCents: monthlyPriceRaw
-                ? Math.round(Number(monthlyPriceRaw) * 100)
-                : undefined,
-              availableFrom: availableFromRaw
-                ? new Date(availableFromRaw).toISOString()
-                : undefined,
-            }),
-          );
-        }}
-      >
-        <label className="flex flex-col gap-1 text-xs text-brand-text-muted">
-          Monatlicher Heimpreis (€) - Familien sehen daneben automatisch
-          ihren Eigenanteil nach Pflegekassen-Zuschuss
-          <input
-            type="number"
-            name="monthlyPrice"
-            min={0}
-            step={10}
-            defaultValue={
-              capacity?.monthlyPriceCents != null ? capacity.monthlyPriceCents / 100 : ""
-            }
-            className="rounded-brand-md border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
-          />
-        </label>
+      <div className="flex flex-wrap items-end gap-6">
+        <div className="flex flex-col gap-1 text-xs text-brand-text-muted">
+          Preis in der Suche ("ab X €/Monat")
+          <p className="text-sm font-medium text-brand-text">
+            {capacity?.monthlyPriceCents != null
+              ? `${(capacity.monthlyPriceCents / 100).toLocaleString("de-DE")} €/Monat`
+              : "Preis auf Anfrage"}
+          </p>
+          <p className="max-w-xs text-brand-text-muted">
+            Wird automatisch aus dem günstigsten Pflegegrad-Satz unten berechnet - keine
+            eigene Eingabe nötig.
+          </p>
+        </div>
+
         {bookingType === "STATIONAERE_AUFNAHME" && (
-          <label className="flex flex-col gap-1 text-xs text-brand-text-muted">
-            Nächster freier Platz ab (falls 0 frei)
-            <input
-              type="date"
-              name="availableFrom"
-              defaultValue={toDateInputValue(capacity?.availableFrom)}
-              className="rounded-brand-md border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
-            />
-          </label>
+          <form
+            className="flex items-end gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const form = new FormData(event.currentTarget);
+              const availableFromRaw = String(form.get("availableFrom") ?? "");
+              runMutation(() =>
+                updatePricing.mutateAsync({
+                  bookingType,
+                  availableFrom: availableFromRaw
+                    ? new Date(availableFromRaw).toISOString()
+                    : undefined,
+                }),
+              );
+            }}
+          >
+            <label className="flex flex-col gap-1 text-xs text-brand-text-muted">
+              Nächster freier Platz ab (falls 0 frei)
+              <input
+                type="date"
+                name="availableFrom"
+                defaultValue={toDateInputValue(capacity?.availableFrom)}
+                className="rounded-brand-md border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={updatePricing.isPending}
+              className="rounded-brand-md border border-brand-border px-4 py-2 text-sm font-semibold text-brand-text transition hover:bg-brand-background disabled:opacity-50"
+            >
+              {updatePricing.isPending ? "…" : "Speichern"}
+            </button>
+          </form>
         )}
-        <button
-          type="submit"
-          disabled={updatePricing.isPending}
-          className="rounded-brand-md border border-brand-border px-4 py-2 text-sm font-semibold text-brand-text transition hover:bg-brand-background disabled:opacity-50"
-        >
-          {updatePricing.isPending ? "…" : "Preis speichern"}
-        </button>
-      </form>
+      </div>
 
       <PflegegradPricingTable bookingType={bookingType} rates={capacity?.pflegegradPricing ?? []} />
 

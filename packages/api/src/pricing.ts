@@ -8,6 +8,56 @@ export type PflegegradRate = {
   hourlyRateCents: number | null;
 };
 
+// Tages-/Nachtpflege has no fixed monthly rate (it's billed hourly, see
+// hourlyRateCents) - this is only a representative full-day assumption for
+// turning a per-Pflegegrad rate into a comparable "ab X €/Monat" figure for
+// browsing/search, never used for an actual charge (chargeAmountCents uses
+// the booking's real hoursPerDay instead).
+const ASSUMED_HOURS_PER_DAY_FOR_MONTHLY_ESTIMATE = 8;
+
+// The single source of truth for turning one Pflegegrad's real rate into a
+// "per month" figure, regardless of which unit the facility actually
+// entered (Tagessatz/Monatspauschale/Stundensatz depend on bookingType -
+// see CapacityPflegegradPricing in schema.prisma). Used both to derive
+// FacilityCapacity.monthlyPriceCents from the cheapest entered Pflegegrad
+// (setPflegegradPricing in routers/operator.ts) and to show a
+// Pflegegrad-specific "ab X €" in search results once a visitor filters by
+// their own Pflegegrad (facility.list in routers/facility.ts) - same
+// formula, so the two always agree with each other.
+export function monthlyEquivalentCents(
+  bookingType: BookingType,
+  rate: PflegegradRate | undefined,
+): number | null {
+  if (!rate) return null;
+  if (bookingType === "STATIONAERE_AUFNAHME") {
+    if (rate.monthlyRateCents !== null) return rate.monthlyRateCents;
+    if (rate.dailyRateCents !== null) return rate.dailyRateCents * 30;
+    return null;
+  }
+  if (bookingType === "KURZZEITPFLEGE") {
+    return rate.dailyRateCents !== null ? rate.dailyRateCents * 30 : null;
+  }
+  // TAGESPFLEGE / NACHTPFLEGE
+  return rate.hourlyRateCents !== null
+    ? rate.hourlyRateCents * ASSUMED_HOURS_PER_DAY_FOR_MONTHLY_ESTIMATE * 30
+    : null;
+}
+
+// The cheapest monthly-equivalent figure across every Pflegegrad a facility
+// has entered a rate for - what FacilityCapacity.monthlyPriceCents gets set
+// to automatically, so operators enter real prices exactly once (in the
+// per-Pflegegrad table) instead of also typing a separate top-level figure
+// that could drift out of sync with it.
+export function cheapestMonthlyEquivalentCents(
+  bookingType: BookingType,
+  rates: PflegegradRate[],
+): number | null {
+  const values = rates
+    .map((rate) => monthlyEquivalentCents(bookingType, rate))
+    .filter((v): v is number => v !== null);
+  return values.length ? Math.min(...values) : null;
+}
+
 function daysInRange(startDate: Date | null, endDate: Date | null): number | null {
   if (!startDate || !endDate) return null;
   return Math.round((endDate.getTime() - startDate.getTime()) / MS_PER_DAY) + 1;

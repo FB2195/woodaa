@@ -503,6 +503,30 @@ function pflegegradRatesFor(bookingType: string, monthlyPriceCents: number) {
   return tagesNachtpflegeRates(monthlyPriceCents);
 }
 
+// Mirrors monthlyEquivalentCents/cheapestMonthlyEquivalentCents in
+// packages/api/src/pricing.ts (duplicated rather than imported - packages/db
+// is a dependency of packages/api, not the other way round). Keep both in
+// sync: this is what FacilityCapacity.monthlyPriceCents is derived from in
+// the real app (the cheapest of the per-Pflegegrad rates below), so the
+// seed data stays representative of production behavior instead of the
+// old "arbitrary anchor around Pflegegrad 3" value.
+const ASSUMED_HOURS_PER_DAY_FOR_MONTHLY_ESTIMATE = 8;
+function cheapestDerivedMonthlyPriceCents(
+  bookingType: string,
+  rates: { dailyRateCents?: number; monthlyRateCents?: number; hourlyRateCents?: number }[],
+): number {
+  const values = rates.map((rate) => {
+    if (bookingType === "STATIONAERE_AUFNAHME") {
+      return rate.monthlyRateCents ?? (rate.dailyRateCents ?? 0) * 30;
+    }
+    if (bookingType === "KURZZEITPFLEGE") {
+      return (rate.dailyRateCents ?? 0) * 30;
+    }
+    return (rate.hourlyRateCents ?? 0) * ASSUMED_HOURS_PER_DAY_FOR_MONTHLY_ESTIMATE * 30;
+  });
+  return Math.min(...values);
+}
+
 async function main() {
   for (const [facilityIndex, { capacities, ...facility }] of facilities.entries()) {
     const created = await prisma.facility.upsert({
@@ -519,24 +543,31 @@ async function main() {
     });
 
     for (const capacity of capacities) {
+      // Per-Pflegegrad-Sätze aus dem Anker-Monatswert ableiten, dann daraus
+      // (wie die App es über setPflegegradPricing tut) den tatsächlichen
+      // FacilityCapacity.monthlyPriceCents zurückrechnen - so bleibt die
+      // Demo-Anzeige "ab X €/Monat" konsistent mit den echten
+      // Pflegegrad-Sätzen statt einem unabhängig gepflegten zweiten Wert.
+      const rates = pflegegradRatesFor(capacity.bookingType, capacity.monthlyPriceCents);
+      const derivedMonthlyPriceCents = cheapestDerivedMonthlyPriceCents(capacity.bookingType, rates);
+
       const cap = await prisma.facilityCapacity.upsert({
         where: {
           facilityId_bookingType: { facilityId: created.id, bookingType: capacity.bookingType },
         },
-        update: { monthlyPriceCents: capacity.monthlyPriceCents },
+        update: { monthlyPriceCents: derivedMonthlyPriceCents },
         create: {
           facilityId: created.id,
           bookingType: capacity.bookingType,
           totalSlots: 0,
           availableSlots: 0,
-          monthlyPriceCents: capacity.monthlyPriceCents,
+          monthlyPriceCents: derivedMonthlyPriceCents,
         },
       });
 
-      // Per-Pflegegrad-Sätze aus dem Anker-Monatswert ableiten und stabil
-      // upserten, damit erneute Seed-Läufe sie aktualisieren statt zu
-      // duplizieren.
-      for (const rate of pflegegradRatesFor(capacity.bookingType, capacity.monthlyPriceCents)) {
+      // Stabil upserten, damit erneute Seed-Läufe sie aktualisieren statt
+      // zu duplizieren.
+      for (const rate of rates) {
         await prisma.capacityPflegegradPricing.upsert({
           where: {
             capacityId_pflegegrad: { capacityId: cap.id, pflegegrad: rate.pflegegrad },
