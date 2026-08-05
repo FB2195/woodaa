@@ -65,6 +65,12 @@ enum FacilityStatus {
   REJECTED
 }
 
+enum FacilityChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum BookingRequestStatus {
   OFFEN
   KONTAKTIERT
@@ -142,6 +148,7 @@ model User {
   recoveryCodes                RecoveryCode[]
   favorites                    Favorite[]
   passwordResetTokens          PasswordResetToken[]
+  emailChangeRequests          EmailChangeRequest[]
   // AES-256-GCM encrypted (see packages/api/src/crypto.ts) - a real
   // Sozialversicherungsnummer is Sozialdatum under SGB X, not just
   // ordinary PII, so it gets the same at-rest treatment as TOTP secrets.
@@ -241,6 +248,27 @@ model PasswordResetToken {
   @@index([userId])
 }
 
+// Two-step email change: oldEmailTokenHash is issued immediately and mailed
+// to the CURRENT address ("did you request this?"); only once that's
+// confirmed (oldConfirmedAt set) does confirmOldEmailChange generate
+// newEmailTokenHash and mail it to newEmail ("prove you own this address").
+// User.email only changes on the second confirmation - see requestEmailChange/
+// confirmOldEmailChange/confirmNewEmailChange in routers/auth.ts.
+model EmailChangeRequest {
+  id                String    @id @default(cuid())
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
+  newEmail          String
+  oldEmailTokenHash String    @unique
+  newEmailTokenHash String?   @unique
+  oldConfirmedAt    DateTime?
+  newConfirmedAt    DateTime?
+  expiresAt         DateTime
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+}
+
 model Facility {
   id              String             @id @default(cuid())
   slug            String             @unique
@@ -267,9 +295,23 @@ model Facility {
   minPflegegrad   Int?
   maxPflegegrad   Int?
   status          FacilityStatus     @default(PENDING_REVIEW)
+  // "Ansprechpartner" - the named contact shown (admin-only) on the
+  // facility's booking requests etc. Same critical-change gate as
+  // name/address/operatorPhone below (see FacilityChangeRequest) since it's
+  // public-facing trust info, not just internal metadata.
   operatorName    String
   operatorEmail   String
   operatorPhone   String?
+  // Unterkunftsrichtlinien - free-text, non-critical (no admin approval,
+  // unlike name/address/operatorPhone/operatorEmail/operatorName below).
+  // Null/"" = not specified, section just doesn't render on the facility
+  // page.
+  checkInTime     String?
+  checkOutTime    String?
+  visitingHours   String?
+  wifiInfo        String?
+  parkingInfo     String?
+  petsPolicy      String?
   operatorUserId  String?            @unique
   operator        User?              @relation("FacilityOperator", fields: [operatorUserId], references: [id])
   capacities      FacilityCapacity[]
@@ -279,8 +321,40 @@ model Facility {
   favoritedBy     Favorite[]
   photos          FacilityPhoto[]
   reviews         Review[]
+  changeRequests  FacilityChangeRequest[]
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
+}
+
+// A proposed edit to one of Facility's "critical" fields (name, address,
+// operator contact details) - these are trust-sensitive public-facing data
+// (see the facility page's "Verwaltet von" section and admin-only phone/
+// email visibility), so unlike amenities/description/house rules they don't
+// apply immediately. The old values stay live on Facility until an admin
+// approves this row. Only one PENDING request per facility is kept -
+// resubmitting while one is pending overwrites it (see requestFacilityChange
+// in operator.ts) rather than queuing multiple.
+model FacilityChangeRequest {
+  id            String                       @id @default(cuid())
+  facility      Facility                     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId    String
+  // Each field is null when not part of this change (i.e. "leave as-is") -
+  // distinct from an empty string, which is a real proposed value.
+  name          String?
+  street        String?
+  postalCode    String?
+  city          String?
+  state         String?
+  operatorName  String?
+  operatorEmail String?
+  operatorPhone String?
+  status        FacilityChangeRequestStatus @default(PENDING)
+  reviewedAt    DateTime?
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+
+  @@index([facilityId])
+  @@index([status])
 }
 
 model Favorite {

@@ -3,24 +3,34 @@ import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
 import {
   BootstrapAdminInput,
+  ConfirmEmailChangeInput,
   ForgotPasswordInput,
   LoginInput,
   RegisterInput,
+  RequestEmailChangeInput,
   ResetPasswordInput,
+  UpdateNameInput,
 } from "@woodaa/validators";
 import { z } from "zod";
 import {
   signAccessToken,
+  signEmailChangeToken,
   signEmailVerificationToken,
   signPasswordResetToken,
   signRefreshToken,
   signTwoFactorChallengeToken,
+  verifyEmailChangeToken,
   verifyEmailVerificationToken,
   verifyPasswordResetToken,
   verifyRefreshToken,
   verifyTwoFactorChallengeToken,
 } from "../auth";
-import { sendPasswordResetEmail, sendVerificationEmail } from "../email";
+import {
+  sendEmailChangeNewAddressEmail,
+  sendEmailChangeOldAddressEmail,
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from "../email";
 import { hashToken } from "../tokenHash";
 import { decryptSecret, verifyTotpCode } from "../twoFactor";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
@@ -31,6 +41,8 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 2 * 60 * 1000;
 const PASSWORD_RESET_COOLDOWN_MS = 2 * 60 * 1000;
 const PASSWORD_RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
+const EMAIL_CHANGE_COOLDOWN_MS = 2 * 60 * 1000;
+const EMAIL_CHANGE_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const GENERIC_LOGIN_ERROR = "E-Mail oder Passwort ist falsch.";
 // A real bcrypt hash of a random value, computed lazily on first use and
@@ -450,6 +462,179 @@ export const authRouter = router({
         }),
       ]);
       return { success: true as const };
+    }),
+
+  // Personal display name only - the facility's public "Ansprechpartner"
+  // name is a separate, admin-approved field (see
+  // operator.requestFacilityChange), deliberately not kept in sync with
+  // this one.
+  updateName: protectedProcedure
+    .input(UpdateNameInput)
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.user.update({
+        where: { id: ctx.user.id },
+        data: { name: input.name },
+      });
+    }),
+
+  // Step 1 of 2: mails a confirmation link to the CURRENT address. Nothing
+  // changes yet - see confirmOldEmailChange for step 2, which is what
+  // actually mails the new address.
+  requestEmailChange: protectedProcedure
+    .input(RequestEmailChangeInput)
+    .mutation(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUniqueOrThrow({ where: { id: ctx.user.id } });
+      if (input.newEmail === user.email) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Das ist bereits deine aktuelle E-Mail-Adresse.",
+        });
+      }
+      const taken = await ctx.db.user.findUnique({ where: { email: input.newEmail } });
+      if (taken) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Diese E-Mail-Adresse wird bereits verwendet.",
+        });
+      }
+      const recent = await ctx.db.emailChangeRequest.findFirst({
+        where: {
+          userId: user.id,
+          createdAt: { gt: new Date(Date.now() - EMAIL_CHANGE_COOLDOWN_MS) },
+        },
+      });
+      if (recent) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: "Bitte warte kurz, bevor du erneut eine E-Mail-Änderung anforderst.",
+        });
+      }
+
+      // id generated upfront (rather than left to Prisma's default) so it
+      // can be embedded as the token's `sub` before the row exists.
+      const id = randomUUID();
+      const token = signEmailChangeToken({ sub: id, jti: randomUUID() });
+      await ctx.db.emailChangeRequest.create({
+        data: {
+          id,
+          userId: user.id,
+          newEmail: input.newEmail,
+          oldEmailTokenHash: hashToken(token),
+          expiresAt: new Date(Date.now() + EMAIL_CHANGE_TOKEN_EXPIRY_MS),
+        },
+      });
+      try {
+        await sendEmailChangeOldAddressEmail({
+          to: user.email,
+          name: user.name,
+          newEmail: input.newEmail,
+          token,
+        });
+      } catch (err) {
+        console.error("Failed to send email change (old address) email:", err);
+      }
+      return { success: true as const };
+    }),
+
+  // Step 2 of 2: the old address owner confirmed intent, so now mail the
+  // NEW address to prove ownership - the actual User.email change happens
+  // in confirmNewEmailChange, not here.
+  confirmOldEmailChange: publicProcedure
+    .input(ConfirmEmailChangeInput)
+    .mutation(async ({ ctx, input }) => {
+      const payload = verifyEmailChangeToken(input.token);
+      if (!payload) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Der Link ist ungültig oder abgelaufen.",
+        });
+      }
+      const request = await ctx.db.emailChangeRequest.findUnique({
+        where: { oldEmailTokenHash: hashToken(input.token) },
+      });
+      if (
+        !request ||
+        request.id !== payload.sub ||
+        request.oldConfirmedAt ||
+        request.expiresAt < new Date()
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Der Link ist ungültig oder abgelaufen.",
+        });
+      }
+
+      const user = await ctx.db.user.findUniqueOrThrow({ where: { id: request.userId } });
+      const newToken = signEmailChangeToken({ sub: request.id, jti: randomUUID() });
+      await ctx.db.emailChangeRequest.update({
+        where: { id: request.id },
+        data: { oldConfirmedAt: new Date(), newEmailTokenHash: hashToken(newToken) },
+      });
+      try {
+        await sendEmailChangeNewAddressEmail({
+          to: request.newEmail,
+          name: user.name,
+          token: newToken,
+        });
+      } catch (err) {
+        console.error("Failed to send email change (new address) email:", err);
+      }
+      return { newEmail: request.newEmail };
+    }),
+
+  // The actual cutover: only reached once both the old and new address have
+  // proven ownership. Revokes existing sessions, same as resetPassword.
+  confirmNewEmailChange: publicProcedure
+    .input(ConfirmEmailChangeInput)
+    .mutation(async ({ ctx, input }) => {
+      const payload = verifyEmailChangeToken(input.token);
+      if (!payload) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Der Link ist ungültig oder abgelaufen.",
+        });
+      }
+      const request = await ctx.db.emailChangeRequest.findUnique({
+        where: { newEmailTokenHash: hashToken(input.token) },
+      });
+      if (
+        !request ||
+        request.id !== payload.sub ||
+        !request.oldConfirmedAt ||
+        request.newConfirmedAt ||
+        request.expiresAt < new Date()
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Der Link ist ungültig oder abgelaufen.",
+        });
+      }
+
+      // Re-check uniqueness - the address could have been taken by someone
+      // else in the time between the two confirmation emails.
+      const taken = await ctx.db.user.findUnique({ where: { email: request.newEmail } });
+      if (taken && taken.id !== request.userId) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Diese E-Mail-Adresse wird inzwischen bereits verwendet.",
+        });
+      }
+
+      await ctx.db.$transaction([
+        ctx.db.user.update({
+          where: { id: request.userId },
+          data: { email: request.newEmail, emailVerifiedAt: new Date() },
+        }),
+        ctx.db.emailChangeRequest.update({
+          where: { id: request.id },
+          data: { newConfirmedAt: new Date() },
+        }),
+        ctx.db.refreshToken.updateMany({
+          where: { userId: request.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        }),
+      ]);
+      return { email: request.newEmail };
     }),
 
   me: protectedProcedure.query(async ({ ctx }) => {

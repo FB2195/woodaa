@@ -4,7 +4,7 @@ import type { FacilityWithCapacities } from "@woodaa/api";
 // for the "ab X €/Monat" line on the search-result card. Returns null when
 // no capacity has a price yet ("Preis auf Anfrage").
 export function cheapestCapacityPrice(
-  facility: FacilityWithCapacities,
+  facility: Pick<FacilityWithCapacities, "capacities">,
 ): number | null {
   const priced = facility.capacities
     .map((c) => c.monthlyPriceCents)

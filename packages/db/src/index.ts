@@ -1,8 +1,9 @@
 import { Prisma, PrismaClient } from "@prisma/client";
-import type { FacilityPhoto as PrismaFacilityPhoto } from "@prisma/client";
+import type { FacilityChangeRequest, FacilityPhoto as PrismaFacilityPhoto } from "@prisma/client";
 
 export type {
   CapacityPflegegradPricing,
+  FacilityChangeRequest,
   FacilityUnit,
   PhotoCategory,
   Review,
@@ -59,6 +60,7 @@ type FacilityWithOperatorDetailsRaw = Prisma.FacilityGetPayload<{
     capacities: { include: { pflegegradPricing: true } };
     photos: true;
     reviews: true;
+    changeRequests: true;
     units: {
       include: {
         // isBevollmaechtigt lets the operator dashboard flag a booking as
@@ -71,10 +73,13 @@ type FacilityWithOperatorDetailsRaw = Prisma.FacilityGetPayload<{
     };
   };
 }>;
+// operator.myFacility resolves changeRequests down to a single
+// pendingChangeRequest (or null) before returning - this type mirrors that
+// runtime shape rather than the raw Prisma payload.
 export type FacilityWithOperatorDetails = Omit<
   FacilityWithOperatorDetailsRaw,
-  "photos"
-> & { photos: FacilityPhoto[] };
+  "photos" | "changeRequests"
+> & { photos: FacilityPhoto[]; pendingChangeRequest: FacilityChangeRequest | null };
 
 /**
  * Single shared Prisma client instance, reused across apps/api and any

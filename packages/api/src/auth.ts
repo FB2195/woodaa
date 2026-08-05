@@ -23,13 +23,17 @@ const TWO_FACTOR_CHALLENGE_TOKEN_TTL = "5m";
 // Shorter than email verification - a leaked/replayed reset link risks a
 // full account takeover, not just a harmless re-confirmation.
 const PASSWORD_RESET_TOKEN_TTL = "1h";
+// Same reasoning as password reset - a leaked link risks hijacking where
+// account notifications/logins go.
+const EMAIL_CHANGE_TOKEN_TTL = "1h";
 
 type SecretName =
   | "JWT_ACCESS_SECRET"
   | "JWT_REFRESH_SECRET"
   | "JWT_EMAIL_VERIFICATION_SECRET"
   | "JWT_TWO_FACTOR_SECRET"
-  | "JWT_PASSWORD_RESET_SECRET";
+  | "JWT_PASSWORD_RESET_SECRET"
+  | "JWT_EMAIL_CHANGE_SECRET";
 
 function requireSecret(name: SecretName): string {
   const value = process.env[name];
@@ -117,6 +121,30 @@ export function verifyPasswordResetToken(
 ): { sub: string; jti: string } | null {
   try {
     return jwt.verify(token, requireSecret("JWT_PASSWORD_RESET_SECRET")) as {
+      sub: string;
+      jti: string;
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Hybrid like password reset: `sub` is the EmailChangeRequest id (not the
+// user id), since the same request row carries two separate single-use
+// tokens (old-address confirm, then new-address confirm) - see
+// requestEmailChange/confirmOldEmailChange/confirmNewEmailChange in
+// routers/auth.ts.
+export function signEmailChangeToken(payload: { sub: string; jti: string }): string {
+  return jwt.sign(payload, requireSecret("JWT_EMAIL_CHANGE_SECRET"), {
+    expiresIn: EMAIL_CHANGE_TOKEN_TTL,
+  });
+}
+
+export function verifyEmailChangeToken(
+  token: string,
+): { sub: string; jti: string } | null {
+  try {
+    return jwt.verify(token, requireSecret("JWT_EMAIL_CHANGE_SECRET")) as {
       sub: string;
       jti: string;
     };

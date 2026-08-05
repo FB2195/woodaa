@@ -2,6 +2,8 @@ import type { BookingType } from "@woodaa/validators";
 import type { FacilityWithOperatorDetails } from "@woodaa/api";
 import { AmenitiesEditor } from "./AmenitiesEditor";
 import { CategoryPanel } from "./CategoryPanel";
+import { FacilityContactForm } from "./FacilityContactForm";
+import { HouseRulesForm } from "./HouseRulesForm";
 import { PaymentApprovals } from "./PaymentApprovals";
 import { PflegegradSuitabilityForm } from "./PflegegradSuitabilityForm";
 import { PhotoManager } from "./PhotoManager";
@@ -72,6 +74,22 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
       {facility.status === "PENDING_REVIEW" && !facility.description && (
         <PublicListingPrompt />
       )}
+
+      <FacilityContactForm
+        facility={facility}
+        pendingChangeRequest={facility.pendingChangeRequest}
+      />
+
+      <HouseRulesForm
+        houseRules={{
+          checkInTime: facility.checkInTime,
+          checkOutTime: facility.checkOutTime,
+          visitingHours: facility.visitingHours,
+          wifiInfo: facility.wifiInfo,
+          parkingInfo: facility.parkingInfo,
+          petsPolicy: facility.petsPolicy,
+        }}
+      />
 
       <AmenitiesEditor amenities={facility.amenities} />
 

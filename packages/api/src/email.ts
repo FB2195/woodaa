@@ -120,6 +120,71 @@ Falls du das nicht warst, kannst du diese E-Mail ignorieren — dein Passwort bl
   });
 }
 
+export async function sendEmailChangeOldAddressEmail({
+  to,
+  name,
+  newEmail,
+  token,
+}: {
+  to: string;
+  name: string;
+  newEmail: string;
+  token: string;
+}) {
+  const confirmUrl = `${appUrl()}/konto/email-bestaetigen?step=old&token=${encodeURIComponent(token)}`;
+
+  await sendEmail({
+    to,
+    subject: "Bestätige die Änderung deiner E-Mail-Adresse bei woodaa",
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${name},</p>
+      <p>du hast angefordert, deine E-Mail-Adresse bei woodaa auf <strong>${newEmail}</strong> zu ändern:</p>
+      <p><a href="${confirmUrl}">${confirmUrl}</a></p>
+      <p>Der Link ist 1 Stunde gültig. Erst nachdem du hier bestätigst, schicken wir eine Bestätigungs-E-Mail an die neue Adresse.</p>
+      <p>Falls du das nicht warst, kannst du diese E-Mail ignorieren — deine E-Mail-Adresse bleibt unverändert.</p>
+    `,
+    text: `Hallo ${name},
+
+du hast angefordert, deine E-Mail-Adresse bei woodaa auf ${newEmail} zu ändern:
+${confirmUrl}
+
+Der Link ist 1 Stunde gültig. Erst nachdem du hier bestätigst, schicken wir eine Bestätigungs-E-Mail an die neue Adresse.
+
+Falls du das nicht warst, kannst du diese E-Mail ignorieren — deine E-Mail-Adresse bleibt unverändert.`,
+  });
+}
+
+export async function sendEmailChangeNewAddressEmail({
+  to,
+  name,
+  token,
+}: {
+  to: string;
+  name: string;
+  token: string;
+}) {
+  const confirmUrl = `${appUrl()}/konto/email-bestaetigen?step=new&token=${encodeURIComponent(token)}`;
+
+  await sendEmail({
+    to,
+    subject: "Bestätige deine neue E-Mail-Adresse bei woodaa",
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${name},</p>
+      <p>bitte bestätige, dass diese Adresse deine neue E-Mail-Adresse bei woodaa werden soll:</p>
+      <p><a href="${confirmUrl}">${confirmUrl}</a></p>
+      <p>Der Link ist 1 Stunde gültig. Danach ist diese Adresse deine neue Login-E-Mail-Adresse.</p>
+    `,
+    text: `Hallo ${name},
+
+bitte bestätige, dass diese Adresse deine neue E-Mail-Adresse bei woodaa werden soll:
+${confirmUrl}
+
+Der Link ist 1 Stunde gültig. Danach ist diese Adresse deine neue Login-E-Mail-Adresse.`,
+  });
+}
+
 // The Pflegekasse-facing side of the "Antrag digital einreichen" flow
 // (see routers/careApplication.ts) - a filled, digitally-signed PDF sent
 // as an attachment, with the Versicherungsnummer in the subject so it's
