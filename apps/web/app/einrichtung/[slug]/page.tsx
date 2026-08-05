@@ -44,7 +44,7 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
       <Header />
 
       <section className="mx-auto grid max-w-6xl gap-10 px-6 py-12 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="min-w-0 lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-3xl font-bold text-brand-heading">
               {facility.name}
