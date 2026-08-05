@@ -33,6 +33,13 @@ type Capacity = {
 };
 type Profile = {
   name: string;
+  vorname: string;
+  nachname: string;
+  geburtsdatum: Date | null;
+  street: string;
+  postalCode: string;
+  city: string;
+  phone: string;
   versicherungsnummer: string | null;
   pflegegrad: number | null;
   pflegegradAntragLaeuft: boolean;
@@ -152,12 +159,23 @@ export function BookingForm({
   const createBooking = trpc.booking.create.useMutation();
 
   // Bevollmächtigte/r: prefill with the care recipient's name, not the
-  // account holder's own name (profile.name) - see VollmachtSection.tsx.
-  const { firstName, lastName } = splitName(
-    profile.isBevollmaechtigt && profile.careRecipientName
-      ? profile.careRecipientName
-      : profile.name,
-  );
+  // account holder's own name/address (profile.vorname/street/...) - see
+  // VollmachtSection.tsx. The care recipient's birth date/address/phone
+  // aren't on file anywhere (only their name), so those inputs stay blank
+  // for a Bevollmächtigte/r to fill in fresh every time.
+  const prefillAsAccountHolder = !profile.isBevollmaechtigt;
+  const { firstName, lastName } =
+    prefillAsAccountHolder && (profile.vorname || profile.nachname)
+      ? { firstName: profile.vorname, lastName: profile.nachname }
+      : splitName(
+          profile.isBevollmaechtigt && profile.careRecipientName
+            ? profile.careRecipientName
+            : profile.name,
+        );
+  const birthDateDefault =
+    prefillAsAccountHolder && profile.geburtsdatum
+      ? profile.geburtsdatum.toISOString().slice(0, 10)
+      : "";
   const isDateRanged = bookingType ? dateRangedBookingTypes.includes(bookingType) : false;
   const isStationaer = bookingType === "STATIONAERE_AUFNAHME";
   const isTagesNachtpflege = bookingType === "TAGESPFLEGE" || bookingType === "NACHTPFLEGE";
@@ -382,6 +400,7 @@ export function BookingForm({
           type="date"
           name="guestBirthDate"
           required
+          defaultValue={birthDateDefault}
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
       </label>
@@ -391,6 +410,7 @@ export function BookingForm({
         <input
           name="guestStreet"
           required
+          defaultValue={prefillAsAccountHolder ? profile.street : ""}
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
       </label>
@@ -401,6 +421,7 @@ export function BookingForm({
           <input
             name="guestPostalCode"
             required
+            defaultValue={prefillAsAccountHolder ? profile.postalCode : ""}
             className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
         </label>
@@ -409,6 +430,7 @@ export function BookingForm({
           <input
             name="guestCity"
             required
+            defaultValue={prefillAsAccountHolder ? profile.city : ""}
             className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
         </label>
@@ -472,6 +494,7 @@ export function BookingForm({
         <input
           type="tel"
           name="guestPhone"
+          defaultValue={prefillAsAccountHolder ? profile.phone : ""}
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
       </label>

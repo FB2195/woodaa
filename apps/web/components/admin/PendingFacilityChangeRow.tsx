@@ -6,7 +6,16 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 
 const fields: {
-  key: "name" | "street" | "postalCode" | "city" | "state" | "operatorName" | "operatorEmail" | "operatorPhone";
+  key:
+    | "name"
+    | "street"
+    | "postalCode"
+    | "city"
+    | "state"
+    | "operatorName"
+    | "operatorEmail"
+    | "operatorPhone"
+    | "operatorPhoneDurchwahl";
   label: string;
 }[] = [
   { key: "name", label: "Name" },
@@ -17,6 +26,7 @@ const fields: {
   { key: "operatorName", label: "Ansprechpartner" },
   { key: "operatorEmail", label: "E-Mail" },
   { key: "operatorPhone", label: "Telefon" },
+  { key: "operatorPhoneDurchwahl", label: "Durchwahl" },
 ];
 
 export function PendingFacilityChangeRow({

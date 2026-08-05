@@ -135,7 +135,17 @@ model User {
   id                           String                 @id @default(cuid())
   email                        String                 @unique
   passwordHash                 String
+  // Full display name, kept in sync as `${vorname} ${nachname}` at
+  // registration time - still the single field read by every existing
+  // display/booking-attribution call site, so vorname/nachname below are
+  // additive, not a replacement.
   name                         String
+  // Split given/family name, collected at registration (SUCHENDE) so
+  // BookingForm can prefill Vorname/Nachname separately instead of
+  // guessing via a whitespace split on `name`. "" for BETREIBER accounts
+  // and any row created before this field existed.
+  vorname                      String                 @default("")
+  nachname                     String                 @default("")
   role                         Role                   @default(SUCHENDE)
   emailVerifiedAt              DateTime?
   verificationEmailSentAt      DateTime?
@@ -149,6 +159,15 @@ model User {
   favorites                    Favorite[]
   passwordResetTokens          PasswordResetToken[]
   emailChangeRequests          EmailChangeRequest[]
+  // Only meaningful for SUCHENDE - collected at registration so
+  // BookingForm can prefill instead of asking fresh every booking (see
+  // guestBirthDate/guestStreet/... there). Null/"" for BETREIBER/ADMIN and
+  // any row created before these fields existed.
+  geburtsdatum                 DateTime?
+  street                       String                 @default("")
+  postalCode                   String                 @default("")
+  city                         String                 @default("")
+  phone                        String                 @default("")
   // AES-256-GCM encrypted (see packages/api/src/crypto.ts) - a real
   // Sozialversicherungsnummer is Sozialdatum under SGB X, not just
   // ordinary PII, so it gets the same at-rest treatment as TOTP secrets.
@@ -161,14 +180,32 @@ model User {
   pflegegradAntragLaeuft       Boolean                @default(false)
   // Free-text (no fixed list of ~90 Kassen) - kept simple on purpose.
   krankenkasse                 String?
+  // Optional reference contact for someone who holds power of attorney FOR
+  // this account holder (e.g. an adult child) - purely informational, self-
+  // declared at registration. Deliberately separate from the
+  // vollmacht*/isBevollmaechtigt/careRecipientName fields below, which
+  // describe the OPPOSITE direction: an account that itself books on
+  // behalf of someone else, with a woodaa-reviewed Vollmacht document on
+  // file. The two concepts are unrelated other than sharing the word
+  // "Bevollmächtigte/r".
+  hatBevollmaechtigten         Boolean                @default(false)
+  bevollmaechtigterVorname     String?
+  bevollmaechtigterNachname    String?
+  bevollmaechtigterAdresse     String?
+  bevollmaechtigterTelefon     String?
+  bevollmaechtigterEmail       String?
+  // Consent, collected once at registration - not re-askable via a
+  // checkbox toggle in the product, so DateTime (when) rather than
+  // Boolean (whether) is the honest representation.
+  newsletterOptIn              Boolean                @default(false)
+  agbAcceptedAt                DateTime?
+  datenschutzAcceptedAt        DateTime?
   // Bevollmächtigte/r Angehörige/r: the fields above (krankenkasse,
   // versicherungsnummerEncrypted, pflegegrad, ...) already describe "the
   // person this account books care for", which for a representative is
   // someone else, not the account holder themselves - name/email above
   // stay the representative's own identity. careRecipientName is the one
-  // extra field needed so BookingForm prefills the right name; everything
-  // else per-booking (birth date, address, ...) is already typed fresh
-  // every time regardless of account type.
+  // extra field needed so BookingForm prefills the right name.
   careRecipientName            String?
   // R2 object key of the uploaded Vollmacht PDF - same private,
   // presigned-only-access treatment as Booking.kostenuebernahmeDocumentKey
@@ -270,60 +307,63 @@ model EmailChangeRequest {
 }
 
 model Facility {
-  id              String             @id @default(cuid())
-  slug            String             @unique
-  name            String
+  id                     String                  @id @default(cuid())
+  slug                   String                  @unique
+  name                   String
   // Empty ("") until the operator fills it in - only required to go public
   // (ACTIVE), not to use the internal availability tool (PENDING_REVIEW is
   // fully functional). See requireDescriptionForPublicListing in
   // operator.ts.
-  description     String             @default("")
-  street          String
-  postalCode      String
-  city            String
-  state           String
-  amenities       String[]
+  description            String                  @default("")
+  street                 String
+  postalCode             String
+  city                   String
+  state                  String
+  amenities              String[]
   // Best-effort geocoded from street/postalCode/city on create/update
   // (packages/api/src/geocoding.ts) - null if geocoding failed or hasn't
   // run yet, in which case the facility just doesn't show on the map.
-  latitude        Float?
-  longitude       Float?
+  latitude               Float?
+  longitude              Float?
   // Pflegegrad-Eignung (0-5). Facility-level, not per-capacity - suitability
   // realistically doesn't vary by booking type within one home. Both null =
   // "not specified", so the facility stays visible under any Pflegegrad
   // filter rather than silently disappearing (fail-open, not fail-closed).
-  minPflegegrad   Int?
-  maxPflegegrad   Int?
-  status          FacilityStatus     @default(PENDING_REVIEW)
+  minPflegegrad          Int?
+  maxPflegegrad          Int?
+  status                 FacilityStatus          @default(PENDING_REVIEW)
   // "Ansprechpartner" - the named contact shown (admin-only) on the
   // facility's booking requests etc. Same critical-change gate as
   // name/address/operatorPhone below (see FacilityChangeRequest) since it's
   // public-facing trust info, not just internal metadata.
-  operatorName    String
-  operatorEmail   String
-  operatorPhone   String?
+  operatorName           String
+  operatorEmail          String
+  operatorPhone          String?
+  // Ansprechpartner's own direct line/Durchwahl - distinct from
+  // operatorPhone above, which is the facility's general phone number.
+  operatorPhoneDurchwahl String?
   // Unterkunftsrichtlinien - free-text, non-critical (no admin approval,
   // unlike name/address/operatorPhone/operatorEmail/operatorName below).
   // Null/"" = not specified, section just doesn't render on the facility
   // page.
-  checkInTime     String?
-  checkOutTime    String?
-  visitingHours   String?
-  wifiInfo        String?
-  parkingInfo     String?
-  petsPolicy      String?
-  operatorUserId  String?            @unique
-  operator        User?              @relation("FacilityOperator", fields: [operatorUserId], references: [id])
-  capacities      FacilityCapacity[]
-  units           FacilityUnit[]
-  bookings        Booking[]
-  bookingRequests BookingRequest[]
-  favoritedBy     Favorite[]
-  photos          FacilityPhoto[]
-  reviews         Review[]
-  changeRequests  FacilityChangeRequest[]
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  checkInTime            String?
+  checkOutTime           String?
+  visitingHours          String?
+  wifiInfo               String?
+  parkingInfo            String?
+  petsPolicy             String?
+  operatorUserId         String?                 @unique
+  operator               User?                   @relation("FacilityOperator", fields: [operatorUserId], references: [id])
+  capacities             FacilityCapacity[]
+  units                  FacilityUnit[]
+  bookings               Booking[]
+  bookingRequests        BookingRequest[]
+  favoritedBy            Favorite[]
+  photos                 FacilityPhoto[]
+  reviews                Review[]
+  changeRequests         FacilityChangeRequest[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
 }
 
 // A proposed edit to one of Facility's "critical" fields (name, address,
@@ -335,23 +375,24 @@ model Facility {
 // resubmitting while one is pending overwrites it (see requestFacilityChange
 // in operator.ts) rather than queuing multiple.
 model FacilityChangeRequest {
-  id            String                       @id @default(cuid())
-  facility      Facility                     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  facilityId    String
+  id                     String                      @id @default(cuid())
+  facility               Facility                    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId             String
   // Each field is null when not part of this change (i.e. "leave as-is") -
   // distinct from an empty string, which is a real proposed value.
-  name          String?
-  street        String?
-  postalCode    String?
-  city          String?
-  state         String?
-  operatorName  String?
-  operatorEmail String?
-  operatorPhone String?
-  status        FacilityChangeRequestStatus @default(PENDING)
-  reviewedAt    DateTime?
-  createdAt     DateTime                     @default(now())
-  updatedAt     DateTime                     @updatedAt
+  name                   String?
+  street                 String?
+  postalCode             String?
+  city                   String?
+  state                  String?
+  operatorName           String?
+  operatorEmail          String?
+  operatorPhone          String?
+  operatorPhoneDurchwahl String?
+  status                 FacilityChangeRequestStatus @default(PENDING)
+  reviewedAt             DateTime?
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
 
   @@index([facilityId])
   @@index([status])

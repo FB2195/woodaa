@@ -153,12 +153,93 @@ export type CreateBookingRequestInput = z.infer<
   typeof CreateBookingRequestInput
 >;
 
-export const RegisterInput = z.object({
+// A registering SUCHENDE is the account holder themselves (or someone
+// registering on their own behalf) - name/address/Pflegegrad/Krankenkasse
+// collected once here so BookingForm can prefill instead of asking fresh
+// every booking. bevollmaechtigter* fields are an optional reference
+// contact (see the comment on User.hatBevollmaechtigten in schema.prisma) -
+// NOT the same as the separate, woodaa-reviewed Vollmacht-document flow for
+// accounts that book on behalf of someone else.
+const bevollmaechtigterFieldsOk = (data: {
+  hatBevollmaechtigten: boolean;
+  bevollmaechtigterVorname?: string;
+  bevollmaechtigterNachname?: string;
+  bevollmaechtigterAdresse?: string;
+  bevollmaechtigterTelefon?: string;
+  bevollmaechtigterEmail?: string;
+}) =>
+  !data.hatBevollmaechtigten ||
+  Boolean(
+    data.bevollmaechtigterVorname &&
+      data.bevollmaechtigterNachname &&
+      data.bevollmaechtigterAdresse &&
+      data.bevollmaechtigterTelefon &&
+      data.bevollmaechtigterEmail,
+  );
+
+// Plain object (no .refine()) so it stays usable as a discriminatedUnion
+// member below - the bevollmaechtigterFieldsOk check runs as a
+// .superRefine() on the union instead (ZodEffects, which .refine() would
+// produce, isn't a valid discriminatedUnion member).
+export const RegisterSuchendeInput = z.object({
+  role: z.literal("SUCHENDE"),
+  vorname: z.string().trim().min(1).max(100),
+  nachname: z.string().trim().min(1).max(100),
+  email: z.string().trim().email(),
+  password: z.string().min(8).max(200),
+  geburtsdatum: z.string().date(),
+  street: z.string().trim().min(1).max(200),
+  postalCode: z.string().trim().min(1).max(20),
+  city: z.string().trim().min(1).max(200),
+  phone: z.string().trim().min(1).max(50),
+  pflegegrad: Pflegegrad.optional(),
+  pflegegradAntragLaeuft: z.boolean().default(false),
+  krankenkasse: z.string().trim().max(200).optional(),
+  versicherungsnummer: Versicherungsnummer.optional(),
+  hatBevollmaechtigten: z.boolean().default(false),
+  bevollmaechtigterVorname: z.string().trim().max(100).optional(),
+  bevollmaechtigterNachname: z.string().trim().max(100).optional(),
+  bevollmaechtigterAdresse: z.string().trim().max(300).optional(),
+  bevollmaechtigterTelefon: z.string().trim().max(50).optional(),
+  bevollmaechtigterEmail: z.string().trim().email().optional(),
+  newsletterOptIn: z.boolean().default(false),
+  agbAccepted: z.literal(true),
+  datenschutzAccepted: z.literal(true),
+});
+export type RegisterSuchendeInput = z.infer<typeof RegisterSuchendeInput>;
+
+// A registering BETREIBER creates their facility in the same step (rather
+// than a separate "create facility" step afterwards) - name doubles as
+// both the account's display name and the facility's public
+// "Ansprechpartner" (see operatorName in schema.prisma), same as the
+// existing createFacility flow already did from user.name.
+export const RegisterBetreiberInput = z.object({
+  role: z.literal("BETREIBER"),
   name: z.string().trim().min(1).max(200),
   email: z.string().trim().email(),
   password: z.string().min(8).max(200),
-  role: z.enum(["SUCHENDE", "BETREIBER"]),
+  facilityName: z.string().trim().min(1).max(200),
+  street: z.string().trim().min(1).max(200),
+  postalCode: z.string().trim().min(1).max(20),
+  city: z.string().trim().min(1).max(200),
+  state: z.string().trim().min(1).max(200),
+  operatorPhone: z.string().trim().min(1).max(50),
+  operatorPhoneDurchwahl: z.string().trim().max(50).optional(),
+  agbAccepted: z.literal(true),
 });
+export type RegisterBetreiberInput = z.infer<typeof RegisterBetreiberInput>;
+
+export const RegisterInput = z
+  .discriminatedUnion("role", [RegisterSuchendeInput, RegisterBetreiberInput])
+  .superRefine((data, ctx) => {
+    if (data.role === "SUCHENDE" && !bevollmaechtigterFieldsOk(data)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Bitte alle Angaben zum Bevollmächtigten ausfüllen.",
+        path: ["bevollmaechtigterVorname"],
+      });
+    }
+  });
 export type RegisterInput = z.infer<typeof RegisterInput>;
 
 export const LoginInput = z.object({
@@ -216,6 +297,7 @@ const FacilityFields = z.object({
   state: z.string().trim().min(1).max(200),
   amenities: z.array(z.string().trim().min(1).max(100)).max(30),
   operatorPhone: z.string().trim().max(50).optional(),
+  operatorPhoneDurchwahl: z.string().trim().max(50).optional(),
   minPflegegrad: Pflegegrad.optional(),
   maxPflegegrad: Pflegegrad.optional(),
 });
@@ -248,6 +330,7 @@ const UpdatableFacilityFields = FacilityFields.omit({
   city: true,
   state: true,
   operatorPhone: true,
+  operatorPhoneDurchwahl: true,
 }).extend({
   // Unterkunftsrichtlinien - free text, immediate, no approval needed.
   checkInTime: z.string().trim().max(200).optional(),
@@ -283,6 +366,7 @@ export const RequestFacilityChangeInput = z
     operatorName: z.string().trim().min(1).max(200).optional(),
     operatorEmail: z.string().trim().email().max(200).optional(),
     operatorPhone: z.string().trim().max(50).optional(),
+    operatorPhoneDurchwahl: z.string().trim().max(50).optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: "Mindestens ein Feld muss geändert werden.",

@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { AuthForm } from "@/components/AuthForm";
 import { Header } from "@/components/Header";
+import { RegisterBetreiberForm } from "@/components/RegisterBetreiberForm";
 
 const benefits = [
   {
     icon: "⚡",
-    title: "In 30 Sekunden startklar",
-    text: "Nur Name und Adresse - fertig. Kein Papierkram, keine Wartezeit.",
+    title: "In wenigen Minuten startklar",
+    text: "Einrichtung und Ansprechpartner angeben - fertig. Kein Papierkram, keine Wartezeit.",
   },
   {
     icon: "🎁",
@@ -75,7 +75,7 @@ export default function OperatorRegisterPage() {
           <h2 className="mb-6 text-center text-xl font-semibold text-brand-text">
             Jetzt kostenlos loslegen
           </h2>
-          <AuthForm mode="register-betreiber" />
+          <RegisterBetreiberForm />
           <p className="mt-4 text-center text-xs text-brand-text-muted">
             Schon dabei?{" "}
             <Link href="/betreiber/login" className="text-brand-accent underline">

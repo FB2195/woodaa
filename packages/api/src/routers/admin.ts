@@ -10,7 +10,18 @@ import { adminProcedure, router } from "../trpc";
 export type AdminPendingReview = Review & { facility: { name: string; slug: string } };
 
 export type AdminPendingFacilityChange = FacilityChangeRequest & {
-  facility: { name: string; slug: string; street: string; postalCode: string; city: string; state: string; operatorName: string; operatorEmail: string; operatorPhone: string | null };
+  facility: {
+    name: string;
+    slug: string;
+    street: string;
+    postalCode: string;
+    city: string;
+    state: string;
+    operatorName: string;
+    operatorEmail: string;
+    operatorPhone: string | null;
+    operatorPhoneDurchwahl: string | null;
+  };
 };
 
 export type AdminPendingVollmacht = Pick<
@@ -241,6 +252,7 @@ export const adminRouter = router({
               operatorName: true,
               operatorEmail: true,
               operatorPhone: true,
+              operatorPhoneDurchwahl: true,
             },
           },
         },
@@ -284,6 +296,8 @@ export const adminRouter = router({
       if (request.operatorName !== null) data.operatorName = request.operatorName;
       if (request.operatorEmail !== null) data.operatorEmail = request.operatorEmail;
       if (request.operatorPhone !== null) data.operatorPhone = request.operatorPhone;
+      if (request.operatorPhoneDurchwahl !== null)
+        data.operatorPhoneDurchwahl = request.operatorPhoneDurchwahl;
       if (addressChanged) {
         data.latitude = geo?.latitude ?? null;
         data.longitude = geo?.longitude ?? null;
