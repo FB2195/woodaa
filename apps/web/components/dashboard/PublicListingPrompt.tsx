@@ -4,11 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 
-export function PublicListingPrompt({
-  amenities,
-}: {
-  amenities: string[];
-}) {
+export function PublicListingPrompt() {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,10 +41,6 @@ export function PublicListingPrompt({
         setError(null);
         const form = new FormData(event.currentTarget);
         const description = String(form.get("description") ?? "").trim();
-        const amenitiesInput = String(form.get("amenities") ?? "")
-          .split(",")
-          .map((a) => a.trim())
-          .filter(Boolean);
 
         if (!description) {
           setError("Bitte gib eine kurze Beschreibung ein.");
@@ -56,10 +48,7 @@ export function PublicListingPrompt({
         }
 
         try {
-          await updateFacility.mutateAsync({
-            description,
-            amenities: amenitiesInput,
-          });
+          await updateFacility.mutateAsync({ description });
           router.refresh();
         } catch (err) {
           setError(
@@ -89,15 +78,9 @@ export function PublicListingPrompt({
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm text-brand-text">
-        Ausstattung (kommagetrennt)
-        <input
-          name="amenities"
-          defaultValue={amenities.join(", ")}
-          placeholder="Barrierefreiheit, Garten, Einzelzimmer"
-          className="rounded-brand-md border border-brand-border px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-accent"
-        />
-      </label>
+      <p className="text-xs text-brand-text-muted">
+        Eure Ausstattung (Einzelzimmer, Garten, ...) pflegt ihr weiter unten im Dashboard.
+      </p>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

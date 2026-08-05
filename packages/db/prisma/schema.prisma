@@ -281,8 +281,8 @@ model Favorite {
 }
 
 model FacilityCapacity {
-  id                String      @id @default(cuid())
-  facility          Facility    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  id                String                      @id @default(cuid())
+  facility          Facility                    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   facilityId        String
   bookingType       BookingType
   // totalSlots/availableSlots are a maintained cache, not operator input:
@@ -299,8 +299,40 @@ model FacilityCapacity {
   // STATIONAERE_AUFNAHME: earliest date a place opens up (e.g. all slots
   // currently full, but one frees up on this date).
   availableFrom     DateTime?
+  pflegegradPricing CapacityPflegegradPricing[]
 
   @@unique([facilityId, bookingType])
+}
+
+// Real, per-Pflegegrad rates the facility sets - the actual basis for every
+// Eigenanteil/Zuschuss calculation (see apps/web/lib/pflegekassenZuschuss.ts
+// and packages/api/src/pricing.ts). monthlyPriceCents on FacilityCapacity
+// above stays a single representative figure for search display/sorting/
+// filtering (one number needed there, not five) - this table is the
+// detailed pricing behind it. Which fields apply depends on the parent
+// capacity's bookingType:
+// - STATIONAERE_AUFNAHME: dailyRateCents (Tagessatz) AND monthlyRateCents
+//   (pauschaler Monatssatz) - homes bill full months at the flat rate and
+//   prorate partial months (admission/discharge mid-month) at the daily rate.
+// - KURZZEITPFLEGE: dailyRateCents only (pauschaler Tagessatz).
+// - TAGESPFLEGE / NACHTPFLEGE: hourlyRateCents only (Stundensatz) - billed
+//   per hour of attendance, not per calendar day.
+// A row only exists once the facility has entered at least one rate for
+// that Pflegegrad; missing rows/null fields mean "not entered yet", not
+// "free" - calculators fall back to the coarser monthlyPriceCents estimate
+// in that case.
+model CapacityPflegegradPricing {
+  id               String           @id @default(cuid())
+  capacity         FacilityCapacity @relation(fields: [capacityId], references: [id], onDelete: Cascade)
+  capacityId       String
+  pflegegrad       Int
+  dailyRateCents   Int?
+  monthlyRateCents Int?
+  hourlyRateCents  Int?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([capacityId, pflegegrad])
 }
 
 // Ein einzelner buchbarer Platz/Bett innerhalb einer Kategorie. Reine
@@ -379,6 +411,11 @@ model Booking {
   // indefinitely from creation, as before) - it's a coordination signal
   // for the facility, not a future-dated reservation.
   desiredStartDate             DateTime?
+  // TAGESPFLEGE/NACHTPFLEGE only - Tages-/Nachtpflege wird stundenweise
+  // abgerechnet (siehe CapacityPflegegradPricing.hourlyRateCents), also
+  // braucht auch die Buchung selbst diese Angabe, um Zuschuss-Vorschau und
+  // tatsächlichen Zahlbetrag konsistent zu halten.
+  hoursPerDay                  Int?
   note                         String?
   // Only set for ONLINE bookings - phone/walk-in bookings settle directly
   // between facility and customer, outside these fields entirely.

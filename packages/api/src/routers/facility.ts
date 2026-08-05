@@ -90,7 +90,7 @@ export const facilityRouter = router({
         // Cover photo only (not the whole gallery) - the list view just
         // needs a card thumbnail, bySlug below fetches the full gallery.
         include: {
-          capacities: true,
+          capacities: { include: { pflegegradPricing: true } },
           photos: { take: 1, orderBy: { createdAt: "asc" } },
         },
         orderBy: { createdAt: "desc" },
@@ -169,7 +169,7 @@ export const facilityRouter = router({
       const facility = await ctx.db.facility.findUnique({
         where: { slug: input.slug, status: "ACTIVE" },
         include: {
-          capacities: true,
+          capacities: { include: { pflegegradPricing: true } },
           photos: { orderBy: { createdAt: "asc" } },
           reviews: { where: { status: "APPROVED" }, orderBy: { createdAt: "desc" } },
         },

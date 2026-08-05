@@ -8,7 +8,11 @@ import { StripePaymentStep } from "@/components/booking/StripePaymentStep";
 import { bookingTypeLabels, dateRangedBookingTypes } from "@/lib/bookingTypeLabels";
 import { formatPriceEuro } from "@/lib/format";
 import { paymentMethodLabels } from "@/lib/paymentMethodLabels";
-import { calculateZuschuss, calculateZuschussForDays } from "@/lib/pflegekassenZuschuss";
+import {
+  calculateKurzzeitpflegeEigenanteil,
+  calculateStationaerEigenanteil,
+  calculateTagesNachtpflegeEigenanteil,
+} from "@/lib/pflegekassenZuschuss";
 import { pflegegradOptions } from "@/lib/pflegegradLabels";
 import { trpc } from "@/lib/trpc";
 
@@ -16,9 +20,16 @@ import { trpc } from "@/lib/trpc";
 // this component receives props directly from a Server Component (real
 // Date objects, no HTTP/JSON round trip in between), while RouterOutputs
 // reflects the client's post-serialization (stringified dates) shape.
+type PflegegradRate = {
+  pflegegrad: number;
+  dailyRateCents: number | null;
+  monthlyRateCents: number | null;
+  hourlyRateCents: number | null;
+};
 type Capacity = {
   bookingType: BookingType;
   monthlyPriceCents: number | null;
+  pflegegradPricing: PflegegradRate[];
 };
 type Profile = {
   name: string;
@@ -37,54 +48,23 @@ function splitName(name: string): { firstName: string; lastName: string } {
 
 // Below the payment section, per Pflegegrad/Zeitraum - example wording and
 // the "ohne Gewähr" disclaimer are a deliberate product requirement, not
-// just a UI nicety.
+// just a UI nicety. Which fields/period this needs depends on bookingType -
+// see CapacityPflegegradPricing in schema.prisma.
 function SubsidyHint({
   bookingType,
   pflegegrad,
-  monthlyPriceCents,
+  rate,
   days,
+  hoursPerDay,
 }: {
   bookingType: BookingType;
   pflegegrad: Pflegegrad;
-  monthlyPriceCents: number;
+  rate: PflegegradRate;
   days: number | null;
+  hoursPerDay: number;
 }) {
-  const isStationaer = bookingType === "STATIONAERE_AUFNAHME";
-  const result =
-    isStationaer || days === null
-      ? calculateZuschuss(bookingType, pflegegrad, monthlyPriceCents)
-      : calculateZuschussForDays(
-          bookingType as Exclude<BookingType, "STATIONAERE_AUFNAHME">,
-          pflegegrad,
-          monthlyPriceCents,
-          days,
-        );
-  const eigenanteil = formatPriceEuro(result.eigenanteilCents);
-  const subsidy = formatPriceEuro(result.subsidyCents);
-
-  return (
-    <div className="rounded-brand-md bg-brand-background p-3 text-xs text-brand-text-muted">
-      {isStationaer ? (
-        <p>
-          Ihre Krankenkasse beteiligt sich an den Kosten mit bis zu {subsidy} pro Monat. Ihr
-          voraussichtlicher Eigenanteil beträgt damit {eigenanteil} pro Monat.
-        </p>
-      ) : bookingType === "KURZZEITPFLEGE" ? (
-        <p>
-          Ihre Krankenkasse beteiligt sich an den Kosten für Ihre Kurzzeitpflege. Im
-          Pflegegrad {pflegegrad} sind das bis zu {subsidy}{" "}
-          {days !== null ? `für ${days} Tage` : "pro Monat (Jahresbudget anteilig gerechnet)"},
-          für insgesamt maximal 8 Wochen pro Kalenderjahr. Ihr voraussichtlicher Eigenanteil
-          beträgt damit {eigenanteil}.
-        </p>
-      ) : (
-        <p>
-          Ihre Krankenkasse beteiligt sich an den Kosten mit bis zu {subsidy}
-          {days !== null ? ` für ${days} Tage` : " pro Monat"}. Ihr voraussichtlicher
-          Eigenanteil beträgt damit {eigenanteil}.
-        </p>
-      )}
-      {result.note && <p className="mt-1">{result.note}</p>}
+  const disclaimer = (
+    <>
       <p className="mt-1">
         Meist zahlst du den Betrag zunächst vollständig und bekommst den Zuschuss
         anschließend von deiner Pflegekasse erstattet.
@@ -93,6 +73,57 @@ function SubsidyHint({
         Alle Angaben ohne Gewähr - unverbindliche Orientierung, die tatsächliche Höhe
         bestätigt eure Pflegekasse.
       </p>
+    </>
+  );
+
+  if (bookingType === "STATIONAERE_AUFNAHME") {
+    const result = calculateStationaerEigenanteil(pflegegrad, rate);
+    if (!result) return null;
+    return (
+      <div className="rounded-brand-md bg-brand-background p-3 text-xs text-brand-text-muted">
+        <p>
+          Ihre Krankenkasse beteiligt sich an den Kosten bis zu {formatPriceEuro(result.subsidyCents)}{" "}
+          pro Monat. Ihr voraussichtlicher Eigenanteil beträgt damit{" "}
+          {formatPriceEuro(result.eigenanteilCents)} pro Monat.
+        </p>
+        {result.note && <p className="mt-1">{result.note}</p>}
+        {disclaimer}
+      </div>
+    );
+  }
+
+  if (bookingType === "KURZZEITPFLEGE") {
+    if (rate.dailyRateCents === null || days === null) return null;
+    const result = calculateKurzzeitpflegeEigenanteil(pflegegrad, rate.dailyRateCents, days);
+    return (
+      <div className="rounded-brand-md bg-brand-background p-3 text-xs text-brand-text-muted">
+        <p>
+          Ihre Krankenkasse beteiligt sich an den Kosten für Ihre Kurzzeitpflege. Grundsätzlich
+          verfügbar sind bis zu {formatPriceEuro(result.jahresbudgetCents)} pro Kalenderjahr. Für
+          {` ${days} Tage`} kostet das Heim {formatPriceEuro(result.totalCostCents)}, wovon die
+          Kasse {formatPriceEuro(result.subsidyCents)} übernimmt. Ihr voraussichtlicher
+          Eigenanteil beträgt damit {formatPriceEuro(result.eigenanteilCents)} - danach stehen
+          noch {formatPriceEuro(result.remainingBudgetCents)} Jahresbudget zur Verfügung.
+        </p>
+        {result.note && <p className="mt-1">{result.note}</p>}
+        {disclaimer}
+      </div>
+    );
+  }
+
+  // TAGESPFLEGE / NACHTPFLEGE
+  if (rate.hourlyRateCents === null) return null;
+  const result = calculateTagesNachtpflegeEigenanteil(pflegegrad, rate.hourlyRateCents, hoursPerDay);
+  return (
+    <div className="rounded-brand-md bg-brand-background p-3 text-xs text-brand-text-muted">
+      <p>
+        Ihre Krankenkasse beteiligt sich an den Kosten mit bis zu{" "}
+        {formatPriceEuro(result.dailySubsidyCents)} pro Tag. Ihr voraussichtlicher Eigenanteil
+        beträgt damit {formatPriceEuro(result.dailyEigenanteilCents)} pro Tag (bei{" "}
+        {hoursPerDay} Std./Tag).
+      </p>
+      {result.note && <p className="mt-1">{result.note}</p>}
+      {disclaimer}
     </div>
   );
 }
@@ -115,6 +146,7 @@ export function BookingForm({
   const [endeOffen, setEndeOffen] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [hoursPerDay, setHoursPerDay] = useState(6);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("KARTE");
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const createBooking = trpc.booking.create.useMutation();
@@ -128,7 +160,10 @@ export function BookingForm({
   );
   const isDateRanged = bookingType ? dateRangedBookingTypes.includes(bookingType) : false;
   const isStationaer = bookingType === "STATIONAERE_AUFNAHME";
+  const isTagesNachtpflege = bookingType === "TAGESPFLEGE" || bookingType === "NACHTPFLEGE";
   const capacity = capacities.find((c) => c.bookingType === bookingType);
+  const rate =
+    pflegegrad === "" ? undefined : capacity?.pflegegradPricing.find((r) => r.pflegegrad === pflegegrad);
 
   const days =
     isDateRanged && !endeOffen && startDate && endDate
@@ -232,6 +267,7 @@ export function BookingForm({
           guestPhone: get("guestPhone") || undefined,
           note: get("note") || undefined,
           paymentMethod,
+          hoursPerDay: isTagesNachtpflege ? hoursPerDay : undefined,
         });
       }}
     >
@@ -303,6 +339,20 @@ export function BookingForm({
             Vorerst ohne Enddatum (regelmäßig, bis auf Weiteres)
           </label>
         </div>
+      )}
+
+      {isTagesNachtpflege && (
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Stunden pro Tag
+          <input
+            type="number"
+            min={1}
+            max={24}
+            value={hoursPerDay}
+            onChange={(event) => setHoursPerDay(Math.max(1, Number(event.target.value) || 1))}
+            className="w-24 rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          />
+        </label>
       )}
 
       <div className="grid grid-cols-2 gap-4">
@@ -436,12 +486,13 @@ export function BookingForm({
         />
       </label>
 
-      {bookingType && pflegegrad !== "" && capacity?.monthlyPriceCents != null && (
+      {bookingType && pflegegrad !== "" && rate && (
         <SubsidyHint
           bookingType={bookingType}
           pflegegrad={pflegegrad}
-          monthlyPriceCents={capacity.monthlyPriceCents}
+          rate={rate}
           days={days}
+          hoursPerDay={hoursPerDay}
         />
       )}
 

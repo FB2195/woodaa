@@ -9,6 +9,7 @@ import {
   MAX_FACILITY_PHOTOS,
   RenameUnitInput,
   RequestPhotoUploadInput,
+  SetPflegegradPricingInput,
   SetUnitCountInput,
   UpdateFacilityInput,
   UpdatePricingInput,
@@ -69,7 +70,7 @@ export const operatorRouter = router({
     const facility = await ctx.db.facility.findUnique({
       where: { operatorUserId: ctx.user.id },
       include: {
-        capacities: true,
+        capacities: { include: { pflegegradPricing: true } },
         photos: { orderBy: { createdAt: "asc" } },
         // All statuses, not just APPROVED - an operator should be able to
         // see reviews about their own facility regardless of moderation
@@ -212,6 +213,60 @@ export const operatorRouter = router({
           availableFrom,
         },
       });
+    }),
+
+  // Real per-Pflegegrad rates behind the coarse monthlyPriceCents estimate
+  // above - see CapacityPflegegradPricing in schema.prisma. Always
+  // resubmits every row for this bookingType (the operator UI is one table
+  // per category), so this both creates/updates and clears rows whose
+  // Pflegegrad isn't present in the new `rates` array.
+  setPflegegradPricing: operatorProcedure
+    .input(SetPflegegradPricingInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+
+      const capacity = await ctx.db.facilityCapacity.upsert({
+        where: {
+          facilityId_bookingType: { facilityId: facility.id, bookingType: input.bookingType },
+        },
+        create: {
+          facilityId: facility.id,
+          bookingType: input.bookingType,
+          totalSlots: 0,
+          availableSlots: 0,
+        },
+        update: {},
+      });
+
+      await ctx.db.$transaction([
+        ctx.db.capacityPflegegradPricing.deleteMany({
+          where: {
+            capacityId: capacity.id,
+            pflegegrad: { notIn: input.rates.map((r) => r.pflegegrad) },
+          },
+        }),
+        ...input.rates.map((rate) =>
+          ctx.db.capacityPflegegradPricing.upsert({
+            where: {
+              capacityId_pflegegrad: { capacityId: capacity.id, pflegegrad: rate.pflegegrad },
+            },
+            create: {
+              capacityId: capacity.id,
+              pflegegrad: rate.pflegegrad,
+              dailyRateCents: rate.dailyRateCents ?? null,
+              monthlyRateCents: rate.monthlyRateCents ?? null,
+              hourlyRateCents: rate.hourlyRateCents ?? null,
+            },
+            update: {
+              dailyRateCents: rate.dailyRateCents ?? null,
+              monthlyRateCents: rate.monthlyRateCents ?? null,
+              hourlyRateCents: rate.hourlyRateCents ?? null,
+            },
+          }),
+        ),
+      ]);
+
+      return { success: true };
     }),
 
   // "Wie viele Plätze gibt es insgesamt in dieser Kategorie" - Erhöhen legt
