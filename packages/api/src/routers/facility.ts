@@ -6,15 +6,21 @@ import { geocodeSearchOrigin, reverseGeocode, searchLocations, type GeoPoint } f
 import { haversineDistanceKm } from "../geo";
 import { getNearbyPlaces } from "../nearbyPlaces";
 import { withPhotoUrl } from "../r2";
+import { checkRequestedAvailability } from "../searchAvailability";
 import { publicProcedure, router } from "../trpc";
 
 // Search-context-only: distance from the geocoded search origin, null when
 // no origin could be resolved (no city searched, or geocoding failed) or
-// the facility itself has no coordinates.
+// the facility itself has no coordinates. isAvailableForRequest/
+// availabilityNote are null unless bookingType plus a matching date/time
+// filter were given (see checkRequestedAvailability) - a plain search
+// without any of that never touches the availability engine.
 export type FacilityListItem = FacilityWithCapacities & {
   distanceKm: number | null;
   avgRating: number | null;
   reviewCount: number;
+  isAvailableForRequest: boolean | null;
+  availabilityNote: string | null;
 };
 
 // Powers the search results toolbar's filter chips (Pflegeart + Ausstattung)
@@ -38,9 +44,20 @@ function avgOf(values: number[]): number | null {
 // photos.url, so they must not require the full (post-mapping) shape.
 type FacetableFacility = { capacities: FacilityWithCapacities["capacities"]; amenities: string[] };
 
-function matchesBookingType(facility: FacetableFacility, type: BookingType | undefined): boolean {
+// onlyAvailable defaults to true, matching this app's original behavior
+// (a bookingType filter always meant "with free capacity") - the "Nur
+// freie Pflegeplätze anzeigen" toggle sets it false to also surface
+// fully-booked facilities, which the router then flags via
+// checkRequestedAvailability instead of hiding.
+function matchesBookingType(
+  facility: FacetableFacility,
+  type: BookingType | undefined,
+  onlyAvailable = true,
+): boolean {
   if (!type) return true;
-  return facility.capacities.some((c) => c.bookingType === type && c.availableSlots > 0);
+  return facility.capacities.some(
+    (c) => c.bookingType === type && (!onlyAvailable || c.availableSlots > 0),
+  );
 }
 
 function matchesAmenities(facility: FacetableFacility, amenities: string[] | undefined): boolean {
@@ -129,8 +146,11 @@ export const facilityRouter = router({
         ]),
       );
 
+      const onlyAvailable = input.onlyAvailable !== false;
       const facilities = pool.filter(
-        (f) => matchesBookingType(f, input.bookingType) && matchesAmenities(f, input.amenities),
+        (f) =>
+          matchesBookingType(f, input.bookingType, onlyAvailable) &&
+          matchesAmenities(f, input.amenities),
       );
 
       // Price and distance sorting can't be expressed in Prisma's orderBy
@@ -158,7 +178,28 @@ export const facilityRouter = router({
         ratingRows.map((r) => [r.facilityId, { avgRating: r._avg.rating, reviewCount: r._count._all }]),
       );
 
-      let results: FacilityListItem[] = facilities.map((f) => ({
+      // Skips straight past the availability engine (hasFreeSlotNow=true
+      // short-circuits) for every facility that already has capacity right
+      // now - the day-by-day lookahead scans only run for facilities the
+      // "Nur freie Pflegeplätze anzeigen" toggle let through despite being
+      // sold out, or that don't match the exact requested date/range/
+      // weekdays. Parallelized since this dataset is small (a search
+      // results page, not the whole catalog).
+      const annotations = await Promise.all(
+        facilities.map((f) => {
+          const capacity = f.capacities.find((c) => c.bookingType === input.bookingType);
+          return checkRequestedAvailability(
+            ctx.db,
+            f.id,
+            input.bookingType,
+            input,
+            (capacity?.availableSlots ?? 0) > 0,
+            capacity?.availableFrom ?? null,
+          );
+        }),
+      );
+
+      let results: FacilityListItem[] = facilities.map((f, i) => ({
         ...f,
         photos: f.photos.map(withPhotoUrl),
         distanceKm:
@@ -167,6 +208,8 @@ export const facilityRouter = router({
             : null,
         avgRating: ratingByFacility.get(f.id)?.avgRating ?? null,
         reviewCount: ratingByFacility.get(f.id)?.reviewCount ?? 0,
+        isAvailableForRequest: annotations[i]!.isAvailableForRequest,
+        availabilityNote: annotations[i]!.availabilityNote,
       }));
 
       if (input.radiusKm !== undefined && origin) {
@@ -190,6 +233,16 @@ export const facilityRouter = router({
           if (a.distanceKm === null) return 1;
           if (b.distanceKm === null) return -1;
           return a.distanceKm - b.distanceKm;
+        });
+      } else if (input.sort === "availability_first") {
+        // isAvailableForRequest is null when no date/time filter was given
+        // (or onlyAvailable already excluded the fully-booked ones) - treat
+        // that the same as "available" so this sort is a no-op rather than
+        // scrambling order when there's nothing to distinguish by.
+        results.sort((a, b) => {
+          const aFree = a.isAvailableForRequest ?? true;
+          const bFree = b.isAvailableForRequest ?? true;
+          return aFree === bFree ? 0 : aFree ? -1 : 1;
         });
       }
       // "newest" (default, or distance_asc requested without a resolvable
@@ -216,23 +269,9 @@ export const facilityRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Einrichtung nicht gefunden." });
       }
 
-      // Belegte Zeiträume für die date-basierten Kategorien, ohne
-      // Gast-PII - nur zur Anzeige "diese Zeiträume sind schon belegt".
-      const occupiedRangeRows = await ctx.db.booking.findMany({
-        where: { facilityId: facility.id, status: "BESTAETIGT", startDate: { not: null } },
-        select: { bookingType: true, startDate: true, endDate: true },
-        orderBy: { startDate: "asc" },
-      });
-      const occupiedRanges = occupiedRangeRows.map((r) => ({
-        bookingType: r.bookingType,
-        startDate: r.startDate!,
-        endDate: r.endDate!,
-      }));
-
       return {
         ...facility,
         photos: facility.photos.map(withPhotoUrl),
-        occupiedRanges,
         ...reviewStats(facility.reviews),
       };
     }),

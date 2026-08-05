@@ -135,23 +135,6 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
                     </p>
                   )}
 
-                {facility.occupiedRanges.some((r) => r.bookingType === capacity.bookingType) && (
-                  <div className="mt-2 text-xs text-brand-text-muted">
-                    <p className="font-medium">Bereits belegte Zeiträume:</p>
-                    <ul className="mt-1 flex flex-wrap gap-2">
-                      {facility.occupiedRanges
-                        .filter((r) => r.bookingType === capacity.bookingType)
-                        .map((r, i) => (
-                          <li
-                            key={i}
-                            className="rounded-brand-full border border-brand-border px-2 py-1"
-                          >
-                            {formatDate(r.startDate)} – {formatDate(r.endDate)}
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                )}
               </div>
             ))}
           </div>

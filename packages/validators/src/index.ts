@@ -61,8 +61,26 @@ export const Versicherungsnummer = z
   .regex(/^[0-9]{8}[A-Za-z][0-9]{3}$/, "Das sieht nicht wie eine gültige Versicherungsnummer aus.");
 export type Versicherungsnummer = z.infer<typeof Versicherungsnummer>;
 
-export const SortOption = z.enum(["newest", "price_asc", "distance_asc"]);
+export const SortOption = z.enum([
+  "newest",
+  "price_asc",
+  "distance_asc",
+  "availability_first",
+]);
 export type SortOption = z.infer<typeof SortOption>;
+
+// ISO weekday numbering (1 = Montag ... 7 = Sonntag) - used for the
+// Tages-/Nachtpflege "welche Wochentage" search filter.
+export const Weekday = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+  z.literal(6),
+  z.literal(7),
+]);
+export type Weekday = z.infer<typeof Weekday>;
 
 // Curated list of common Pflegeheim-Zusatzleistungen - shown as checkboxes
 // when operators set up their Ausstattung (see apps/web AmenitiesEditor.tsx)
@@ -102,6 +120,21 @@ export const FacilitySearchInput = z.object({
   pflegegrad: Pflegegrad.optional(),
   sort: SortOption.optional(),
   amenities: z.array(z.string()).optional(),
+  // Availability filters - only meaningful once bookingType narrows to one
+  // category (see facility.list in packages/api), each field pairs with a
+  // specific bookingType:
+  // STATIONAERE_AUFNAHME - earliest acceptable move-in date.
+  availableFromDate: z.coerce.date().optional(),
+  // KURZZEITPFLEGE - the desired stay's date range.
+  rangeStart: z.coerce.date().optional(),
+  rangeEnd: z.coerce.date().optional(),
+  // TAGESPFLEGE/NACHTPFLEGE - which weekdays and how many hours/day.
+  weekdays: z.array(Weekday).optional(),
+  hoursPerDay: z.coerce.number().int().positive().max(24).optional(),
+  // Default true (today's existing behavior: a bookingType filter already
+  // only shows facilities with free capacity) - set false to also surface
+  // fully-booked facilities, flagged instead of hidden.
+  onlyAvailable: z.coerce.boolean().optional(),
 });
 export type FacilitySearchInput = z.infer<typeof FacilitySearchInput>;
 

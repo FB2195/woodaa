@@ -37,7 +37,7 @@ export function HeroSection({
 
       <SearchForm
         showRadius
-        className="relative mx-auto mt-10 flex max-w-2xl flex-col gap-3 rounded-brand-lg bg-brand-surface p-4 shadow-lg sm:flex-row"
+        className="relative mx-auto mt-10 flex max-w-3xl flex-col flex-wrap gap-3 rounded-brand-lg bg-brand-surface p-4 shadow-lg sm:flex-row sm:items-start"
       />
 
       <div className="relative mx-auto mt-10 flex max-w-2xl flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-white/70">

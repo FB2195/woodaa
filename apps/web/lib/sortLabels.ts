@@ -4,6 +4,7 @@ export const sortLabels: Record<SortOption, string> = {
   newest: "Neueste zuerst",
   price_asc: "Preis aufsteigend",
   distance_asc: "Entfernung (nächste zuerst)",
+  availability_first: "Verfügbare Plätze zuerst",
 };
 
 export const sortOptions = (Object.keys(sortLabels) as SortOption[]).map(

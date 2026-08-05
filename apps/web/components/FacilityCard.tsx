@@ -16,6 +16,11 @@ type Facility = FacilityWithCapacities & {
   distanceKm?: number | null;
   avgRating?: number | null;
   reviewCount?: number;
+  // Set only when the search included a bookingType + matching date/time
+  // filter and "Nur freie Pflegeplätze anzeigen" was unchecked - see
+  // packages/api/src/searchAvailability.ts.
+  isAvailableForRequest?: boolean | null;
+  availabilityNote?: string | null;
 };
 
 export function FacilityCard({
@@ -75,6 +80,11 @@ export function FacilityCard({
               return price !== null ? `ab ${formatPriceEuro(price)}/Monat` : "Preis auf Anfrage";
             })()}
           </p>
+          {facility.isAvailableForRequest === false && (
+            <p className="mt-2 rounded-brand-md bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">
+              {facility.availabilityNote ?? "Aktuell ausgebucht"}
+            </p>
+          )}
           {!!facility.reviewCount && (
             <p className="mt-1 flex items-center gap-1 text-sm text-brand-text-muted">
               <span aria-hidden="true">⭐</span>

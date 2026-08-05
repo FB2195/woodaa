@@ -19,7 +19,6 @@ export type {
   FacilityWithCapacities,
   FacilityWithDetails,
   FacilityWithOperatorDetails,
-  OccupiedRange,
   PhotoCategory,
   Review,
   SupportRequest,
