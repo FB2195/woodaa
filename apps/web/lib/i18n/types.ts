@@ -27,8 +27,10 @@ export type Messages = {
   };
   home: {
     badge: string;
-    heroTitle: string;
-    heroSubtitle: string;
+    heroTitleLine1: string;
+    heroTitleLine2: string;
+    heroSubtitleLine1: string;
+    heroSubtitleLine2: string;
     statsFacilitiesLabel: string;
     statsCitiesLabel: string;
     statsBookingTypesLabel: string;

@@ -32,9 +32,11 @@ export const de: Messages = {
   },
   home: {
     badge: "Deutschlandweit · geprüfte Einrichtungen · Verfügbarkeit in Echtzeit",
-    heroTitle: "Pflegeplatz gesucht?",
-    heroSubtitle:
-      "So einfach wie ein Hotel buchen: woodaa verbindet Familien mit geprüften Pflegeeinrichtungen in ganz Deutschland.",
+    heroTitleLine1: "Pflegeplatz online buchen",
+    heroTitleLine2: "Jetzt bei woodaa",
+    heroSubtitleLine1: "So einfach wie eine Hotelbuchung.",
+    heroSubtitleLine2:
+      "Mit woodaa finden Sie die passende Einrichtung und können sofort online buchen.",
     statsFacilitiesLabel: "Einrichtungen",
     statsCitiesLabel: "Städte",
     statsBookingTypesLabel: "Pflegearten",

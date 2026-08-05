@@ -29,9 +29,11 @@ export const fr: Messages = {
   },
   home: {
     badge: "Dans toute l'Allemagne · établissements vérifiés · disponibilité en temps réel",
-    heroTitle: "Vous cherchez une place en maison de retraite ?",
-    heroSubtitle:
-      "Aussi simple que de réserver un hôtel : woodaa met en relation les familles avec des établissements de soins vérifiés dans toute l'Allemagne.",
+    heroTitleLine1: "Réservez une place en ligne",
+    heroTitleLine2: "Dès maintenant avec woodaa",
+    heroSubtitleLine1: "Aussi simple que de réserver un hôtel.",
+    heroSubtitleLine2:
+      "Avec woodaa, vous trouvez l'établissement adapté et réservez immédiatement en ligne.",
     statsFacilitiesLabel: "établissements",
     statsCitiesLabel: "villes",
     statsBookingTypesLabel: "types de soins",
