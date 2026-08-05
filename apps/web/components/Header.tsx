@@ -139,9 +139,14 @@ export function Header() {
               </button>
             </>
           ) : (
-            <Link href="/login" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-              {t("login")}
-            </Link>
+            <>
+              <Link href="/login" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
+                {t("login")}
+              </Link>
+              <Link href="/registrieren" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
+                {t("register")}
+              </Link>
+            </>
           )}
 
           <div className="my-2 border-t border-brand-border" />

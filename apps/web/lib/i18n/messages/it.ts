@@ -8,6 +8,7 @@ export const it: Messages = {
     myAccount: "Il mio account",
     logout: "Disconnetti",
     login: "Accedi",
+    register: "Registrati",
     helpSupport: "Assistenza",
     customerService: "Servizio clienti",
     aboutUs: "Chi siamo",

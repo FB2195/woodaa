@@ -11,6 +11,7 @@ export const de: Messages = {
     myAccount: "Mein Konto",
     logout: "Abmelden",
     login: "Login",
+    register: "Registrieren",
     helpSupport: "Hilfe & Support",
     customerService: "Kundenservice",
     aboutUs: "Über uns",

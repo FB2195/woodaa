@@ -8,6 +8,7 @@ export const tr: Messages = {
     myAccount: "Hesabım",
     logout: "Çıkış yap",
     login: "Giriş yap",
+    register: "Kayıt ol",
     helpSupport: "Yardım & Destek",
     customerService: "Müşteri hizmetleri",
     aboutUs: "Hakkımızda",
