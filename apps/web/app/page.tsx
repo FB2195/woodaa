@@ -2,8 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { bookingTypeOptions } from "@/lib/bookingTypeLabels";
 import { Header } from "@/components/Header";
+import { HeroSection } from "@/components/home/HeroSection";
+import { HowItWorksSection, OperatorCtaSection, WhySection } from "@/components/home/WhyAndHowSection";
 import { PlaceholderPhoto } from "@/components/PlaceholderPhoto";
-import { SearchForm } from "@/components/search/SearchForm";
 import { getTrpcServer } from "@/lib/trpc-server";
 
 const bookingTypeIcons: Record<string, string> = {
@@ -12,47 +13,6 @@ const bookingTypeIcons: Record<string, string> = {
   TAGESPFLEGE: "☀️",
   NACHTPFLEGE: "🌙",
 };
-
-const trustPoints = [
-  {
-    icon: "⚡",
-    title: "Echtzeit-Verfügbarkeit",
-    text: "Kein Rätselraten am Telefon - Sie sehen sofort, wo aktuell wirklich ein Platz frei ist.",
-  },
-  {
-    icon: "🔒",
-    title: "Keine Doppelbuchung",
-    text: "Jeder gebuchte Platz wird technisch abgesichert reserviert - garantiert kein Verwechseln, keine Doppelvergabe.",
-  },
-  {
-    icon: "✅",
-    title: "Geprüfte Einrichtungen",
-    text: "Jede Einrichtung wird vor der Veröffentlichung von uns geprüft, bevor sie sichtbar wird.",
-  },
-  {
-    icon: "🤝",
-    title: "Kostenlos & unverbindlich anfragen",
-    text: "Erst in Ruhe informieren, dann entscheiden - eine Anfrage kostet nichts und verpflichtet zu nichts.",
-  },
-];
-
-const steps = [
-  {
-    icon: "🔍",
-    title: "Suchen",
-    text: "Ort, Pflegeart und Budget eingeben - woodaa zeigt sofort, wo aktuell wirklich ein Platz frei ist.",
-  },
-  {
-    icon: "✅",
-    title: "Buchen oder anfragen",
-    text: "Direkt verbindlich buchen oder erst unverbindlich Kontakt aufnehmen - du entscheidest das Tempo.",
-  },
-  {
-    icon: "🤝",
-    title: "Ankommen",
-    text: "Die Einrichtung ist informiert und bereitet den Einzug vor. Kein Hin- und Herfaxen, keine Doppelbuchung.",
-  },
-];
 
 export default async function HomePage() {
   const trpcServer = await getTrpcServer();
@@ -75,71 +35,9 @@ export default async function HomePage() {
     <main className="min-h-screen">
       <Header />
 
-      <section className="relative overflow-hidden bg-brand-primary-dark px-6 py-20 text-white">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-20"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 15% 20%, #8BA888 0%, transparent 35%), radial-gradient(circle at 85% 15%, #2F7D4F 0%, transparent 40%), radial-gradient(circle at 50% 90%, #A3C77A 0%, transparent 45%)",
-          }}
-        />
-        <div className="relative mx-auto max-w-3xl text-center">
-          <span className="inline-block rounded-brand-full border border-white/30 bg-white/10 px-4 py-1.5 text-xs font-medium tracking-wide text-white/90">
-            Deutschlandweit · geprüfte Einrichtungen · Verfügbarkeit in Echtzeit
-          </span>
-          <h1 className="mt-5 text-4xl font-bold leading-tight sm:text-5xl">
-            Pflegeplatz gesucht? Wo? Da!
-          </h1>
-          <p className="mt-4 text-lg text-white/80">
-            So einfach wie ein Hotel buchen: woodaa verbindet Familien mit
-            geprüften Pflegeeinrichtungen in ganz Deutschland.
-          </p>
-        </div>
+      <HeroSection facilityCount={facilities.length} cityCount={cityInfo.size} />
 
-        <SearchForm
-          showRadius
-          className="relative mx-auto mt-10 flex max-w-2xl flex-col gap-3 rounded-brand-lg bg-brand-surface p-4 shadow-lg sm:flex-row"
-        />
-
-        <div className="relative mx-auto mt-10 flex max-w-2xl flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-white/70">
-          <span>
-            <strong className="text-white">{facilities.length}</strong> Einrichtungen
-          </span>
-          <span>
-            <strong className="text-white">{cityInfo.size}</strong> Städte
-          </span>
-          <span>
-            <strong className="text-white">4</strong> Pflegearten
-          </span>
-          <span>
-            <strong className="text-white">sofort</strong> verbindlich buchbar
-          </span>
-        </div>
-      </section>
-
-      <section className="border-b border-brand-border bg-brand-surface px-6 py-12">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="text-2xl font-semibold text-brand-text">
-            Warum woodaa?
-          </h2>
-          <div className="mt-6 flex gap-4 overflow-x-auto pb-2">
-            {trustPoints.map((point) => (
-              <div
-                key={point.title}
-                className="w-64 shrink-0 rounded-brand-lg border border-brand-border bg-brand-background p-5 shadow-sm"
-              >
-                <span className="text-3xl">{point.icon}</span>
-                <h3 className="mt-3 text-base font-semibold text-brand-primary-dark">
-                  {point.title}
-                </h3>
-                <p className="mt-2 text-sm text-brand-text-muted">
-                  {point.text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <WhySection />
 
       {popularCities.length > 0 && (
         <section className="mx-auto max-w-6xl px-6 py-16">
@@ -207,43 +105,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="text-2xl font-semibold text-brand-text">So funktioniert woodaa</h2>
-        <div className="mt-8 grid gap-8 sm:grid-cols-3">
-          {steps.map((step, index) => (
-            <div key={step.title} className="relative">
-              <div className="flex h-12 w-12 items-center justify-center rounded-brand-full bg-brand-accent/10 text-2xl">
-                {step.icon}
-              </div>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-brand-accent">
-                Schritt {index + 1}
-              </p>
-              <h3 className="mt-1 text-lg font-semibold text-brand-primary-dark">
-                {step.title}
-              </h3>
-              <p className="mt-2 text-sm text-brand-text-muted">{step.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <HowItWorksSection />
 
-      <section className="bg-brand-primary-dark px-6 py-14 text-white">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 text-center sm:flex-row sm:text-left">
-          <div>
-            <h2 className="text-xl font-semibold">Du betreibst eine Pflegeeinrichtung?</h2>
-            <p className="mt-1 text-white/80">
-              Zeig deine echte Verfügbarkeit auf woodaa - ohne Mehraufwand für dein Team.
-            </p>
-          </div>
-          <Link
-            href="/betreiber/registrieren"
-            className="shrink-0 rounded-brand-md bg-white px-6 py-3 font-semibold text-brand-primary-dark transition hover:opacity-90"
-          >
-            Einrichtung registrieren
-          </Link>
-        </div>
-      </section>
-
+      <OperatorCtaSection />
     </main>
   );
 }

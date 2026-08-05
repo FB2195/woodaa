@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useTranslations } from "@/lib/i18n/LocaleProvider";
 import { trpc } from "@/lib/trpc";
 
 const dashboardFor: Record<"SUCHENDE" | "BETREIBER" | "ADMIN", string | null> = {
@@ -25,6 +27,7 @@ export function Header() {
   const router = useRouter();
   const me = trpc.auth.me.useQuery(undefined, { retry: false });
   const [menuOpen, setMenuOpen] = useState(false);
+  const t = useTranslations("header");
 
   async function logout() {
     setMenuOpen(false);
@@ -57,7 +60,7 @@ export function Header() {
         <div className="flex items-center gap-2">
           <Link
             href={profileHref}
-            aria-label="Mein Profil"
+            aria-label={t("myProfile")}
             className="flex h-9 w-9 items-center justify-center rounded-brand-md border border-brand-border text-brand-text hover:bg-brand-background"
           >
             <PersonIcon />
@@ -66,7 +69,7 @@ export function Header() {
           <button
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
-            aria-label={menuOpen ? "Menü schließen" : "Menü öffnen"}
+            aria-label={menuOpen ? t("closeMenu") : t("openMenu")}
             aria-expanded={menuOpen}
             className="flex h-9 w-9 items-center justify-center rounded-brand-md border border-brand-border text-brand-text"
           >
@@ -98,61 +101,65 @@ export function Header() {
       {menuOpen && (
         <nav className="flex flex-col gap-1 border-t border-brand-border px-6 py-5 text-sm text-brand-text-muted">
           <Link href="/betreiber/registrieren" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-            Pflegeheim registrieren
+            {t("registerFacility")}
           </Link>
 
           {me.data ? (
             <>
               {dashboardHref && (
                 <Link href={dashboardHref} onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-                  Dashboard
+                  {t("dashboard")}
                 </Link>
               )}
               <Link href="/favoriten" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-                Favoriten
+                {t("favorites")}
               </Link>
               <Link href="/konto" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-                Mein Konto ({me.data.name})
+                {t("myAccount")} ({me.data.name})
               </Link>
               <button
                 type="button"
                 onClick={logout}
                 className="rounded-brand-md px-2 py-2 text-left hover:bg-brand-background hover:text-brand-text"
               >
-                Abmelden
+                {t("logout")}
               </button>
             </>
           ) : (
             <Link href="/login" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-              Login
+              {t("login")}
             </Link>
           )}
 
           <div className="my-2 border-t border-brand-border" />
 
           <Link href="/hilfe" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-            Hilfe &amp; Support
+            {t("helpSupport")}
           </Link>
           <Link href="/hilfe/kundenservice" onClick={closeMenu} className="rounded-brand-md px-2 py-2 pl-6 hover:bg-brand-background hover:text-brand-text">
-            Kundenservice
+            {t("customerService")}
           </Link>
           <Link href="/ueber-uns" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-            Über uns
+            {t("aboutUs")}
           </Link>
           <Link href="/datenschutz" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-            Datenschutz
+            {t("privacy")}
           </Link>
           <Link href="/impressum" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-            Impressum
+            {t("imprint")}
           </Link>
           <Link href="/cookie-einstellungen" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-            Cookie-Infos
+            {t("cookieInfo")}
           </Link>
 
           <div className="my-2 border-t border-brand-border" />
 
+          <LanguageSwitcher />
+
+          <div className="my-2 border-t border-brand-border" />
+
           <Link href="/fehler-melden" onClick={closeMenu} className="rounded-brand-md px-2 py-2 font-medium text-brand-text hover:bg-brand-background">
-            Fehler/Problem melden
+            {t("reportIssue")}
           </Link>
         </nav>
       )}

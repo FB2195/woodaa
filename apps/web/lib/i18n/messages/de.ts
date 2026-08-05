@@ -1,0 +1,75 @@
+import type { Messages } from "../types";
+
+// Source of truth - every other locale file must satisfy this exact shape
+// (see Messages type in ../types.ts), so a missing translation is a
+// compile-time error rather than a silently-blank string in production.
+export const de: Messages = {
+  header: {
+    registerFacility: "Pflegeheim registrieren",
+    dashboard: "Dashboard",
+    favorites: "Favoriten",
+    myAccount: "Mein Konto",
+    logout: "Abmelden",
+    login: "Login",
+    helpSupport: "Hilfe & Support",
+    customerService: "Kundenservice",
+    aboutUs: "Über uns",
+    privacy: "Datenschutz",
+    imprint: "Impressum",
+    cookieInfo: "Cookie-Infos",
+    reportIssue: "Fehler/Problem melden",
+    myProfile: "Mein Profil",
+    openMenu: "Menü öffnen",
+    closeMenu: "Menü schließen",
+    language: "Sprache",
+  },
+  footer: {
+    brandColumn: "woodaa",
+    helpColumn: "Hilfe & Support",
+    legalColumn: "Rechtliches",
+    faq: "FAQ",
+    copyright: "© {year} woodaa",
+  },
+  home: {
+    badge: "Deutschlandweit · geprüfte Einrichtungen · Verfügbarkeit in Echtzeit",
+    heroTitle: "Pflegeplatz gesucht? Wo? Da!",
+    heroSubtitle:
+      "So einfach wie ein Hotel buchen: woodaa verbindet Familien mit geprüften Pflegeeinrichtungen in ganz Deutschland.",
+    statsFacilitiesLabel: "Einrichtungen",
+    statsCitiesLabel: "Städte",
+    statsBookingTypesLabel: "Pflegearten",
+    statsInstantBooking: "sofort verbindlich buchbar",
+    whyTitle: "Warum woodaa?",
+    trust1Title: "Echtzeit-Verfügbarkeit",
+    trust1Text: "Kein Rätselraten am Telefon - Sie sehen sofort, wo aktuell wirklich ein Platz frei ist.",
+    trust2Title: "Keine Doppelbuchung",
+    trust2Text:
+      "Jeder gebuchte Platz wird technisch abgesichert reserviert - garantiert kein Verwechseln, keine Doppelvergabe.",
+    trust3Title: "Geprüfte Einrichtungen",
+    trust3Text: "Jede Einrichtung wird vor der Veröffentlichung von uns geprüft, bevor sie sichtbar wird.",
+    trust4Title: "Kostenlos & unverbindlich anfragen",
+    trust4Text:
+      "Erst in Ruhe informieren, dann entscheiden - eine Anfrage kostet nichts und verpflichtet zu nichts.",
+    howItWorksTitle: "So funktioniert woodaa",
+    step1Label: "Schritt 1",
+    step1Title: "Suchen",
+    step1Text: "Ort, Pflegeart und Budget eingeben - woodaa zeigt sofort, wo aktuell wirklich ein Platz frei ist.",
+    step2Label: "Schritt 2",
+    step2Title: "Buchen oder anfragen",
+    step2Text: "Direkt verbindlich buchen oder erst unverbindlich Kontakt aufnehmen - du entscheidest das Tempo.",
+    step3Label: "Schritt 3",
+    step3Title: "Ankommen",
+    step3Text: "Die Einrichtung ist informiert und bereitet den Einzug vor. Kein Hin- und Herfaxen, keine Doppelbuchung.",
+    operatorCta: "Du betreibst eine Pflegeeinrichtung?",
+    operatorCtaText: "Zeig deine echte Verfügbarkeit auf woodaa - ohne Mehraufwand für dein Team.",
+    operatorCtaButton: "Einrichtung registrieren",
+  },
+  language: {
+    de: "Deutsch",
+    en: "English",
+    tr: "Türkçe",
+    it: "Italiano",
+    fr: "Français",
+    es: "Español",
+  },
+};

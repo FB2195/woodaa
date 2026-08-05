@@ -1,33 +1,39 @@
-import Link from "next/link";
+"use client";
 
-const columns: { heading: string; links: { href: string; label: string }[] }[] = [
-  {
-    heading: "woodaa",
-    links: [
-      { href: "/ueber-uns", label: "Über uns" },
-      { href: "/betreiber/registrieren", label: "Pflegeheim registrieren" },
-    ],
-  },
-  {
-    heading: "Hilfe & Support",
-    links: [
-      { href: "/hilfe", label: "Hilfe & Support" },
-      { href: "/hilfe/kundenservice", label: "Kundenservice" },
-      { href: "/hilfe/kundenservice#faq", label: "FAQ" },
-      { href: "/fehler-melden", label: "Fehler/Problem melden" },
-    ],
-  },
-  {
-    heading: "Rechtliches",
-    links: [
-      { href: "/datenschutz", label: "Datenschutz" },
-      { href: "/impressum", label: "Impressum" },
-      { href: "/cookie-einstellungen", label: "Cookie-Infos" },
-    ],
-  },
-];
+import Link from "next/link";
+import { useTranslations } from "@/lib/i18n/LocaleProvider";
 
 export function Footer() {
+  const t = useTranslations("footer");
+  const tHeader = useTranslations("header");
+
+  const columns = [
+    {
+      heading: t("brandColumn"),
+      links: [
+        { href: "/ueber-uns", label: tHeader("aboutUs") },
+        { href: "/betreiber/registrieren", label: tHeader("registerFacility") },
+      ],
+    },
+    {
+      heading: t("helpColumn"),
+      links: [
+        { href: "/hilfe", label: tHeader("helpSupport") },
+        { href: "/hilfe/kundenservice", label: tHeader("customerService") },
+        { href: "/hilfe/kundenservice#faq", label: t("faq") },
+        { href: "/fehler-melden", label: tHeader("reportIssue") },
+      ],
+    },
+    {
+      heading: t("legalColumn"),
+      links: [
+        { href: "/datenschutz", label: tHeader("privacy") },
+        { href: "/impressum", label: tHeader("imprint") },
+        { href: "/cookie-einstellungen", label: tHeader("cookieInfo") },
+      ],
+    },
+  ];
+
   return (
     <footer className="mt-16 border-t border-brand-border bg-brand-surface">
       <div className="mx-auto grid max-w-6xl gap-8 px-6 py-10 sm:grid-cols-3">
@@ -47,7 +53,7 @@ export function Footer() {
         ))}
       </div>
       <div className="border-t border-brand-border px-6 py-4 text-center text-xs text-brand-text-muted">
-        © {new Date().getFullYear()} woodaa
+        {t("copyright", { year: new Date().getFullYear() })}
       </div>
     </footer>
   );
