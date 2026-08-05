@@ -6,6 +6,7 @@ export type {
   FacilityUnit,
   PhotoCategory,
   Review,
+  SupportRequest,
 } from "@prisma/client";
 export type { Booking as UnitBooking } from "@prisma/client";
 

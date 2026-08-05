@@ -21,5 +21,6 @@ export type {
   OccupiedRange,
   PhotoCategory,
   Review,
+  SupportRequest,
   UnitBooking,
 } from "@woodaa/db";

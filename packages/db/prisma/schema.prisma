@@ -78,6 +78,18 @@ enum ReviewStatus {
   REJECTED
 }
 
+enum SupportRequestType {
+  KONTAKT
+  RUECKRUF
+  FEHLERMELDUNG
+}
+
+enum SupportRequestStatus {
+  OFFEN
+  BEARBEITET
+  ERLEDIGT
+}
+
 enum Role {
   SUCHENDE
   BETREIBER
@@ -161,6 +173,7 @@ model User {
   careApplications             CareApplication[]
   bookings                     Booking[]
   reviews                      Review[]
+  supportRequests              SupportRequest[]
   createdAt                    DateTime               @default(now())
 }
 
@@ -523,4 +536,23 @@ model BookingRequest {
   desiredEnd     DateTime?
   status         BookingRequestStatus @default(OFFEN)
   createdAt      DateTime             @default(now())
+}
+
+// Backs three entry points in the Hilfe & Support menu: the individual
+// contact form (KONTAKT), "Rückruf anfordern" (RUECKRUF), and the
+// site-wide "Fehler/Problem melden" link (FEHLERMELDUNG, pageUrl records
+// where the reporter was). userId is set when the submitter was logged
+// in, but submission itself never requires an account.
+model SupportRequest {
+  id        String               @id @default(cuid())
+  type      SupportRequestType
+  name      String
+  email     String
+  phone     String?
+  message   String
+  pageUrl   String?
+  user      User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?
+  status    SupportRequestStatus @default(OFFEN)
+  createdAt DateTime             @default(now())
 }

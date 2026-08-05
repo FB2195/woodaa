@@ -320,6 +320,32 @@ export const CreateReviewInput = z.object({
 });
 export type CreateReviewInput = z.infer<typeof CreateReviewInput>;
 
+export const SupportRequestType = z.enum(["KONTAKT", "RUECKRUF", "FEHLERMELDUNG"]);
+export type SupportRequestType = z.infer<typeof SupportRequestType>;
+
+export const CreateSupportRequestInput = z.object({
+  type: SupportRequestType,
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().email(),
+  phone: z.string().trim().max(50).optional(),
+  message: z.string().trim().min(1).max(4000),
+  pageUrl: z.string().trim().max(500).optional(),
+});
+export type CreateSupportRequestInput = z.infer<typeof CreateSupportRequestInput>;
+
+export const ChatMessageInput = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().trim().min(1).max(4000),
+      }),
+    )
+    .min(1)
+    .max(20),
+});
+export type ChatMessageInput = z.infer<typeof ChatMessageInput>;
+
 // A real Sozialversicherungsnummer, not just a display string - loosely
 export const UpdateCareProfileInput = z.object({
   versicherungsnummer: Versicherungsnummer.optional(),

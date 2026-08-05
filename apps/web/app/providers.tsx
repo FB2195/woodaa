@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { useState } from "react";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+import { Footer } from "@/components/Footer";
 import { SessionRefresher } from "@/components/SessionRefresher";
 import { trpc } from "@/lib/trpc";
 
@@ -39,6 +40,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <SessionRefresher />
         {children}
+        <Footer />
         <CookieConsentBanner />
       </QueryClientProvider>
     </trpc.Provider>

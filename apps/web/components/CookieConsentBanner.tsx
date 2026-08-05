@@ -1,20 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-const CONSENT_COOKIE = "woodaa_cookie_consent";
-const CONSENT_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
-
-function readConsentCookie(): string | null {
-  const match = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith(`${CONSENT_COOKIE}=`));
-  return match ? decodeURIComponent(match.split("=")[1] ?? "") : null;
-}
-
-function writeConsentCookie(value: "accepted" | "declined") {
-  document.cookie = `${CONSENT_COOKIE}=${value}; path=/; max-age=${CONSENT_MAX_AGE_SECONDS}; SameSite=Lax`;
-}
+import { readConsentCookie, writeConsentCookie } from "@/lib/cookieConsent";
 
 // Not httpOnly on purpose - this isn't a security-sensitive cookie, and a
 // future analytics/tracking script needs to read it client-side before
