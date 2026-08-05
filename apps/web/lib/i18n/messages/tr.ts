@@ -29,9 +29,10 @@ export const tr: Messages = {
   },
   home: {
     badge: "Almanya genelinde · onaylı kurumlar · gerçek zamanlı müsaitlik",
-    heroTitle: "Bakım yeri mi arıyorsun?",
-    heroSubtitle:
-      "Otel rezervasyonu kadar kolay: woodaa, Almanya genelinde aileleri onaylı bakım kurumlarıyla buluşturur.",
+    heroTitleLine1: "Bakım yerini online rezerve et",
+    heroTitleLine2: "Şimdi woodaa'da",
+    heroSubtitleLine1: "Bir otel rezervasyonu kadar kolay.",
+    heroSubtitleLine2: "woodaa ile sana uygun kurumu bulur, hemen online rezervasyon yapabilirsin.",
     statsFacilitiesLabel: "kurum",
     statsCitiesLabel: "şehir",
     statsBookingTypesLabel: "bakım türü",

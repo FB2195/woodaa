@@ -29,9 +29,10 @@ export const it: Messages = {
   },
   home: {
     badge: "In tutta la Germania · strutture verificate · disponibilità in tempo reale",
-    heroTitle: "Cerchi una casa di cura?",
-    heroSubtitle:
-      "Facile come prenotare un hotel: woodaa mette in contatto le famiglie con strutture di cura verificate in tutta la Germania.",
+    heroTitleLine1: "Prenota un posto di cura online",
+    heroTitleLine2: "Ora con woodaa",
+    heroSubtitleLine1: "Facile come prenotare un hotel.",
+    heroSubtitleLine2: "Con woodaa trovi la struttura giusta e prenoti subito online.",
     statsFacilitiesLabel: "strutture",
     statsCitiesLabel: "città",
     statsBookingTypesLabel: "tipi di assistenza",

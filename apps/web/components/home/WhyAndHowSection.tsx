@@ -20,14 +20,14 @@ export function WhySection() {
   const t = useTranslations("home");
 
   return (
-    <section className="border-b border-brand-border bg-brand-surface px-6 py-12">
+    <section className="border-b border-brand-border bg-brand-surface-alt px-6 py-12">
       <div className="mx-auto max-w-6xl">
         <h2 className="text-2xl font-semibold text-brand-text">{t("whyTitle")}</h2>
         <div className="mt-6 flex gap-4 overflow-x-auto pb-2">
           {trustPoints.map((point) => (
             <div
               key={point.titleKey}
-              className="w-64 shrink-0 rounded-brand-lg border border-brand-border bg-brand-background p-5 shadow-sm"
+              className="w-64 shrink-0 rounded-brand-lg border border-brand-border bg-brand-surface p-5 shadow-sm"
             >
               <span className="text-3xl">{point.icon}</span>
               <h3 className="mt-3 text-base font-semibold text-brand-primary-dark">

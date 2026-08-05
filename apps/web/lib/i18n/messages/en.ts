@@ -29,9 +29,10 @@ export const en: Messages = {
   },
   home: {
     badge: "Nationwide · vetted facilities · real-time availability",
-    heroTitle: "Looking for a care home?",
-    heroSubtitle:
-      "As easy as booking a hotel: woodaa connects families with vetted care facilities across Germany.",
+    heroTitleLine1: "Book a care place online",
+    heroTitleLine2: "Now with woodaa",
+    heroSubtitleLine1: "As easy as booking a hotel.",
+    heroSubtitleLine2: "With woodaa, you'll find the right facility and can book online right away.",
     statsFacilitiesLabel: "facilities",
     statsCitiesLabel: "cities",
     statsBookingTypesLabel: "care types",
