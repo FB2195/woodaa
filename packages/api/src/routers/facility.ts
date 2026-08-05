@@ -20,7 +20,10 @@ import { publicProcedure, router } from "../trpc";
 // rate when a Pflegegrad filter was given and the facility has entered one,
 // otherwise the same generic cheapest-capacity price as before (see
 // facilityDisplayPriceCents).
-export type FacilityListItem = FacilityWithCapacities & {
+// operatorPhone/operatorEmail deliberately excluded - public search results
+// shouldn't leak the operator's direct contact info any more than bySlug
+// does (see the same omission there).
+export type FacilityListItem = Omit<FacilityWithCapacities, "operatorPhone" | "operatorEmail"> & {
   distanceKm: number | null;
   avgRating: number | null;
   reviewCount: number;
@@ -236,19 +239,22 @@ export const facilityRouter = router({
         }),
       );
 
-      let results: FacilityListItem[] = facilities.map((f, i) => ({
-        ...f,
-        photos: f.photos.map(withPhotoUrl),
-        distanceKm:
-          origin && f.latitude !== null && f.longitude !== null
-            ? haversineDistanceKm(origin, { latitude: f.latitude, longitude: f.longitude })
-            : null,
-        avgRating: ratingByFacility.get(f.id)?.avgRating ?? null,
-        reviewCount: ratingByFacility.get(f.id)?.reviewCount ?? 0,
-        isAvailableForRequest: annotations[i]!.isAvailableForRequest,
-        availabilityNote: annotations[i]!.availabilityNote,
-        displayPriceCents: facilityDisplayPriceCents(f, input.bookingType, input.pflegegrad),
-      }));
+      let results: FacilityListItem[] = facilities.map((f, i) => {
+        const { operatorPhone, operatorEmail, ...publicFacility } = f;
+        return {
+          ...publicFacility,
+          photos: f.photos.map(withPhotoUrl),
+          distanceKm:
+            origin && f.latitude !== null && f.longitude !== null
+              ? haversineDistanceKm(origin, { latitude: f.latitude, longitude: f.longitude })
+              : null,
+          avgRating: ratingByFacility.get(f.id)?.avgRating ?? null,
+          reviewCount: ratingByFacility.get(f.id)?.reviewCount ?? 0,
+          isAvailableForRequest: annotations[i]!.isAvailableForRequest,
+          availabilityNote: annotations[i]!.availabilityNote,
+          displayPriceCents: facilityDisplayPriceCents(f, input.bookingType, input.pflegegrad),
+        };
+      });
 
       if (input.radiusKm !== undefined && origin) {
         results = results.filter(
@@ -310,8 +316,16 @@ export const facilityRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Einrichtung nicht gefunden." });
       }
 
+      // operatorPhone/operatorEmail are deliberately withheld from the
+      // public response - only admins see them (see admin.activeFacilities).
+      // Customers get operatorName ("Verwaltet von ...") so they know who
+      // runs the place, but not a direct line that would let them skip the
+      // booking flow.
+      const { operatorPhone, operatorEmail, ...publicFacility } =
+        facility;
+
       return {
-        ...facility,
+        ...publicFacility,
         photos: facility.photos.map(withPhotoUrl),
         ...reviewStats(facility.reviews),
       };

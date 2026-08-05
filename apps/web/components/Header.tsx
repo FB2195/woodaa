@@ -104,7 +104,7 @@ export function Header() {
 
       {menuOpen && (
         <nav className="flex flex-col gap-1 border-t border-brand-border px-6 py-5 text-sm text-brand-text-muted">
-          {me.data?.role !== "BETREIBER" && (
+          {(!me.data || me.data.role === "SUCHENDE") && (
             <Link href="/betreiber/registrieren" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
               {t("registerFacility")}
             </Link>
@@ -122,7 +122,7 @@ export function Header() {
                   {t("dashboard")}
                 </Link>
               )}
-              {me.data.role !== "BETREIBER" && (
+              {me.data.role === "SUCHENDE" && (
                 <Link href="/favoriten" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
                   {t("favorites")}
                 </Link>

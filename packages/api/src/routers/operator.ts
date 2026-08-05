@@ -8,6 +8,7 @@ import {
   CreateManualBookingInput,
   MAX_FACILITY_PHOTOS,
   RenameUnitInput,
+  RequestFacilityChangeInput,
   RequestPhotoUploadInput,
   SetPflegegradPricingInput,
   SetUnitCountInput,
@@ -73,6 +74,11 @@ export const operatorRouter = router({
       include: {
         capacities: { include: { pflegegradPricing: true } },
         photos: { orderBy: { createdAt: "asc" } },
+        changeRequests: {
+          where: { status: "PENDING" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
         // All statuses, not just APPROVED - an operator should be able to
         // see reviews about their own facility regardless of moderation
         // state (no UI surfaces this yet, but the type needs the field).
@@ -94,7 +100,12 @@ export const operatorRouter = router({
       },
     });
     if (!facility) return null;
-    return { ...facility, photos: facility.photos.map(withPhotoUrl) };
+    const { changeRequests, ...rest } = facility;
+    return {
+      ...rest,
+      photos: facility.photos.map(withPhotoUrl),
+      pendingChangeRequest: changeRequests[0] ?? null,
+    };
   }),
 
   createFacility: operatorProcedure
@@ -139,6 +150,10 @@ export const operatorRouter = router({
       });
     }),
 
+  // Non-critical fields only (description, amenities, Pflegegrad-Eignung,
+  // Unterkunftsrichtlinien) - applies immediately. Name/address/operator
+  // contact details are trust-sensitive and go through requestFacilityChange
+  // + admin approval instead (see RequestFacilityChangeInput).
   updateFacility: operatorProcedure
     .input(UpdateFacilityInput)
     .mutation(async ({ ctx, input }) => {
@@ -162,29 +177,44 @@ export const operatorRouter = router({
         }
       }
 
-      const addressChanged =
-        (input.street !== undefined && input.street !== facility.street) ||
-        (input.postalCode !== undefined && input.postalCode !== facility.postalCode) ||
-        (input.city !== undefined && input.city !== facility.city);
-
-      // Only re-geocode when the address actually changed, to avoid
-      // burning Nominatim requests on unrelated edits (e.g. description).
-      const geo = addressChanged
-        ? await geocodeAddress(
-            `${input.street ?? facility.street}, ${input.postalCode ?? facility.postalCode} ${input.city ?? facility.city}, Germany`,
-          )
-        : null;
-
       return ctx.db.facility.update({
         where: { id: facility.id },
-        data: {
-          ...input,
-          ...(addressChanged
-            ? { latitude: geo?.latitude ?? null, longitude: geo?.longitude ?? null }
-            : {}),
-        },
+        data: input,
       });
     }),
+
+  // Proposes new values for the critical fields (name, address, operator
+  // contact) - doesn't touch Facility directly, just creates/overwrites the
+  // one PENDING FacilityChangeRequest for this facility. The old values stay
+  // live until an admin approves it (see admin.approveFacilityChangeRequest).
+  requestFacilityChange: operatorProcedure
+    .input(RequestFacilityChangeInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+
+      const existing = await ctx.db.facilityChangeRequest.findFirst({
+        where: { facilityId: facility.id, status: "PENDING" },
+      });
+      if (existing) {
+        return ctx.db.facilityChangeRequest.update({
+          where: { id: existing.id },
+          data: input,
+        });
+      }
+      return ctx.db.facilityChangeRequest.create({
+        data: { ...input, facilityId: facility.id },
+      });
+    }),
+
+  // Lets the operator withdraw their own pending change before an admin
+  // reviews it (e.g. to fix a typo without waiting it out).
+  cancelFacilityChangeRequest: operatorProcedure.mutation(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    await ctx.db.facilityChangeRequest.deleteMany({
+      where: { facilityId: facility.id, status: "PENDING" },
+    });
+    return { success: true as const };
+  }),
 
   // Nur availableFrom - totalSlots/availableSlots werden nie mehr per
   // Formular getippt, sondern ausschließlich von setUnitCount/

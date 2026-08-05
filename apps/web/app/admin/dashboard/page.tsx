@@ -1,5 +1,6 @@
 import { Header } from "@/components/Header";
 import { PendingBookingApprovalRow } from "@/components/admin/PendingBookingApprovalRow";
+import { PendingFacilityChangeRow } from "@/components/admin/PendingFacilityChangeRow";
 import { PendingFacilityRow } from "@/components/admin/PendingFacilityRow";
 import { PendingReviewRow } from "@/components/admin/PendingReviewRow";
 import { PendingSupportRequestRow } from "@/components/admin/PendingSupportRequestRow";
@@ -17,6 +18,7 @@ export default async function AdminDashboardPage() {
     pendingVollmachten,
     pendingBookingApprovals,
     openSupportRequests,
+    pendingFacilityChanges,
   ] = await Promise.all([
     trpcServer.admin.pendingFacilities(),
     trpcServer.admin.activeFacilities(),
@@ -25,6 +27,7 @@ export default async function AdminDashboardPage() {
     trpcServer.admin.pendingVollmachten(),
     trpcServer.admin.pendingBookingApprovals(),
     trpcServer.admin.openSupportRequests(),
+    trpcServer.admin.pendingFacilityChanges(),
   ]);
 
   return (
@@ -62,10 +65,32 @@ export default async function AdminDashboardPage() {
         <ul className="mt-3 flex flex-col gap-1 text-sm text-brand-text-muted">
           {active.map((facility) => (
             <li key={facility.id}>
-              {facility.name} — {facility.city}
+              {facility.name} — {facility.city} · {facility.operatorName}
+              {facility.operatorPhone ? ` · ${facility.operatorPhone}` : ""} ·{" "}
+              {facility.operatorEmail}
             </li>
           ))}
         </ul>
+
+        <h2 className="mt-12 text-2xl font-bold text-brand-heading">
+          Kontaktdaten-Änderungen prüfen
+        </h2>
+        <p className="mt-1 text-sm text-brand-text-muted">
+          {pendingFacilityChanges.length}{" "}
+          {pendingFacilityChanges.length === 1 ? "Änderung wartet" : "Änderungen warten"} auf
+          Freigabe
+        </p>
+        <div className="mt-6 flex flex-col gap-4">
+          {pendingFacilityChanges.length === 0 ? (
+            <p className="rounded-brand-lg border border-brand-border bg-brand-surface p-6 text-sm text-brand-text-muted">
+              Aktuell nichts zu prüfen.
+            </p>
+          ) : (
+            pendingFacilityChanges.map((change) => (
+              <PendingFacilityChangeRow key={change.id} change={change} />
+            ))
+          )}
+        </div>
 
         <h2 className="mt-12 text-2xl font-bold text-brand-heading">
           Bewertungen prüfen

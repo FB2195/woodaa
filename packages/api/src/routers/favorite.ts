@@ -54,9 +54,15 @@ export const favoriteRouter = router({
       },
       orderBy: { createdAt: "desc" },
     });
-    return favorites.map((f) => ({
-      ...f.facility,
-      photos: f.facility.photos.map(withPhotoUrl),
-    }));
+    // operatorPhone/operatorEmail withheld from customers, same as
+    // facility.bySlug/facility.list - see the comment there.
+    return favorites.map((f) => {
+      const { operatorPhone, operatorEmail, ...publicFacility } =
+        f.facility;
+      return {
+        ...publicFacility,
+        photos: f.facility.photos.map(withPhotoUrl),
+      };
+    });
   }),
 });

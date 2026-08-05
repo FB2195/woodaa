@@ -9,11 +9,13 @@ export type { FacilityListItem } from "./routers/facility";
 export type { NearbyPlace, NearbyPlacesResult } from "./nearbyPlaces";
 export type {
   AdminPendingBookingApproval,
+  AdminPendingFacilityChange,
   AdminPendingReview,
   AdminPendingVollmacht,
 } from "./routers/admin";
 export type {
   FacilityCapacity,
+  FacilityChangeRequest,
   FacilityPhoto,
   FacilityUnit,
   FacilityWithCapacities,

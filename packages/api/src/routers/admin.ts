@@ -1,12 +1,17 @@
-import type { Booking, User } from "@prisma/client";
+import type { Booking, FacilityChangeRequest, User } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import type { Review } from "@woodaa/db";
 import { z } from "zod";
 import { cancelBooking } from "../availability";
+import { geocodeAddress } from "../geocoding";
 import { createPresignedDownloadUrl, withPhotoUrl } from "../r2";
 import { adminProcedure, router } from "../trpc";
 
 export type AdminPendingReview = Review & { facility: { name: string; slug: string } };
+
+export type AdminPendingFacilityChange = FacilityChangeRequest & {
+  facility: { name: string; slug: string; street: string; postalCode: string; city: string; state: string; operatorName: string; operatorEmail: string; operatorPhone: string | null };
+};
 
 export type AdminPendingVollmacht = Pick<
   User,
@@ -215,5 +220,97 @@ export const adminRouter = router({
         data: { adminApprovalStatus: "ABGELEHNT" },
       });
       return cancelBooking(ctx.db, booking.id);
+    }),
+
+  // Proposed edits to a facility's name/address/operator contact details -
+  // see FacilityChangeRequest in schema.prisma. Old values stay live on
+  // Facility until approved here.
+  pendingFacilityChanges: adminProcedure.query(
+    async ({ ctx }): Promise<AdminPendingFacilityChange[]> => {
+      return ctx.db.facilityChangeRequest.findMany({
+        where: { status: "PENDING" },
+        include: {
+          facility: {
+            select: {
+              name: true,
+              slug: true,
+              street: true,
+              postalCode: true,
+              city: true,
+              state: true,
+              operatorName: true,
+              operatorEmail: true,
+              operatorPhone: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+    },
+  ),
+
+  approveFacilityChange: adminProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const request = await ctx.db.facilityChangeRequest.findUnique({
+        where: { id: input.id },
+      });
+      if (!request || request.status !== "PENDING") {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      const facility = await ctx.db.facility.findUniqueOrThrow({
+        where: { id: request.facilityId },
+      });
+
+      const addressChanged =
+        (request.street !== null && request.street !== facility.street) ||
+        (request.postalCode !== null && request.postalCode !== facility.postalCode) ||
+        (request.city !== null && request.city !== facility.city);
+
+      // Only re-geocode when the address actually changed, same reasoning
+      // as operator.createFacility - best-effort, doesn't block the update.
+      const geo = addressChanged
+        ? await geocodeAddress(
+            `${request.street ?? facility.street}, ${request.postalCode ?? facility.postalCode} ${request.city ?? facility.city}, Germany`,
+          )
+        : null;
+
+      const data: Record<string, unknown> = {};
+      if (request.name !== null) data.name = request.name;
+      if (request.street !== null) data.street = request.street;
+      if (request.postalCode !== null) data.postalCode = request.postalCode;
+      if (request.city !== null) data.city = request.city;
+      if (request.state !== null) data.state = request.state;
+      if (request.operatorName !== null) data.operatorName = request.operatorName;
+      if (request.operatorEmail !== null) data.operatorEmail = request.operatorEmail;
+      if (request.operatorPhone !== null) data.operatorPhone = request.operatorPhone;
+      if (addressChanged) {
+        data.latitude = geo?.latitude ?? null;
+        data.longitude = geo?.longitude ?? null;
+      }
+
+      await ctx.db.$transaction([
+        ctx.db.facility.update({ where: { id: facility.id }, data }),
+        ctx.db.facilityChangeRequest.update({
+          where: { id: request.id },
+          data: { status: "APPROVED", reviewedAt: new Date() },
+        }),
+      ]);
+      return { success: true as const };
+    }),
+
+  rejectFacilityChange: adminProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const request = await ctx.db.facilityChangeRequest.findUnique({
+        where: { id: input.id },
+      });
+      if (!request || request.status !== "PENDING") {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return ctx.db.facilityChangeRequest.update({
+        where: { id: input.id },
+        data: { status: "REJECTED", reviewedAt: new Date() },
+      });
     }),
 });

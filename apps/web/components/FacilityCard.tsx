@@ -11,8 +11,10 @@ import { cheapestCapacityPrice } from "@/lib/price";
 
 // distanceKm/avgRating/reviewCount are only present when the search
 // computed them (facility.list) - absent e.g. on /favoriten, which
-// reuses this same card with plain FacilityWithCapacities.
-type Facility = FacilityWithCapacities & {
+// reuses this same card with plain FacilityWithCapacities. operatorPhone/
+// operatorEmail omitted - neither search nor favorites exposes them to
+// customers (see the comment on facility.bySlug).
+type Facility = Omit<FacilityWithCapacities, "operatorPhone" | "operatorEmail"> & {
   distanceKm?: number | null;
   avgRating?: number | null;
   reviewCount?: number;

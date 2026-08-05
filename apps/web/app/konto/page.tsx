@@ -1,3 +1,4 @@
+import { AccountDetailsForm } from "@/components/account/AccountDetailsForm";
 import { CareApplicationsSection } from "@/components/account/CareApplicationsSection";
 import { DeleteAccountForm } from "@/components/account/DeleteAccountForm";
 import { ExportDataButton } from "@/components/account/ExportDataButton";
@@ -5,12 +6,6 @@ import { VollmachtSection } from "@/components/account/VollmachtSection";
 import { Header } from "@/components/Header";
 import { TwoFactorSetup } from "@/components/TwoFactorSetup";
 import { getTrpcServer } from "@/lib/trpc-server";
-
-const roleLabels: Record<"SUCHENDE" | "BETREIBER" | "ADMIN", string> = {
-  SUCHENDE: "Suchende",
-  BETREIBER: "Pflegeeinrichtung",
-  ADMIN: "Admin",
-};
 
 export default async function AccountPage() {
   const trpcServer = await getTrpcServer();
@@ -22,22 +17,7 @@ export default async function AccountPage() {
       <section className="mx-auto max-w-2xl px-6 py-12">
         <h1 className="text-2xl font-bold text-brand-heading">Mein Konto</h1>
 
-        <div className="mt-6 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
-          <dl className="flex flex-col gap-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-brand-text-muted">Name</dt>
-              <dd className="text-brand-text">{me.name}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-text-muted">E-Mail</dt>
-              <dd className="text-brand-text">{me.email}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-text-muted">Rolle</dt>
-              <dd className="text-brand-text">{roleLabels[me.role]}</dd>
-            </div>
-          </dl>
-        </div>
+        <AccountDetailsForm name={me.name} email={me.email} role={me.role} />
 
         <div className="mt-8">
           <h2 className="text-lg font-semibold text-brand-text">Meine Daten</h2>

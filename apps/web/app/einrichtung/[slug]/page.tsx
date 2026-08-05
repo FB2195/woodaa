@@ -139,12 +139,67 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
             ))}
           </div>
 
+          {(facility.checkInTime ||
+            facility.checkOutTime ||
+            facility.visitingHours ||
+            facility.wifiInfo ||
+            facility.parkingInfo ||
+            facility.petsPolicy) && (
+            <>
+              <h2 className="mt-10 text-lg font-semibold text-brand-text">
+                Unterkunftsrichtlinien
+              </h2>
+              <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                {facility.checkInTime && (
+                  <div>
+                    <dt className="text-sm text-brand-text-muted">Check-in</dt>
+                    <dd className="text-brand-text">{facility.checkInTime}</dd>
+                  </div>
+                )}
+                {facility.checkOutTime && (
+                  <div>
+                    <dt className="text-sm text-brand-text-muted">Check-out</dt>
+                    <dd className="text-brand-text">{facility.checkOutTime}</dd>
+                  </div>
+                )}
+                {facility.visitingHours && (
+                  <div>
+                    <dt className="text-sm text-brand-text-muted">Besuchszeiten</dt>
+                    <dd className="text-brand-text">{facility.visitingHours}</dd>
+                  </div>
+                )}
+                {facility.wifiInfo && (
+                  <div>
+                    <dt className="text-sm text-brand-text-muted">Internetzugang</dt>
+                    <dd className="text-brand-text">{facility.wifiInfo}</dd>
+                  </div>
+                )}
+                {facility.parkingInfo && (
+                  <div>
+                    <dt className="text-sm text-brand-text-muted">Parkmöglichkeiten</dt>
+                    <dd className="text-brand-text">{facility.parkingInfo}</dd>
+                  </div>
+                )}
+                {facility.petsPolicy && (
+                  <div>
+                    <dt className="text-sm text-brand-text-muted">Haustiere</dt>
+                    <dd className="text-brand-text">{facility.petsPolicy}</dd>
+                  </div>
+                )}
+              </dl>
+            </>
+          )}
+
           <FacilityReviews
             facilitySlug={facility.slug}
             reviews={facility.reviews}
             avgRating={facility.avgRating}
             reviewCount={facility.reviewCount}
           />
+
+          <p className="mt-10 border-t border-brand-border pt-4 text-sm text-brand-text-muted">
+            Verwaltet von {facility.operatorName}
+          </p>
         </div>
 
         <div>

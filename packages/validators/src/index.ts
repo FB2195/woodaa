@@ -185,6 +185,25 @@ export const ResetPasswordInput = z.object({
 });
 export type ResetPasswordInput = z.infer<typeof ResetPasswordInput>;
 
+export const UpdateNameInput = z.object({
+  name: z.string().trim().min(1).max(200),
+});
+export type UpdateNameInput = z.infer<typeof UpdateNameInput>;
+
+// Two-step email change (old address confirms intent, then new address
+// confirms ownership) - see EmailChangeRequest in schema.prisma and
+// requestEmailChange/confirmOldEmailChange/confirmNewEmailChange in
+// routers/auth.ts.
+export const RequestEmailChangeInput = z.object({
+  newEmail: z.string().trim().email().max(200),
+});
+export type RequestEmailChangeInput = z.infer<typeof RequestEmailChangeInput>;
+
+export const ConfirmEmailChangeInput = z.object({
+  token: z.string().min(1),
+});
+export type ConfirmEmailChangeInput = z.infer<typeof ConfirmEmailChangeInput>;
+
 const FacilityFields = z.object({
   name: z.string().trim().min(1).max(200),
   // Empty by default - only required to request public listing (see
@@ -218,7 +237,28 @@ export const CreateFacilityInput = FacilityFields.refine(pflegegradRangeOk, {
 });
 export type CreateFacilityInput = z.infer<typeof CreateFacilityInput>;
 
-export const UpdateFacilityInput = FacilityFields.partial().refine(
+// Only the non-critical fields - name/street/postalCode/city/state/
+// operatorName/operatorEmail/operatorPhone are trust-sensitive public info
+// and go through RequestFacilityChangeInput/admin approval instead (see
+// requestFacilityChange in operator.ts). These apply immediately.
+const UpdatableFacilityFields = FacilityFields.omit({
+  name: true,
+  street: true,
+  postalCode: true,
+  city: true,
+  state: true,
+  operatorPhone: true,
+}).extend({
+  // Unterkunftsrichtlinien - free text, immediate, no approval needed.
+  checkInTime: z.string().trim().max(200).optional(),
+  checkOutTime: z.string().trim().max(200).optional(),
+  visitingHours: z.string().trim().max(200).optional(),
+  wifiInfo: z.string().trim().max(200).optional(),
+  parkingInfo: z.string().trim().max(200).optional(),
+  petsPolicy: z.string().trim().max(200).optional(),
+});
+
+export const UpdateFacilityInput = UpdatableFacilityFields.partial().refine(
   pflegegradRangeOk,
   {
     message: "Pflegegrad von darf nicht größer als Pflegegrad bis sein.",
@@ -226,6 +266,28 @@ export const UpdateFacilityInput = FacilityFields.partial().refine(
   },
 );
 export type UpdateFacilityInput = z.infer<typeof UpdateFacilityInput>;
+
+// The critical, trust-sensitive fields - submitting this creates/overwrites
+// a pending FacilityChangeRequest instead of touching Facility directly. An
+// admin must approve before the new values go live (see
+// FacilityChangeRequest in schema.prisma and requestFacilityChange/
+// approveFacilityChangeRequest). Every field optional since the operator
+// only resubmits what they're actually changing; at least one required.
+export const RequestFacilityChangeInput = z
+  .object({
+    name: z.string().trim().min(1).max(200).optional(),
+    street: z.string().trim().min(1).max(200).optional(),
+    postalCode: z.string().trim().min(1).max(20).optional(),
+    city: z.string().trim().min(1).max(200).optional(),
+    state: z.string().trim().min(1).max(200).optional(),
+    operatorName: z.string().trim().min(1).max(200).optional(),
+    operatorEmail: z.string().trim().email().max(200).optional(),
+    operatorPhone: z.string().trim().max(50).optional(),
+  })
+  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+    message: "Mindestens ein Feld muss geändert werden.",
+  });
+export type RequestFacilityChangeInput = z.infer<typeof RequestFacilityChangeInput>;
 
 // totalSlots/availableSlots are no longer operator-editable input - they're
 // a maintained cache derived from FacilityUnit/Booking (see

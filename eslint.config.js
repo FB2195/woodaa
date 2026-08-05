@@ -24,7 +24,10 @@ module.exports = tseslint.config(
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_" },
+        // ignoreRestSiblings: destructuring-to-omit (const { secret, ...rest
+        // } = obj) is idiomatic for stripping fields before returning an
+        // object - `secret` being unused is the point, not a mistake.
+        { argsIgnorePattern: "^_", ignoreRestSiblings: true },
       ],
     },
   },
