@@ -224,6 +224,13 @@ export function FacilityContactForm({
         >
           {requestChange.isPending ? "Wird gesendet…" : "Änderung zur Prüfung einreichen"}
         </button>
+
+        {requestChange.isSuccess && (
+          <p className="text-sm text-brand-accent">
+            ✓ Änderung eingereicht - wird von unserem Team geprüft. Bis dahin bleiben die
+            aktuellen Angaben live.
+          </p>
+        )}
       </form>
     </div>
   );
