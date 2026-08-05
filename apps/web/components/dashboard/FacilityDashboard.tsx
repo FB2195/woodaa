@@ -39,7 +39,7 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
     <div className="flex flex-col gap-8">
       <div className="rounded-brand-lg border border-brand-border bg-brand-surface p-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-brand-primary-dark">
+          <h1 className="text-2xl font-bold text-brand-heading">
             {facility.name}
           </h1>
           <span

@@ -119,7 +119,7 @@ export function PflegekassenZuschussRechner({
                   <span>− Zuschuss der Pflegekasse</span>
                   <span>−{formatPriceEuro(result.subsidyCents)}</span>
                 </div>
-                <div className="flex justify-between border-t border-brand-border pt-1 font-semibold text-brand-primary-dark">
+                <div className="flex justify-between border-t border-brand-border pt-1 font-semibold text-brand-heading">
                   <span>Dein Eigenanteil</span>
                   <span>{formatPriceEuro(result.eigenanteilCents)}</span>
                 </div>
@@ -181,7 +181,7 @@ export function PflegekassenZuschussRechner({
                     <span>− Zuschuss der Pflegekasse</span>
                     <span>−{formatPriceEuro(result.dailySubsidyCents)}</span>
                   </div>
-                  <div className="flex justify-between border-t border-brand-border pt-1 font-semibold text-brand-primary-dark">
+                  <div className="flex justify-between border-t border-brand-border pt-1 font-semibold text-brand-heading">
                     <span>Dein Eigenanteil pro Tag</span>
                     <span>{formatPriceEuro(result.dailyEigenanteilCents)}</span>
                   </div>
@@ -233,7 +233,7 @@ function ResultBlock({
         <span>− Zuschuss der Pflegekasse</span>
         <span>−{formatPriceEuro(subsidyCents)}</span>
       </div>
-      <div className="flex justify-between border-t border-brand-border pt-1 font-semibold text-brand-primary-dark">
+      <div className="flex justify-between border-t border-brand-border pt-1 font-semibold text-brand-heading">
         <span>Dein Eigenanteil</span>
         <span>
           {formatPriceEuro(eigenanteilCents)}

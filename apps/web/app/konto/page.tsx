@@ -19,7 +19,7 @@ export default async function AccountPage() {
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-2xl font-bold text-brand-primary-dark">Mein Konto</h1>
+        <h1 className="text-2xl font-bold text-brand-heading">Mein Konto</h1>
 
         <div className="mt-6 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
           <dl className="flex flex-col gap-2 text-sm">

@@ -76,7 +76,7 @@ export function PhotoManager({ photos }: { photos: FacilityPhoto[] }) {
 
   return (
     <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
-      <h3 className="font-semibold text-brand-primary-dark">Fotos</h3>
+      <h3 className="font-semibold text-brand-heading">Fotos</h3>
 
       {photos.length === 0 ? (
         <p className="text-sm text-brand-text-muted">

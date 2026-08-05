@@ -82,7 +82,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           }
         }}
       >
-        <h1 className="text-lg font-semibold text-brand-primary-dark">
+        <h1 className="text-lg font-semibold text-brand-heading">
           Bestätigungscode
         </h1>
         <p className="text-sm text-brand-text-muted">
@@ -157,7 +157,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         }
       }}
     >
-      <h1 className="text-lg font-semibold text-brand-primary-dark">
+      <h1 className="text-lg font-semibold text-brand-heading">
         {copy[mode].title}
       </h1>
 

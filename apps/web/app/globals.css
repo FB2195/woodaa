@@ -2,6 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --brand-background: #faf9f5;
+  --brand-surface: #ffffff;
+  --brand-text: #1f2a1a;
+  --brand-text-muted: #6b6f62;
+  --brand-border: #e4e2d8;
+  --brand-heading: #3e4a2b;
+}
+
+.dark {
+  --brand-background: #16210f;
+  --brand-surface: #223018;
+  --brand-text: #f3f5ee;
+  --brand-text-muted: #b7c2a8;
+  --brand-border: #37472a;
+  --brand-heading: #ffffff;
+}
+
 body {
-  @apply bg-brand-background text-brand-text;
+  @apply bg-brand-background text-brand-text transition-colors;
+}
+
+/* Form controls across the app rely on the browser's native white
+   background (no explicit bg- utility per input/select) - fine in light
+   mode, but invisible (white text on white) once --brand-text flips to
+   white for dark mode. Checkbox/radio excluded: their native tick/box
+   rendering doesn't need a background override. Any component with its
+   own bg- or text- utility still wins (class selectors beat this element
+   selector). */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  background-color: var(--brand-surface);
+  color: var(--brand-text);
 }

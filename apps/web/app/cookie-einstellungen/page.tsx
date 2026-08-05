@@ -20,7 +20,7 @@ export default function CookieEinstellungenPage() {
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-2xl font-bold text-brand-primary-dark">Cookie-Infos</h1>
+        <h1 className="text-2xl font-bold text-brand-heading">Cookie-Infos</h1>
 
         <div className="mt-6 flex flex-col gap-4 text-brand-text">
           <p>
@@ -54,7 +54,7 @@ export default function CookieEinstellungenPage() {
 
         <div className="mt-8 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
           <p className="text-sm text-brand-text-muted">Deine aktuelle Auswahl</p>
-          <p className="mt-1 font-semibold text-brand-primary-dark">
+          <p className="mt-1 font-semibold text-brand-heading">
             {status ? statusLabels[status] : "Noch keine Auswahl getroffen"}
           </p>
 

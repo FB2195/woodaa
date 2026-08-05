@@ -30,7 +30,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-2xl font-bold text-brand-primary-dark">
+        <h1 className="text-2xl font-bold text-brand-heading">
           Pflegeplatz buchen
         </h1>
         <p className="mt-1 text-brand-text-muted">

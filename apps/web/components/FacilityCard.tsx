@@ -59,7 +59,7 @@ export function FacilityCard({
         </div>
 
         <div className="p-6 pb-0">
-          <h3 className="text-lg font-semibold text-brand-primary-dark">
+          <h3 className="text-lg font-semibold text-brand-heading">
             {facility.name}
           </h3>
           <p className="mt-1 text-sm text-brand-text-muted">

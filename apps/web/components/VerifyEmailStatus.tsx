@@ -40,7 +40,7 @@ export function VerifyEmailStatus() {
 
   return (
     <div>
-      <p className="font-semibold text-brand-primary-dark">
+      <p className="font-semibold text-brand-heading">
         E-Mail-Adresse bestätigt!
       </p>
       <p className="mt-2 text-sm text-brand-text-muted">

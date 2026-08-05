@@ -35,7 +35,7 @@ export default async function AdminDashboardPage() {
           <TwoFactorSetup enabled={me.twoFactorEnabled} />
         </div>
 
-        <h1 className="text-2xl font-bold text-brand-primary-dark">
+        <h1 className="text-2xl font-bold text-brand-heading">
           Einrichtungen prüfen
         </h1>
         <p className="mt-1 text-sm text-brand-text-muted">
@@ -67,7 +67,7 @@ export default async function AdminDashboardPage() {
           ))}
         </ul>
 
-        <h2 className="mt-12 text-2xl font-bold text-brand-primary-dark">
+        <h2 className="mt-12 text-2xl font-bold text-brand-heading">
           Bewertungen prüfen
         </h2>
         <p className="mt-1 text-sm text-brand-text-muted">
@@ -87,7 +87,7 @@ export default async function AdminDashboardPage() {
           )}
         </div>
 
-        <h2 className="mt-12 text-2xl font-bold text-brand-primary-dark">
+        <h2 className="mt-12 text-2xl font-bold text-brand-heading">
           Vollmachten prüfen
         </h2>
         <p className="mt-1 text-sm text-brand-text-muted">
@@ -106,7 +106,7 @@ export default async function AdminDashboardPage() {
           )}
         </div>
 
-        <h2 className="mt-12 text-2xl font-bold text-brand-primary-dark">
+        <h2 className="mt-12 text-2xl font-bold text-brand-heading">
           Buchungen von Bevollmächtigten prüfen
         </h2>
         <p className="mt-1 text-sm text-brand-text-muted">
@@ -126,7 +126,7 @@ export default async function AdminDashboardPage() {
           )}
         </div>
 
-        <h2 className="mt-12 text-2xl font-bold text-brand-primary-dark">
+        <h2 className="mt-12 text-2xl font-bold text-brand-heading">
           Kundenservice-Anfragen
         </h2>
         <p className="mt-1 text-sm text-brand-text-muted">

@@ -43,7 +43,7 @@ export function PflegegradSuitabilityForm({
         }
       }}
     >
-      <h3 className="font-semibold text-brand-primary-dark">
+      <h3 className="font-semibold text-brand-heading">
         Pflegegrad-Eignung
       </h3>
 

@@ -238,7 +238,7 @@ export function CategoryPanel({
   return (
     <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-brand-primary-dark">
+        <h3 className="font-semibold text-brand-heading">
           {bookingTypeLabels[bookingType]}
         </h3>
         <span

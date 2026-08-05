@@ -74,4 +74,9 @@ export const en: Messages = {
     fr: "Français",
     es: "Español",
   },
+  theme: {
+    label: "Theme",
+    light: "Light",
+    dark: "Dark",
+  },
 };

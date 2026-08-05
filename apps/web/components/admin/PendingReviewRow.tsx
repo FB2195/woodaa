@@ -23,7 +23,7 @@ export function PendingReviewRow({ review }: { review: AdminPendingReview }) {
           >
             {review.facility.name}
           </a>
-          <h3 className="text-lg font-semibold text-brand-primary-dark">
+          <h3 className="text-lg font-semibold text-brand-heading">
             {review.reviewerName}
           </h3>
           <div className="mt-1">

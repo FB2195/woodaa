@@ -191,7 +191,7 @@ export function BookingForm({
     if (stripeClientSecret && !paymentConfirmed) {
       return (
         <div className="mt-6 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
-          <p className="font-semibold text-brand-primary-dark">
+          <p className="font-semibold text-brand-heading">
             Dein Platz ist reserviert - jetzt bezahlen
           </p>
           <p className="mt-1 text-sm text-brand-text-muted">
@@ -210,7 +210,7 @@ export function BookingForm({
 
     return (
       <div className="mt-6 rounded-brand-lg border border-brand-accent bg-brand-accent/10 p-6">
-        <p className="font-semibold text-brand-primary-dark">Platz gebucht!</p>
+        <p className="font-semibold text-brand-heading">Platz gebucht!</p>
         <p className="mt-1 text-sm text-brand-text-muted">
           Dein Platz ist reserviert. Die Einrichtung wurde informiert und meldet sich bei
           Rückfragen direkt bei dir.

@@ -37,7 +37,7 @@ export function TwoFactorSetup({ enabled }: { enabled: boolean }) {
   if (enabled && step === "idle") {
     return (
       <div className="rounded-brand-lg border border-brand-border bg-brand-surface p-6">
-        <h2 className="text-lg font-semibold text-brand-primary-dark">
+        <h2 className="text-lg font-semibold text-brand-heading">
           Zwei-Faktor-Authentifizierung
         </h2>
         <p className="mt-1 text-sm text-brand-text-muted">
@@ -76,7 +76,7 @@ export function TwoFactorSetup({ enabled }: { enabled: boolean }) {
   if (step === "recovery-codes") {
     return (
       <div className="rounded-brand-lg border border-brand-border bg-brand-surface p-6">
-        <h2 className="text-lg font-semibold text-brand-primary-dark">
+        <h2 className="text-lg font-semibold text-brand-heading">
           2FA ist jetzt aktiv
         </h2>
         <p className="mt-1 text-sm text-brand-text-muted">
@@ -103,7 +103,7 @@ export function TwoFactorSetup({ enabled }: { enabled: boolean }) {
   if (step === "setup" && qrDataUrl && secret) {
     return (
       <div className="rounded-brand-lg border border-brand-border bg-brand-surface p-6">
-        <h2 className="text-lg font-semibold text-brand-primary-dark">
+        <h2 className="text-lg font-semibold text-brand-heading">
           2FA einrichten
         </h2>
         <p className="mt-1 text-sm text-brand-text-muted">
@@ -146,7 +146,7 @@ export function TwoFactorSetup({ enabled }: { enabled: boolean }) {
 
   return (
     <div className="rounded-brand-lg border border-brand-border bg-brand-surface p-6">
-      <h2 className="text-lg font-semibold text-brand-primary-dark">
+      <h2 className="text-lg font-semibold text-brand-heading">
         Zwei-Faktor-Authentifizierung
       </h2>
       <p className="mt-1 text-sm text-brand-text-muted">
