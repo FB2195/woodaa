@@ -37,3 +37,25 @@ textarea {
   background-color: var(--brand-surface);
   color: var(--brand-text);
 }
+
+/* Immediate, visible confirmation on every tap/click across the app - a
+   hover state alone never fires on touch devices, which is most of this
+   app's traffic, so without this a press can look like it did nothing.
+   Element selectors (not utility classes) so every button/link gets it
+   automatically, with no per-component work; a component's own :active
+   styling still layers on top since this only touches transform/opacity. */
+button:not(:disabled):active,
+a:active,
+[role="button"]:not([aria-disabled="true"]):active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active,
+  a:active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    transform: none;
+    opacity: 0.7;
+  }
+}

@@ -33,19 +33,42 @@ function TransportIcon() {
   );
 }
 
+// All distances here are walking estimates (see WALK_METERS_PER_MINUTE in
+// packages/api/src/nearbyPlaces.ts) - shown next to every "X Min." label so
+// it doesn't read as ambiguous drive/transit time.
+function WalkIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3.5 w-3.5 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <circle cx="13" cy="4" r="1.5" fill="currentColor" stroke="none" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10 7l1.5 3.5L9 12l-2 5M11.5 10.5 14 12l3 2M13.5 13.5 12 19" />
+    </svg>
+  );
+}
+
+// shortLabel keeps all three tabs on one line on a phone-width screen
+// instead of forcing a horizontal scroll just to discover "Transport"
+// exists - the full label shows from the sm breakpoint up.
 const tabs = [
-  { key: "shopping", label: "Einkaufsmöglichkeiten", icon: ShoppingIcon },
-  { key: "healthcare", label: "Ärzte & Krankenhäuser", icon: HealthcareIcon },
-  { key: "transport", label: "Transport", icon: TransportIcon },
+  { key: "shopping", label: "Einkaufsmöglichkeiten", shortLabel: "Einkaufen", icon: ShoppingIcon },
+  { key: "healthcare", label: "Ärzte & Krankenhäuser", shortLabel: "Ärzte", icon: HealthcareIcon },
+  { key: "transport", label: "Transport", shortLabel: "Transport", icon: TransportIcon },
 ] as const;
 
 type TabKey = (typeof tabs)[number]["key"];
 
 function PlaceRow({ place }: { place: NearbyPlace }) {
   return (
-    <li className="flex items-center justify-between border-b border-brand-border py-2 text-sm last:border-0">
-      <span className="text-brand-text">{place.name}</span>
-      <span className="shrink-0 text-brand-text-muted">
+    <li className="flex items-center gap-3 border-b border-brand-border py-2 text-sm last:border-0">
+      <span className="min-w-0 flex-1 truncate text-brand-text">{place.name}</span>
+      <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-brand-text-muted">
+        <WalkIcon />
         {place.walkMinutes} Min. ({place.distanceMeters} m)
       </span>
     </li>
@@ -75,20 +98,21 @@ export function FacilityNeighborhood({
     <div className="mt-10">
       <h2 className="text-lg font-semibold text-brand-text">Umgebung der Unterkunft</h2>
 
-      <div className="mt-3 flex gap-2 border-b border-brand-border">
-        {tabs.map(({ key, label, icon: Icon }) => (
+      <div className="mt-3 flex gap-2 overflow-x-auto border-b border-brand-border">
+        {tabs.map(({ key, label, shortLabel, icon: Icon }) => (
           <button
             key={key}
             type="button"
             onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition ${
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition ${
               activeTab === key
                 ? "border-brand-accent text-brand-accent"
                 : "border-transparent text-brand-text-muted hover:text-brand-text"
             }`}
           >
             <Icon />
-            {label}
+            <span className="sm:hidden">{shortLabel}</span>
+            <span className="hidden sm:inline">{label}</span>
           </button>
         ))}
       </div>
