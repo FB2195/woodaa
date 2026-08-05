@@ -200,7 +200,7 @@ export const adminRouter = router({
       });
     }),
 
-  // Storniert die Buchung gleich mit - ohne Freigabe durch Woodaa darf eine
+  // Storniert die Buchung gleich mit - ohne Freigabe durch woodaa darf eine
   // Buchung von einem bevollmächtigten Account nicht bestehen bleiben,
   // gleiches Prinzip wie operator.rejectBookingPayment.
   rejectBookingAdmin: adminProcedure

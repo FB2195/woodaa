@@ -9,7 +9,7 @@ export default function RootLayout() {
         headerTintColor: "#FFFFFF",
       }}
     >
-      <Stack.Screen name="index" options={{ title: "Woodaa" }} />
+      <Stack.Screen name="index" options={{ title: "woodaa" }} />
     </Stack>
   );
 }

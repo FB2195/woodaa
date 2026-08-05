@@ -1,5 +1,5 @@
 /**
- * Woodaa brand tokens — starting palette (grün / olivgrün / weiß).
+ * woodaa brand tokens — starting palette (grün / olivgrün / weiß).
  * Single source of truth, consumed by the web (Tailwind) and mobile
  * (NativeWind) tailwind presets so both clients render the same brand.
  * Refine once the logo is available.

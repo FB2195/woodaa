@@ -24,7 +24,7 @@ export default function HomeScreen() {
           Den richtigen Pflegeplatz finden.
         </Text>
         <Text className="mt-2 text-base text-brand-text-muted">
-          Woodaa verbindet Familien mit geprüften Pflegeeinrichtungen in ganz
+          woodaa verbindet Familien mit geprüften Pflegeeinrichtungen in ganz
           Deutschland.
         </Text>
 

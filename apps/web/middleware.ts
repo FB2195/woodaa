@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { ACCESS_COOKIE } from "@/lib/session";
 
-// Site-wide gate while Woodaa isn't ready for public visitors yet, checked
+// Site-wide gate while woodaa isn't ready for public visitors yet, checked
 // before anything else runs. SITE_PASSWORD unset means the gate is off, so
 // local dev and CI builds are unaffected - only set in Vercel when the site
 // should actually be locked.
@@ -28,7 +28,7 @@ export function middleware(request: NextRequest) {
   if (!isAuthorized(request)) {
     return new NextResponse("Authentication required.", {
       status: 401,
-      headers: { "WWW-Authenticate": 'Basic realm="Woodaa"' },
+      headers: { "WWW-Authenticate": 'Basic realm="woodaa"' },
     });
   }
 

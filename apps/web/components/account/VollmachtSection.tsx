@@ -10,7 +10,7 @@ const reviewStatusLabels: Record<"AUSSTEHEND" | "GEPRUEFT" | "ABGELEHNT", string
 };
 
 // Bevollmächtigte/r Angehörige/r: booking on behalf of someone else needs a
-// Vollmacht on file (reviewed by Woodaa, not just self-declared) plus the
+// Vollmacht on file (reviewed by woodaa, not just self-declared) plus the
 // care recipient's name, since that - not the account holder's own name -
 // belongs on the booking (see BookingForm.tsx).
 export function VollmachtSection() {

@@ -15,7 +15,7 @@ export function generateTotpSecret(): string {
 }
 
 export function totpKeyUri(email: string, secret: string): string {
-  return authenticator.keyuri(email, "Woodaa", secret);
+  return authenticator.keyuri(email, "woodaa", secret);
 }
 
 export function verifyTotpCode(secret: string, code: string): boolean {

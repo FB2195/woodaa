@@ -1,6 +1,6 @@
-# Woodaa
+# woodaa
 
-Woodaa ist eine Buchungsplattform für Pflegeplätze in Deutschland – gedacht
+woodaa ist eine Buchungsplattform für Pflegeplätze in Deutschland – gedacht
 als Booking.com-Äquivalent für Pflegeheime. Angehörige und Betroffene finden
 und buchen einen Platz für **stationäre Aufnahme (Dauerpflege)**,
 **Kurzzeitpflege** oder **Tages-/Nachtpflege**; Pflegeeinrichtungen verwalten

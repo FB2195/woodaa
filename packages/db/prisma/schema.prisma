@@ -22,7 +22,7 @@ enum BookingType {
 }
 
 enum UnitBookingSource {
-  ONLINE // sofort verbindliche Buchung über Woodaa
+  ONLINE // sofort verbindliche Buchung über woodaa
   TELEFON
   VOR_ORT
 }
@@ -39,7 +39,7 @@ enum PaymentMethod {
   KARTE
   KLARNA
   PAYPAL
-  // Wird über das Heim abgewickelt, nicht über Woodaa/Stripe - braucht
+  // Wird über das Heim abgewickelt, nicht über woodaa/Stripe - braucht
   // deshalb eine Freigabe durch das Heim (das Ausfallrisiko trägt es selbst).
   RECHNUNG
   // Die Pflegekasse zahlt das Heim direkt, belegt durch eine hochgeladene
@@ -98,11 +98,11 @@ enum Role {
 
 enum CareApplicationStatus {
   // User says they've already applied for this care type themselves,
-  // outside Woodaa (e.g. previous Kurzzeitpflege stay).
+  // outside woodaa (e.g. previous Kurzzeitpflege stay).
   BEREITS_BEANTRAGT
   // Not applied yet - the default for a freshly-tracked booking type.
   MUSS_BEANTRAGT_WERDEN
-  // Filled out and signed the form on Woodaa; the PDF has been emailed to
+  // Filled out and signed the form on woodaa; the PDF has been emailed to
   // the Pflegekasse. submittedAt records when.
   EINGEREICHT_UEBER_WOODAA
 }
@@ -115,7 +115,7 @@ enum VollmachtReviewStatus {
   ABGELEHNT
 }
 
-// Every booking made from a bevollmächtigt account needs Woodaa staff's
+// Every booking made from a bevollmächtigt account needs woodaa staff's
 // explicit sign-off before it counts as confirmed - independent of, and in
 // addition to, any facility-side payment approval (see PaymentStatus).
 enum BookingAdminApprovalStatus {
@@ -149,7 +149,7 @@ model User {
   // 0-5, null = not specified. Only meaningful for SUCHENDE.
   pflegegrad                   Int?
   // True while a Pflegegrad-Erstantrag or -Höherstufung is pending at the
-  // Pflegekasse (outside Woodaa) - which label applies depends on whether
+  // Pflegekasse (outside woodaa) - which label applies depends on whether
   // pflegegrad is null/0 (Erstantrag) or >=1 (Höherstufung).
   pflegegradAntragLaeuft       Boolean                @default(false)
   // Free-text (no fixed list of ~90 Kassen) - kept simple on purpose.
@@ -179,7 +179,7 @@ model User {
 
 // Per-booking-type tracking of whether a SUCHENDE has already applied for
 // that care benefit at their Pflegekasse, still needs to, or has just
-// submitted the application through Woodaa (see careApplication.ts router
+// submitted the application through woodaa (see careApplication.ts router
 // - generates a signed PDF and emails it to the Pflegekasse).
 model CareApplication {
   id          String                @id @default(cuid())
@@ -397,7 +397,7 @@ model Booking {
   startDate                    DateTime?
   endDate                      DateTime?
   // The logged-in Suchende who made this booking - null for phone/walk-in
-  // bookings entered by facility staff (no Woodaa account involved).
+  // bookings entered by facility staff (no woodaa account involved).
   user                         User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId                       String?
   guestName                    String?

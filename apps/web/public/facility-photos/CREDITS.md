@@ -4,7 +4,7 @@ Alle Fotos unter `apps/web/public/facility-photos/` stammen von Wikimedia Common
 und stehen unter einer freien Lizenz (CC-BY / CC-BY-SA / CC0 / Public Domain).
 Es sind reale Fotos bestehender Orte (Pflegeheime, Hotels, Gemeinschaftsräume o.ä.),
 die als Demo-/Platzhalterbilder für die Test-Einrichtungen dieser Plattform genutzt
-werden - sie zeigen NICHT die tatsächlichen, fiktiven Woodaa-Testheime.
+werden - sie zeigen NICHT die tatsächlichen, fiktiven woodaa-Testheime.
 
 | Datei | Titel | Autor | Lizenz | Quelle |
 |---|---|---|---|---|

@@ -14,7 +14,7 @@ export const BookingType = z.enum([
 export type BookingType = z.infer<typeof BookingType>;
 
 export const UnitBookingSource = z.enum([
-  "ONLINE", // sofort verbindliche Buchung über Woodaa
+  "ONLINE", // sofort verbindliche Buchung über woodaa
   "TELEFON",
   "VOR_ORT",
 ]);
