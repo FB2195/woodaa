@@ -43,7 +43,7 @@ export function FacilityLocationMap({
       ref={containerRef}
       role="img"
       aria-label={`Standort von ${name} auf der Karte`}
-      className="mt-4 h-64 w-full rounded-brand-lg bg-brand-background"
+      className="h-64 w-full rounded-brand-lg bg-brand-background"
     />
   );
 }
