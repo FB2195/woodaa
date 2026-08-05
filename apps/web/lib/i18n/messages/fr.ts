@@ -29,7 +29,7 @@ export const fr: Messages = {
   },
   home: {
     badge: "Dans toute l'Allemagne · établissements vérifiés · disponibilité en temps réel",
-    heroTitle: "Vous cherchez une place en maison de retraite ? Wo? Da !",
+    heroTitle: "Vous cherchez une place en maison de retraite ?",
     heroSubtitle:
       "Aussi simple que de réserver un hôtel : woodaa met en relation les familles avec des établissements de soins vérifiés dans toute l'Allemagne.",
     statsFacilitiesLabel: "établissements",

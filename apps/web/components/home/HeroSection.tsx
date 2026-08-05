@@ -25,7 +25,10 @@ export function HeroSection({
         <span className="inline-block rounded-brand-full border border-white/30 bg-white/10 px-4 py-1.5 text-xs font-medium tracking-wide text-white/90">
           {t("badge")}
         </span>
-        <h1 className="mt-5 text-4xl font-bold leading-tight sm:text-5xl">{t("heroTitle")}</h1>
+        <h1 className="mt-5 text-4xl font-bold leading-tight sm:text-5xl">
+          {t("heroTitle")}{" "}
+          <span className="text-[#A3C77A]">Woo?</span> <span className="text-[#A3C77A]">Daa!</span>
+        </h1>
         <p className="mt-4 text-lg text-white/80">{t("heroSubtitle")}</p>
       </div>
 

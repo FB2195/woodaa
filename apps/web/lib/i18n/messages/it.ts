@@ -29,7 +29,7 @@ export const it: Messages = {
   },
   home: {
     badge: "In tutta la Germania · strutture verificate · disponibilità in tempo reale",
-    heroTitle: "Cerchi una casa di cura? Wo? Da!",
+    heroTitle: "Cerchi una casa di cura?",
     heroSubtitle:
       "Facile come prenotare un hotel: woodaa mette in contatto le famiglie con strutture di cura verificate in tutta la Germania.",
     statsFacilitiesLabel: "strutture",
