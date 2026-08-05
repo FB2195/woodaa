@@ -177,6 +177,102 @@ async function freeUnitCandidates(
   return units.map((u) => u.id).filter((id) => !busy.has(id));
 }
 
+// Read-only version of the conflict check createBooking uses to claim a
+// unit - same query, just answering "is there room" instead of also
+// reserving it. Used by search (facility.list) to check a requested
+// KURZZEITPFLEGE date range without side effects, so no transaction/
+// savepoint machinery is needed here.
+export async function hasFreeUnitForRange(
+  db: PrismaClient | Tx,
+  facilityId: string,
+  bookingType: BookingType,
+  startDate: Date,
+  endDate: Date,
+): Promise<boolean> {
+  const candidates = await freeUnitCandidates(db as Tx, facilityId, bookingType, startDate, endDate);
+  return candidates.length > 0;
+}
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+// Scans forward day-by-day for the earliest date a KURZZEITPFLEGE stay of
+// the given length could start - a plain linear scan rather than an
+// interval-gap query, since the lookahead window is small (a couple of
+// months) and this only runs for facilities search already found to be
+// fully booked for the originally requested range.
+export async function findNextAvailableRangeStart(
+  db: PrismaClient | Tx,
+  facilityId: string,
+  bookingType: BookingType,
+  durationDays: number,
+  searchFrom: Date,
+  lookaheadDays = 60,
+): Promise<Date | null> {
+  const from = startOfDay(searchFrom);
+  for (let offset = 0; offset <= lookaheadDays; offset++) {
+    const start = addDays(from, offset);
+    const end = addDays(start, durationDays - 1);
+    if (await hasFreeUnitForRange(db, facilityId, bookingType, start, end)) {
+      return start;
+    }
+  }
+  return null;
+}
+
+const ISO_WEEKDAY_OF = (date: Date): number => {
+  const jsDay = date.getUTCDay(); // 0 = Sonntag ... 6 = Samstag
+  return jsDay === 0 ? 7 : jsDay; // -> 1 = Montag ... 7 = Sonntag
+};
+
+// TAGESPFLEGE/NACHTPFLEGE bookings are single-day (see the Booking model
+// comment) - there's no recurring-reservation record to check against yet,
+// so "available for this weekly pattern" is answered by looking at the
+// NEXT upcoming occurrence of each requested weekday and checking whether
+// a unit is free that specific day. This is a real, honest signal ("could
+// you start this pattern soon") without requiring the bigger feature of
+// actually booking a recurring series, which doesn't exist yet.
+export async function computeWeekdayAvailability(
+  db: PrismaClient | Tx,
+  facilityId: string,
+  bookingType: BookingType,
+  weekdays: number[],
+  searchFrom: Date,
+  lookaheadWeeks = 8,
+): Promise<{ available: boolean; nextFullyAvailableDate: Date | null }> {
+  if (weekdays.length === 0) return { available: true, nextFullyAvailableDate: null };
+
+  const from = startOfDay(searchFrom);
+  let allAvailable = true;
+  let latestNeeded: Date | null = null;
+
+  for (const weekday of weekdays) {
+    let found: Date | null = null;
+    for (let offset = 0; offset <= lookaheadWeeks * 7; offset++) {
+      const candidate = addDays(from, offset);
+      if (ISO_WEEKDAY_OF(candidate) !== weekday) continue;
+      const { availableUnits } = await computeAvailability(db, facilityId, bookingType, candidate);
+      if (availableUnits > 0) {
+        found = candidate;
+        break;
+      }
+    }
+    if (!found) {
+      allAvailable = false;
+      continue;
+    }
+    if (!latestNeeded || found > latestNeeded) latestNeeded = found;
+  }
+
+  return {
+    available: allAvailable,
+    nextFullyAvailableDate: allAvailable ? null : latestNeeded,
+  };
+}
+
 export type CreateBookingInput = {
   facilityId: string;
   bookingType: BookingType;

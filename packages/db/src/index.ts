@@ -40,15 +40,6 @@ export type FacilityWithCapacities = Omit<
   "photos"
 > & { photos: FacilityPhoto[] };
 
-// Public detail page: no guest PII, no unit identity - just which date
-// ranges are currently occupied per category (KURZZEITPFLEGE / TAGESPFLEGE
-// / NACHTPFLEGE), used to show "belegte Zeiträume" without exposing who.
-export type OccupiedRange = {
-  bookingType: Prisma.BookingGetPayload<object>["bookingType"];
-  startDate: Date;
-  endDate: Date;
-};
-
 type FacilityWithDetailsRaw = Prisma.FacilityGetPayload<{
   include: {
     capacities: { include: { pflegegradPricing: true } };
@@ -58,7 +49,6 @@ type FacilityWithDetailsRaw = Prisma.FacilityGetPayload<{
 }>;
 export type FacilityWithDetails = Omit<FacilityWithDetailsRaw, "photos"> & {
   photos: FacilityPhoto[];
-  occupiedRanges: OccupiedRange[];
 };
 
 // Operator dashboard: full internal detail, including individual units and

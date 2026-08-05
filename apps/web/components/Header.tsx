@@ -47,7 +47,10 @@ export function Header() {
   return (
     <header className="border-b border-brand-border bg-brand-surface">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <Link href="/" className="flex items-center">
+        <Link
+          href="/"
+          className="flex items-center rounded-brand-md px-2 py-1 -mx-2 -my-1 transition-colors active:bg-brand-background"
+        >
           <Image
             src="/logo.png"
             alt="woodaa"

@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
   --brand-background: #faf9f5;
   --brand-surface: #ffffff;
   --brand-text: #1f2a1a;
@@ -11,7 +12,14 @@
   --brand-heading: #3e4a2b;
 }
 
+/* Tells the browser to render its own native widget chrome (select
+   dropdown arrows, checkbox/radio ticks, scrollbars, date pickers) using
+   the dark palette instead of light - without this, only our own custom
+   colors flip in dark mode while the browser keeps drawing e.g. a select's
+   arrow in its default dark-on-transparent style, which is nearly
+   invisible against a dark background. */
 .dark {
+  color-scheme: dark;
   --brand-background: #16210f;
   --brand-surface: #223018;
   --brand-text: #f3f5ee;
