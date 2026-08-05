@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { notFound } from "next/navigation";
 import { BookingSidebar } from "@/components/BookingSidebar";
 import { FacilityGalleryAndMap } from "@/components/FacilityGalleryAndMap";
+import { FacilityNeighborhood } from "@/components/FacilityNeighborhood";
 import { FacilityReviews } from "@/components/FacilityReviews";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { Header } from "@/components/Header";
@@ -84,6 +85,8 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
               </span>
             ))}
           </div>
+
+          <FacilityNeighborhood latitude={facility.latitude} longitude={facility.longitude} />
 
           <h2 className="mt-10 text-lg font-semibold text-brand-text">
             Verfügbarkeit
