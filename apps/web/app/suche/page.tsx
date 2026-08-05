@@ -12,6 +12,7 @@ type SearchPageProps = {
     radius?: string;
     pflegegrad?: string;
     sort?: string;
+    amenities?: string | string[];
   }>;
 };
 
@@ -31,15 +32,21 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     params.pflegegrad ? Number(params.pflegegrad) : undefined,
   );
   const sort = SortOption.safeParse(params.sort);
+  const amenities = params.amenities
+    ? Array.isArray(params.amenities)
+      ? params.amenities
+      : [params.amenities]
+    : undefined;
 
   const trpcServer = await getTrpcServer();
-  const facilities = await trpcServer.facility.list({
+  const { results: facilities, bookingTypeCounts, amenityCounts } = await trpcServer.facility.list({
     city,
     bookingType: bookingType.success ? bookingType.data : undefined,
     maxPriceCents,
     radiusKm: radiusKm !== undefined && Number.isFinite(radiusKm) ? radiusKm : undefined,
     pflegegrad: pflegegrad.success ? pflegegrad.data : undefined,
     sort: sort.success ? sort.data : undefined,
+    amenities,
   });
 
   return (
@@ -50,11 +57,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <SearchForm
           defaultCity={params.city}
           defaultType={bookingType.success ? bookingType.data : undefined}
-          defaultMaxPrice={maxPriceEuros}
-          defaultRadiusKm={radiusKm}
-          defaultPflegegrad={pflegegrad.success ? pflegegrad.data : undefined}
-          defaultSort={sort.success ? sort.data : undefined}
-          showFilters
           className="mb-8 flex flex-col flex-wrap gap-3 rounded-brand-lg border border-brand-border bg-brand-surface p-4 sm:flex-row"
         />
 
@@ -68,14 +70,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {facilities.length === 1 ? "Einrichtung gefunden" : "Einrichtungen gefunden"}
         </p>
 
-        {facilities.length === 0 ? (
-          <p className="mt-10 rounded-brand-lg border border-brand-border bg-brand-surface p-8 text-center text-brand-text-muted">
-            Keine Einrichtungen gefunden. Versuche eine andere Stadt oder
-            Pflegeart.
-          </p>
-        ) : (
-          <SearchResultsView facilities={facilities} />
-        )}
+        <SearchResultsView
+          facilities={facilities}
+          bookingTypeCounts={bookingTypeCounts}
+          amenityCounts={amenityCounts}
+        />
       </section>
     </main>
   );

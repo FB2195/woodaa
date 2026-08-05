@@ -51,6 +51,26 @@ export async function geocodeAddress(address: string): Promise<GeoPoint | null> 
   }
 }
 
+// "In deiner Nähe suchen" (browser geolocation -> city name) - Nominatim's
+// reverse endpoint rather than Google's, since this is a one-off lookup and
+// not the repeated-keystroke autocomplete path that motivated the Google
+// integration in the first place.
+export async function reverseGeocode(latitude: number, longitude: number): Promise<string | null> {
+  try {
+    const url = `${NOMINATIM_BASE}/reverse?format=json&addressdetails=1&zoom=10&lat=${latitude}&lon=${longitude}`;
+    const res = await throttledNominatimFetch(url);
+    if (!res.ok) return null;
+
+    const result = (await res.json()) as {
+      address?: { city?: string; town?: string; village?: string };
+    };
+    return result.address?.city ?? result.address?.town ?? result.address?.village ?? null;
+  } catch (err) {
+    console.error("Reverse geocoding failed:", err);
+    return null;
+  }
+}
+
 const originCache = new Map<string, { expires: number; value: GeoPoint | null }>();
 const ORIGIN_CACHE_TTL_MS = 5 * 60 * 1000;
 

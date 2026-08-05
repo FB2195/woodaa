@@ -16,7 +16,7 @@ const bookingTypeIcons: Record<string, string> = {
 
 export default async function HomePage() {
   const trpcServer = await getTrpcServer();
-  const facilities = await trpcServer.facility.list({});
+  const { results: facilities } = await trpcServer.facility.list({});
 
   const cityInfo = new Map<string, { count: number; photoUrl: string | null }>();
   for (const f of facilities) {

@@ -64,6 +64,36 @@ export type Versicherungsnummer = z.infer<typeof Versicherungsnummer>;
 export const SortOption = z.enum(["newest", "price_asc", "distance_asc"]);
 export type SortOption = z.infer<typeof SortOption>;
 
+// Curated list of common Pflegeheim-Zusatzleistungen - shown as checkboxes
+// when operators set up their Ausstattung (see apps/web AmenitiesEditor.tsx)
+// and as filter chips in the search results toolbar (see SearchResultsView).
+// Facility.amenities itself stays a plain string array in the DB, so an
+// operator can still add something not on this list via "Eigene Angabe".
+export const AMENITY_OPTIONS = [
+  "Einzelzimmer",
+  "Doppelzimmer",
+  "Blick ins Grüne",
+  "Balkon/Terrasse im Zimmer",
+  "TV im Zimmer",
+  "Telefon im Zimmer",
+  "WLAN im Zimmer",
+  "Barrierefreiheit",
+  "Garten",
+  "Cafeteria",
+  "Friseursalon",
+  "Fußpflege",
+  "Bibliothek",
+  "Haustiere erlaubt",
+  "Seelsorge/religiöse Angebote",
+  "Ergotherapie",
+  "Physiotherapie",
+  "Demenzbetreuung",
+  "Palliativpflege",
+  "Eigene Küche/Vollverpflegung",
+  "Wäscheservice",
+  "Notrufsystem",
+] as const;
+
 export const FacilitySearchInput = z.object({
   city: z.string().trim().min(1).optional(),
   bookingType: BookingType.optional(),
@@ -71,6 +101,7 @@ export const FacilitySearchInput = z.object({
   radiusKm: z.coerce.number().int().positive().max(200).optional(),
   pflegegrad: Pflegegrad.optional(),
   sort: SortOption.optional(),
+  amenities: z.array(z.string()).optional(),
 });
 export type FacilitySearchInput = z.infer<typeof FacilitySearchInput>;
 
