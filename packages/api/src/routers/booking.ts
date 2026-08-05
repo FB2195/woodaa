@@ -93,7 +93,7 @@ export const bookingRouter = router({
       paymentMethod: input.paymentMethod,
       paymentStatus: initialPaymentStatus,
       // Bevollmächtigte/r Angehörige/r: every booking from such an account
-      // needs Woodaa staff's sign-off, independent of the facility-side
+      // needs woodaa staff's sign-off, independent of the facility-side
       // payment approval above - see admin.pendingBookingApprovals.
       adminApprovalStatus: user.vollmachtDocumentKey ? "AUSSTEHEND" : "NICHT_ERFORDERLICH",
     });

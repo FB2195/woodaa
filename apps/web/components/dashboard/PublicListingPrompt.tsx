@@ -15,11 +15,11 @@ export function PublicListingPrompt() {
       <div className="flex flex-col items-start gap-3 rounded-brand-lg border border-dashed border-brand-accent bg-brand-accent/5 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-semibold text-brand-primary-dark">
-            🌍 Öffentlich auf Woodaa sichtbar werden
+            🌍 Öffentlich auf woodaa sichtbar werden
           </h3>
           <p className="mt-1 text-sm text-brand-text-muted">
             Optional, jederzeit möglich: Familien finden euch dann auch bei
-            der Suche auf Woodaa - eure Verfügbarkeit ist ja schon gepflegt.
+            der Suche auf woodaa - eure Verfügbarkeit ist ja schon gepflegt.
           </p>
         </div>
         <button

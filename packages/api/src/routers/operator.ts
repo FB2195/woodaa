@@ -102,7 +102,7 @@ export const operatorRouter = router({
       // No email-verification gate here on purpose - the free availability
       // tool should be usable immediately after signup. Verification is
       // required later, at requestPublicListing, where it actually matters
-      // (a real address going out to families searching Woodaa).
+      // (a real address going out to families searching woodaa).
       const user = await ctx.db.user.findUniqueOrThrow({
         where: { id: ctx.user.id },
       });
@@ -147,7 +147,7 @@ export const operatorRouter = router({
       // listing" moment (see PublicListingPrompt.tsx / admin.pendingFacilities'
       // description-not-empty filter) - that's the one action that actually
       // needs a confirmed email, since it puts a real address in front of
-      // families searching Woodaa.
+      // families searching woodaa.
       if (!facility.description && input.description) {
         const user = await ctx.db.user.findUniqueOrThrow({
           where: { id: ctx.user.id },

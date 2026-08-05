@@ -365,7 +365,7 @@ const facilities = [
 // als statische Assets unter apps/web/public/facility-photos abgelegt - siehe
 // CREDITS.md dort für Autor/Lizenz je Bild. Echte Fotos realer Orte (Heime,
 // Hotels, Gemeinschaftsräume), genutzt als Demo-Bildmaterial - keine
-// KI-Bilder und nicht die tatsächlichen (fiktiven) Woodaa-Testheime.
+// KI-Bilder und nicht die tatsächlichen (fiktiven) woodaa-Testheime.
 const photoPool: Record<string, string[]> = {
   AUSSENANSICHT: [
     "/facility-photos/aussenansicht/20230131-altenheim-st-joseph-munich.jpg",

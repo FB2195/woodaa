@@ -11,7 +11,7 @@ const benefits = [
   {
     icon: "🎁",
     title: "Dauerhaft kostenlos",
-    text: "Das Verfügbarkeits-Tool kostet nichts - unabhängig davon, ob ihr euch später öffentlich auf Woodaa listen lasst.",
+    text: "Das Verfügbarkeits-Tool kostet nichts - unabhängig davon, ob ihr euch später öffentlich auf woodaa listen lasst.",
   },
   {
     icon: "🔒",
@@ -21,7 +21,7 @@ const benefits = [
   {
     icon: "🌍",
     title: "Sichtbarkeit, wenn ihr wollt",
-    text: "Öffentlich auf Woodaa gelistet werden ist ein optionaler, zusätzlicher Schritt - ihr entscheidet, wann.",
+    text: "Öffentlich auf woodaa gelistet werden ist ein optionaler, zusätzlicher Schritt - ihr entscheidet, wann.",
   },
 ];
 

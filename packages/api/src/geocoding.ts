@@ -15,7 +15,7 @@
  */
 
 const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
-const USER_AGENT = "Woodaa/1.0 (+https://woodaa.de)";
+const USER_AGENT = "woodaa/1.0 (+https://woodaa.de)";
 const MIN_REQUEST_GAP_MS = 1100;
 
 let lastRequestAt = 0;

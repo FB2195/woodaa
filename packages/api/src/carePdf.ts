@@ -68,7 +68,7 @@ export async function generateCareApplicationPdf(input: {
   y -= 30;
   const declaration =
     `Ich beantrage hiermit die Kostenübernahme für ${bookingTypeLabels[input.bookingType]}. ` +
-    "Die vorstehenden Angaben wurden von mir digital über die Plattform Woodaa (woodaa.de) erfasst " +
+    "Die vorstehenden Angaben wurden von mir digital über die Plattform woodaa (woodaa.de) erfasst " +
     "und bestätigt.";
   const words = declaration.split(" ");
   const maxWidth = 595.28 - margin * 2;

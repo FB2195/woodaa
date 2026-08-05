@@ -10,7 +10,7 @@ function appUrl(): string {
 }
 
 function logoHtml(): string {
-  return `<p><img src="${appUrl()}/logo.png" alt="Woodaa" width="160" style="display:block;height:auto;max-width:160px" /></p>`;
+  return `<p><img src="${appUrl()}/logo.png" alt="woodaa" width="160" style="display:block;height:auto;max-width:160px" /></p>`;
 }
 
 async function sendEmail({
@@ -34,7 +34,7 @@ async function sendEmail({
     return;
   }
 
-  const from = process.env.EMAIL_FROM ?? "Woodaa <onboarding@resend.dev>";
+  const from = process.env.EMAIL_FROM ?? "woodaa <onboarding@resend.dev>";
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -67,23 +67,23 @@ export async function sendVerificationEmail({
 
   await sendEmail({
     to,
-    subject: "Bitte bestätige deine E-Mail-Adresse bei Woodaa",
+    subject: "Bitte bestätige deine E-Mail-Adresse bei woodaa",
     html: `
       ${logoHtml()}
       <p>Hallo ${name},</p>
-      <p>bitte bestätige deine E-Mail-Adresse, um dein Woodaa-Konto zu aktivieren:</p>
+      <p>bitte bestätige deine E-Mail-Adresse, um dein woodaa-Konto zu aktivieren:</p>
       <p><a href="${verifyUrl}">${verifyUrl}</a></p>
       <p>Der Link ist 24 Stunden gültig.</p>
-      <p>Falls du dich nicht bei Woodaa registriert hast, kannst du diese E-Mail ignorieren.</p>
+      <p>Falls du dich nicht bei woodaa registriert hast, kannst du diese E-Mail ignorieren.</p>
     `,
     text: `Hallo ${name},
 
-bitte bestätige deine E-Mail-Adresse, um dein Woodaa-Konto zu aktivieren:
+bitte bestätige deine E-Mail-Adresse, um dein woodaa-Konto zu aktivieren:
 ${verifyUrl}
 
 Der Link ist 24 Stunden gültig.
 
-Falls du dich nicht bei Woodaa registriert hast, kannst du diese E-Mail ignorieren.`,
+Falls du dich nicht bei woodaa registriert hast, kannst du diese E-Mail ignorieren.`,
   });
 }
 
@@ -100,18 +100,18 @@ export async function sendPasswordResetEmail({
 
   await sendEmail({
     to,
-    subject: "Passwort zurücksetzen bei Woodaa",
+    subject: "Passwort zurücksetzen bei woodaa",
     html: `
       ${logoHtml()}
       <p>Hallo ${name},</p>
-      <p>du hast angefordert, dein Passwort bei Woodaa zurückzusetzen:</p>
+      <p>du hast angefordert, dein Passwort bei woodaa zurückzusetzen:</p>
       <p><a href="${resetUrl}">${resetUrl}</a></p>
       <p>Der Link ist 1 Stunde gültig und nur einmal verwendbar.</p>
       <p>Falls du das nicht warst, kannst du diese E-Mail ignorieren — dein Passwort bleibt unverändert.</p>
     `,
     text: `Hallo ${name},
 
-du hast angefordert, dein Passwort bei Woodaa zurückzusetzen:
+du hast angefordert, dein Passwort bei woodaa zurückzusetzen:
 ${resetUrl}
 
 Der Link ist 1 Stunde gültig und nur einmal verwendbar.
@@ -147,14 +147,14 @@ export async function sendCareApplicationEmail({
     html: `
       <p>Antrag auf Kostenübernahme für <strong>${bookingTypeLabel}</strong></p>
       <p>Versicherte Person: ${applicantName}<br />Versicherungsnummer: ${versicherungsnummer}</p>
-      <p>Digital eingereicht über Woodaa (woodaa.de). Siehe angehängtes PDF für die vollständigen Angaben und die digitale Signatur.</p>
+      <p>Digital eingereicht über woodaa (woodaa.de). Siehe angehängtes PDF für die vollständigen Angaben und die digitale Signatur.</p>
     `,
     text: `Antrag auf Kostenübernahme für ${bookingTypeLabel}
 
 Versicherte Person: ${applicantName}
 Versicherungsnummer: ${versicherungsnummer}
 
-Digital eingereicht über Woodaa (woodaa.de). Siehe angehängtes PDF für die vollständigen Angaben und die digitale Signatur.`,
+Digital eingereicht über woodaa (woodaa.de). Siehe angehängtes PDF für die vollständigen Angaben und die digitale Signatur.`,
     attachments: [{ filename: `antrag-${fileSlug}.pdf`, content }],
   });
 }

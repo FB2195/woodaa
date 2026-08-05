@@ -40,7 +40,7 @@ const steps = [
   {
     icon: "🔍",
     title: "Suchen",
-    text: "Ort, Pflegeart und Budget eingeben - Woodaa zeigt sofort, wo aktuell wirklich ein Platz frei ist.",
+    text: "Ort, Pflegeart und Budget eingeben - woodaa zeigt sofort, wo aktuell wirklich ein Platz frei ist.",
   },
   {
     icon: "✅",
@@ -88,11 +88,11 @@ export default async function HomePage() {
             Deutschlandweit · geprüfte Einrichtungen · Verfügbarkeit in Echtzeit
           </span>
           <h1 className="mt-5 text-4xl font-bold leading-tight sm:text-5xl">
-            Den richtigen Pflegeplatz finden – so einfach wie ein Hotel buchen.
+            Pflegeplatz gesucht? Wo? Da!
           </h1>
           <p className="mt-4 text-lg text-white/80">
-            Woodaa verbindet Familien mit geprüften Pflegeeinrichtungen in
-            ganz Deutschland.
+            So einfach wie ein Hotel buchen: woodaa verbindet Familien mit
+            geprüften Pflegeeinrichtungen in ganz Deutschland.
           </p>
         </div>
 
@@ -120,7 +120,7 @@ export default async function HomePage() {
       <section className="border-b border-brand-border bg-brand-surface px-6 py-12">
         <div className="mx-auto max-w-6xl">
           <h2 className="text-2xl font-semibold text-brand-text">
-            Warum Woodaa?
+            Warum woodaa?
           </h2>
           <div className="mt-6 flex gap-4 overflow-x-auto pb-2">
             {trustPoints.map((point) => (
@@ -208,7 +208,7 @@ export default async function HomePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="text-2xl font-semibold text-brand-text">So funktioniert Woodaa</h2>
+        <h2 className="text-2xl font-semibold text-brand-text">So funktioniert woodaa</h2>
         <div className="mt-8 grid gap-8 sm:grid-cols-3">
           {steps.map((step, index) => (
             <div key={step.title} className="relative">
@@ -232,7 +232,7 @@ export default async function HomePage() {
           <div>
             <h2 className="text-xl font-semibold">Du betreibst eine Pflegeeinrichtung?</h2>
             <p className="mt-1 text-white/80">
-              Zeig deine echte Verfügbarkeit auf Woodaa - ohne Mehraufwand für dein Team.
+              Zeig deine echte Verfügbarkeit auf woodaa - ohne Mehraufwand für dein Team.
             </p>
           </div>
           <Link
