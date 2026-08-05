@@ -233,7 +233,6 @@ export type UpdateFacilityInput = z.infer<typeof UpdateFacilityInput>;
 // operator input, set via updatePricing.
 export const UpdatePricingInput = z.object({
   bookingType: BookingType,
-  monthlyPriceCents: z.number().int().min(0).optional(),
   availableFrom: z.string().datetime().optional(),
 });
 export type UpdatePricingInput = z.infer<typeof UpdatePricingInput>;

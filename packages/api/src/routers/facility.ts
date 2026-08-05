@@ -5,6 +5,7 @@ import { z } from "zod";
 import { geocodeSearchOrigin, reverseGeocode, searchLocations, type GeoPoint } from "../geocoding";
 import { haversineDistanceKm } from "../geo";
 import { getNearbyPlaces } from "../nearbyPlaces";
+import { monthlyEquivalentCents } from "../pricing";
 import { withPhotoUrl } from "../r2";
 import { checkRequestedAvailability } from "../searchAvailability";
 import { publicProcedure, router } from "../trpc";
@@ -14,13 +15,18 @@ import { publicProcedure, router } from "../trpc";
 // the facility itself has no coordinates. isAvailableForRequest/
 // availabilityNote are null unless bookingType plus a matching date/time
 // filter were given (see checkRequestedAvailability) - a plain search
-// without any of that never touches the availability engine.
+// without any of that never touches the availability engine. displayPriceCents
+// is the "ab X €/Monat" figure the card should show - the Pflegegrad-specific
+// rate when a Pflegegrad filter was given and the facility has entered one,
+// otherwise the same generic cheapest-capacity price as before (see
+// facilityDisplayPriceCents).
 export type FacilityListItem = FacilityWithCapacities & {
   distanceKm: number | null;
   avgRating: number | null;
   reviewCount: number;
   isAvailableForRequest: boolean | null;
   availabilityNote: string | null;
+  displayPriceCents: number | null;
 };
 
 // Powers the search results toolbar's filter chips (Pflegeart + Ausstattung)
@@ -72,8 +78,39 @@ function reviewStats(reviews: { rating: number }[]) {
   return { avgRating: avgOf(reviews.map((r) => r.rating)), reviewCount: reviews.length };
 }
 
+// The card's "ab X €/Monat" figure. When a Pflegegrad filter is set, prefers
+// the real rate that Pflegegrad actually pays (live computation against
+// CapacityPflegegradPricing, same formula as the auto-derived
+// FacilityCapacity.monthlyPriceCents - see monthlyEquivalentCents) - falls
+// back to the generic cheapest-capacity price when the facility hasn't
+// entered a rate for that specific Pflegegrad yet, so the line never just
+// disappears.
+function facilityDisplayPriceCents(
+  facility: { capacities: FacilityWithCapacities["capacities"] },
+  bookingType: BookingType | undefined,
+  pflegegrad: number | undefined,
+): number | null {
+  const relevant = bookingType
+    ? facility.capacities.filter((c) => c.bookingType === bookingType)
+    : facility.capacities;
+
+  if (pflegegrad !== undefined) {
+    const forPflegegrad = relevant
+      .map((c) =>
+        monthlyEquivalentCents(
+          c.bookingType,
+          c.pflegegradPricing.find((r) => r.pflegegrad === pflegegrad),
+        ),
+      )
+      .filter((p): p is number => p !== null);
+    if (forPflegegrad.length) return Math.min(...forPflegegrad);
+  }
+
+  return cheapestPrice(facility, bookingType);
+}
+
 function cheapestPrice(
-  facility: FacilityWithCapacities,
+  facility: { capacities: FacilityWithCapacities["capacities"] },
   bookingType: FacilityWithCapacities["capacities"][number]["bookingType"] | undefined,
 ): number | null {
   const relevant = bookingType
@@ -210,6 +247,7 @@ export const facilityRouter = router({
         reviewCount: ratingByFacility.get(f.id)?.reviewCount ?? 0,
         isAvailableForRequest: annotations[i]!.isAvailableForRequest,
         availabilityNote: annotations[i]!.availabilityNote,
+        displayPriceCents: facilityDisplayPriceCents(f, input.bookingType, input.pflegegrad),
       }));
 
       if (input.radiusKm !== undefined && origin) {
@@ -219,9 +257,12 @@ export const facilityRouter = router({
       }
 
       if (input.sort === "price_asc") {
+        // Sorts by the same figure the card actually shows (displayPriceCents
+        // - Pflegegrad-specific when that filter is set) rather than always
+        // the generic cheapest price, so the order matches what's on screen.
         results.sort((a, b) => {
-          const pa = cheapestPrice(a, input.bookingType);
-          const pb = cheapestPrice(b, input.bookingType);
+          const pa = a.displayPriceCents;
+          const pb = b.displayPriceCents;
           if (pa === null && pb === null) return 0;
           if (pa === null) return 1;
           if (pb === null) return -1;

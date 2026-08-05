@@ -21,6 +21,11 @@ type Facility = FacilityWithCapacities & {
   // packages/api/src/searchAvailability.ts.
   isAvailableForRequest?: boolean | null;
   availabilityNote?: string | null;
+  // Set by facility.list - the Pflegegrad-specific rate when a Pflegegrad
+  // filter was given, else the same generic price cheapestCapacityPrice
+  // would compute. undefined (not null) on call sites without search
+  // context (e.g. /favoriten), which fall back to computing it locally.
+  displayPriceCents?: number | null;
 };
 
 export function FacilityCard({
@@ -76,7 +81,10 @@ export function FacilityCard({
           </p>
           <p className="mt-2 text-sm font-medium text-brand-text">
             {(() => {
-              const price = cheapestCapacityPrice(facility);
+              const price =
+                facility.displayPriceCents !== undefined
+                  ? facility.displayPriceCents
+                  : cheapestCapacityPrice(facility);
               return price !== null ? `ab ${formatPriceEuro(price)}/Monat` : "Preis auf Anfrage";
             })()}
           </p>
