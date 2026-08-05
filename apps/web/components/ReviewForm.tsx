@@ -4,7 +4,13 @@ import { useState } from "react";
 import { StarRatingInput } from "@/components/StarRatingInput";
 import { trpc } from "@/lib/trpc";
 
-export function ReviewForm({ facilityId }: { facilityId: string }) {
+export function ReviewForm({
+  facilityId,
+  defaultReviewerName,
+}: {
+  facilityId: string;
+  defaultReviewerName: string;
+}) {
   const [rating, setRating] = useState(0);
   const [careRating, setCareRating] = useState(0);
   const [cleanlinessRating, setCleanlinessRating] = useState(0);
@@ -15,9 +21,7 @@ export function ReviewForm({ facilityId }: { facilityId: string }) {
   if (createReview.isSuccess) {
     return (
       <div className="rounded-brand-lg border border-brand-accent bg-brand-accent/10 p-6">
-        <p className="font-semibold text-brand-primary-dark">
-          Danke für deine Bewertung!
-        </p>
+        <p className="font-semibold text-brand-primary-dark">Danke für deine Bewertung!</p>
         <p className="mt-1 text-sm text-brand-text-muted">
           Sie wird nach kurzer Prüfung durch unser Team veröffentlicht.
         </p>
@@ -35,7 +39,6 @@ export function ReviewForm({ facilityId }: { facilityId: string }) {
         createReview.mutate({
           facilityId,
           reviewerName: String(form.get("reviewerName") ?? ""),
-          reviewerEmail: String(form.get("reviewerEmail") ?? ""),
           rating: rating as 1 | 2 | 3 | 4 | 5,
           careRating: (careRating || undefined) as 1 | 2 | 3 | 4 | 5 | undefined,
           cleanlinessRating: (cleanlinessRating || undefined) as
@@ -51,10 +54,6 @@ export function ReviewForm({ facilityId }: { facilityId: string }) {
         });
       }}
     >
-      <h3 className="text-lg font-semibold text-brand-primary-dark">
-        Bewertung abgeben
-      </h3>
-
       <StarRatingInput label="Gesamtbewertung" value={rating} onChange={setRating} required />
       <StarRatingInput label="Pflege (optional)" value={careRating} onChange={setCareRating} />
       <StarRatingInput
@@ -66,26 +65,13 @@ export function ReviewForm({ facilityId }: { facilityId: string }) {
       <StarRatingInput label="Personal (optional)" value={staffRating} onChange={setStaffRating} />
 
       <label className="flex flex-col gap-1 text-sm text-brand-text">
-        Name
+        Name (wird veröffentlicht)
         <input
           name="reviewerName"
           required
+          defaultValue={defaultReviewerName}
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm text-brand-text">
-        E-Mail
-        <input
-          type="email"
-          name="reviewerEmail"
-          required
-          className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
-        />
-        <span className="text-xs text-brand-text-muted">
-          Wird nicht veröffentlicht. Muss mit der E-Mail-Adresse deiner
-          Buchungsanfrage übereinstimmen.
-        </span>
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-brand-text">

@@ -40,7 +40,10 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/favoriten") ||
     // Verbindliches Buchen braucht ein Konto (Sozialdaten, Nachvollziehbarkeit) -
     // unverbindliches Anfragen auf der Einrichtungsseite selbst bleibt offen.
-    /^\/einrichtung\/[^/]+\/buchen$/.test(pathname);
+    /^\/einrichtung\/[^/]+\/buchen$/.test(pathname) ||
+    // Bewerten braucht ein Konto, weil die Berechtigung (echte, bestätigte
+    // Buchung bei dieser Einrichtung) am eingeloggten User hängt.
+    /^\/einrichtung\/[^/]+\/bewerten$/.test(pathname);
 
   if (isDashboardRoute && !request.cookies.has(ACCESS_COOKIE)) {
     const url = request.nextUrl.clone();

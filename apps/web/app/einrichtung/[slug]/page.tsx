@@ -158,7 +158,7 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
           </div>
 
           <FacilityReviews
-            facilityId={facility.id}
+            facilitySlug={facility.slug}
             reviews={facility.reviews}
             avgRating={facility.avgRating}
             reviewCount={facility.reviewCount}

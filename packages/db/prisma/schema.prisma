@@ -160,6 +160,7 @@ model User {
   vollmachtReviewedAt          DateTime?
   careApplications             CareApplication[]
   bookings                     Booking[]
+  reviews                      Review[]
   createdAt                    DateTime               @default(now())
 }
 
@@ -479,20 +480,22 @@ enum PhotoCategory {
   SONSTIGE
 }
 
-// Only a Suchende who can prove genuine prior contact with the facility (a
-// case-insensitive matching BookingRequest.requesterEmail - see review.ts)
-// may create one; every row starts PENDING and only becomes publicly
-// visible once an admin approves it (same moderation shape as
-// FacilityStatus.PENDING_REVIEW). reviewerEmail is stored but never
-// surfaced to other users - same trust/display treatment as
-// BookingRequest.requesterEmail. @@unique enforces "one review per person
-// per facility" at the DB level instead of a racy check-then-create.
+// Only a logged-in Suchende with a confirmed (BESTAETIGT) Booking at the
+// facility may create one - see review.ts's eligibility check. Every row
+// starts PENDING and only becomes publicly visible once an admin approves
+// it (same moderation shape as FacilityStatus.PENDING_REVIEW). @@unique
+// enforces "one review per person per facility" at the DB level instead of
+// a racy check-then-create.
 model Review {
   id                String       @id @default(cuid())
   facility          Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   facilityId        String
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
+  // Display name shown with the review - defaults to the account holder's
+  // name but editable, since a Bevollmächtigte/r Angehörige/r may want to
+  // sign as e.g. "Tochter von Frau Mustermann" instead of their own name.
   reviewerName      String
-  reviewerEmail     String
   rating            Int
   careRating        Int?
   cleanlinessRating Int?
@@ -502,7 +505,7 @@ model Review {
   status            ReviewStatus @default(PENDING)
   createdAt         DateTime     @default(now())
 
-  @@unique([facilityId, reviewerEmail])
+  @@unique([facilityId, userId])
   @@index([facilityId])
 }
 
