@@ -1,0 +1,76 @@
+import type { Messages } from "../types";
+
+export const en: Messages = {
+  header: {
+    registerFacility: "Register your care facility",
+    dashboard: "Dashboard",
+    favorites: "Favorites",
+    myAccount: "My account",
+    logout: "Log out",
+    login: "Log in",
+    helpSupport: "Help & Support",
+    customerService: "Customer service",
+    aboutUs: "About us",
+    privacy: "Privacy",
+    imprint: "Legal notice",
+    cookieInfo: "Cookie info",
+    reportIssue: "Report a problem",
+    myProfile: "My profile",
+    openMenu: "Open menu",
+    closeMenu: "Close menu",
+    language: "Language",
+  },
+  footer: {
+    brandColumn: "woodaa",
+    helpColumn: "Help & Support",
+    legalColumn: "Legal",
+    faq: "FAQ",
+    copyright: "© {year} woodaa",
+  },
+  home: {
+    badge: "Nationwide · vetted facilities · real-time availability",
+    heroTitle: "Looking for a care home? Wo? Da!",
+    heroSubtitle:
+      "As easy as booking a hotel: woodaa connects families with vetted care facilities across Germany.",
+    statsFacilitiesLabel: "facilities",
+    statsCitiesLabel: "cities",
+    statsBookingTypesLabel: "care types",
+    statsInstantBooking: "instantly bookable",
+    whyTitle: "Why woodaa?",
+    trust1Title: "Real-time availability",
+    trust1Text:
+      "No more guessing over the phone - you see immediately where a place is actually free right now.",
+    trust2Title: "No double bookings",
+    trust2Text:
+      "Every booked place is reserved with a technical safeguard - no mix-ups, no double allocation, guaranteed.",
+    trust3Title: "Vetted facilities",
+    trust3Text: "Every facility is reviewed by us before it goes live.",
+    trust4Title: "Free, no-obligation inquiries",
+    trust4Text:
+      "Take your time to find out more, then decide - an inquiry costs nothing and commits you to nothing.",
+    howItWorksTitle: "How woodaa works",
+    step1Label: "Step 1",
+    step1Title: "Search",
+    step1Text:
+      "Enter location, care type and budget - woodaa instantly shows where a place is actually available right now.",
+    step2Label: "Step 2",
+    step2Title: "Book or inquire",
+    step2Text:
+      "Book directly and bindingly, or reach out first with no obligation - you set the pace.",
+    step3Label: "Step 3",
+    step3Title: "Arrive",
+    step3Text:
+      "The facility is notified and prepares for move-in. No back-and-forth faxing, no double bookings.",
+    operatorCta: "Do you run a care facility?",
+    operatorCtaText: "Show your real availability on woodaa - with no extra work for your team.",
+    operatorCtaButton: "Register your facility",
+  },
+  language: {
+    de: "Deutsch",
+    en: "English",
+    tr: "Türkçe",
+    it: "Italiano",
+    fr: "Français",
+    es: "Español",
+  },
+};

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { Footer } from "@/components/Footer";
 import { SessionRefresher } from "@/components/SessionRefresher";
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import { trpc } from "@/lib/trpc";
 
 // The access-token cookie now expires after 20 minutes. Rather than every
@@ -38,10 +39,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <SessionRefresher />
-        {children}
-        <Footer />
-        <CookieConsentBanner />
+        <LocaleProvider>
+          <SessionRefresher />
+          {children}
+          <Footer />
+          <CookieConsentBanner />
+        </LocaleProvider>
       </QueryClientProvider>
     </trpc.Provider>
   );

@@ -1,0 +1,75 @@
+import type { Messages } from "../types";
+
+export const it: Messages = {
+  header: {
+    registerFacility: "Registra la tua struttura",
+    dashboard: "Dashboard",
+    favorites: "Preferiti",
+    myAccount: "Il mio account",
+    logout: "Disconnetti",
+    login: "Accedi",
+    helpSupport: "Assistenza",
+    customerService: "Servizio clienti",
+    aboutUs: "Chi siamo",
+    privacy: "Privacy",
+    imprint: "Note legali",
+    cookieInfo: "Informazioni sui cookie",
+    reportIssue: "Segnala un problema",
+    myProfile: "Il mio profilo",
+    openMenu: "Apri il menu",
+    closeMenu: "Chiudi il menu",
+    language: "Lingua",
+  },
+  footer: {
+    brandColumn: "woodaa",
+    helpColumn: "Assistenza",
+    legalColumn: "Note legali",
+    faq: "FAQ",
+    copyright: "© {year} woodaa",
+  },
+  home: {
+    badge: "In tutta la Germania · strutture verificate · disponibilità in tempo reale",
+    heroTitle: "Cerchi una casa di cura? Wo? Da!",
+    heroSubtitle:
+      "Facile come prenotare un hotel: woodaa mette in contatto le famiglie con strutture di cura verificate in tutta la Germania.",
+    statsFacilitiesLabel: "strutture",
+    statsCitiesLabel: "città",
+    statsBookingTypesLabel: "tipi di assistenza",
+    statsInstantBooking: "prenotazione immediata e vincolante",
+    whyTitle: "Perché woodaa?",
+    trust1Title: "Disponibilità in tempo reale",
+    trust1Text:
+      "Niente più indovinelli al telefono - vedi subito dove c'è davvero un posto libero in questo momento.",
+    trust2Title: "Nessuna doppia prenotazione",
+    trust2Text:
+      "Ogni posto prenotato viene riservato con una protezione tecnica - garantito, niente scambi né doppie assegnazioni.",
+    trust3Title: "Strutture verificate",
+    trust3Text: "Ogni struttura viene controllata da noi prima di essere pubblicata.",
+    trust4Title: "Richieste gratuite e senza impegno",
+    trust4Text: "Informati con calma, poi decidi - una richiesta non costa nulla e non ti impegna a niente.",
+    howItWorksTitle: "Come funziona woodaa",
+    step1Label: "Passo 1",
+    step1Title: "Cerca",
+    step1Text:
+      "Inserisci località, tipo di assistenza e budget - woodaa mostra subito dove c'è davvero un posto libero.",
+    step2Label: "Passo 2",
+    step2Title: "Prenota o richiedi informazioni",
+    step2Text:
+      "Prenota subito in modo vincolante oppure contattaci prima senza impegno - decidi tu i tempi.",
+    step3Label: "Passo 3",
+    step3Title: "Arrivo",
+    step3Text:
+      "La struttura viene informata e prepara l'ingresso. Niente fax avanti e indietro, nessuna doppia prenotazione.",
+    operatorCta: "Gestisci una struttura di cura?",
+    operatorCtaText: "Mostra la tua disponibilità reale su woodaa - senza lavoro extra per il tuo team.",
+    operatorCtaButton: "Registra la struttura",
+  },
+  language: {
+    de: "Deutsch",
+    en: "English",
+    tr: "Türkçe",
+    it: "Italiano",
+    fr: "Français",
+    es: "Español",
+  },
+};
