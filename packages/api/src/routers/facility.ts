@@ -1,8 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import type { FacilityWithCapacities } from "@woodaa/db";
-import { FacilitySearchInput } from "@woodaa/validators";
+import { AMENITY_OPTIONS, BookingType, FacilitySearchInput } from "@woodaa/validators";
 import { z } from "zod";
-import { geocodeSearchOrigin, searchLocations, type GeoPoint } from "../geocoding";
+import { geocodeSearchOrigin, reverseGeocode, searchLocations, type GeoPoint } from "../geocoding";
 import { haversineDistanceKm } from "../geo";
 import { withPhotoUrl } from "../r2";
 import { publicProcedure, router } from "../trpc";
@@ -16,8 +16,35 @@ export type FacilityListItem = FacilityWithCapacities & {
   reviewCount: number;
 };
 
+// Powers the search results toolbar's filter chips (Pflegeart + Ausstattung)
+// with live counts, Booking.com-style - each count reflects every OTHER
+// active filter except the chip's own dimension, computed against the same
+// city/price/pflegegrad-filtered pool as the results themselves (see list
+// below), not a separate query per chip.
+export type FacilitySearchResult = {
+  results: FacilityListItem[];
+  totalCount: number;
+  bookingTypeCounts: Record<BookingType, number>;
+  amenityCounts: Record<string, number>;
+};
+
 function avgOf(values: number[]): number | null {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+}
+
+// Narrower than FacilityWithCapacities on purpose - these run against the
+// raw pool query result, before withPhotoUrl has mapped photos.key to
+// photos.url, so they must not require the full (post-mapping) shape.
+type FacetableFacility = { capacities: FacilityWithCapacities["capacities"]; amenities: string[] };
+
+function matchesBookingType(facility: FacetableFacility, type: BookingType | undefined): boolean {
+  if (!type) return true;
+  return facility.capacities.some((c) => c.bookingType === type && c.availableSlots > 0);
+}
+
+function matchesAmenities(facility: FacetableFacility, amenities: string[] | undefined): boolean {
+  if (!amenities || amenities.length === 0) return true;
+  return amenities.every((a) => facility.amenities.includes(a));
 }
 
 // Derived from an already-fetched array, same "no second round-trip for
@@ -43,8 +70,13 @@ function cheapestPrice(
 export const facilityRouter = router({
   list: publicProcedure
     .input(FacilitySearchInput)
-    .query(async ({ ctx, input }): Promise<FacilityListItem[]> => {
-      const facilities = await ctx.db.facility.findMany({
+    .query(async ({ ctx, input }): Promise<FacilitySearchResult> => {
+      // bookingType and amenities are deliberately NOT in this WHERE clause -
+      // they're the two "faceted" dimensions the results toolbar shows as
+      // chips with live counts, computed in JS below against this same
+      // pool. city/maxPriceCents/pflegegrad are "hard" filters that always
+      // apply to the pool itself (same as before this facet support existed).
+      const pool = await ctx.db.facility.findMany({
         where: {
           status: "ACTIVE",
           // "city" is really "Ort oder PLZ" from the user's perspective - a
@@ -58,23 +90,8 @@ export const facilityRouter = router({
                 ],
               }
             : {}),
-          // bookingType and maxPriceCents must be checked against the SAME
-          // capacity row (a single `some`), not two independent ones -
-          // otherwise a facility could match via different capacities for
-          // type-availability and for price.
-          ...(input.bookingType || input.maxPriceCents !== undefined
-            ? {
-                capacities: {
-                  some: {
-                    ...(input.bookingType
-                      ? { bookingType: input.bookingType, availableSlots: { gt: 0 } }
-                      : {}),
-                    ...(input.maxPriceCents !== undefined
-                      ? { monthlyPriceCents: { lte: input.maxPriceCents } }
-                      : {}),
-                  },
-                },
-              }
+          ...(input.maxPriceCents !== undefined
+            ? { capacities: { some: { monthlyPriceCents: { lte: input.maxPriceCents } } } }
             : {}),
           // Both minPflegegrad/maxPflegegrad null = "not specified" - stays
           // visible under any Pflegegrad filter (fail-open).
@@ -95,6 +112,25 @@ export const facilityRouter = router({
         },
         orderBy: { createdAt: "desc" },
       });
+
+      const poolFilteredByAmenities = pool.filter((f) => matchesAmenities(f, input.amenities));
+      const poolFilteredByType = pool.filter((f) => matchesBookingType(f, input.bookingType));
+      const bookingTypeCounts = Object.fromEntries(
+        BookingType.options.map((type) => [
+          type,
+          poolFilteredByAmenities.filter((f) => matchesBookingType(f, type)).length,
+        ]),
+      ) as Record<BookingType, number>;
+      const amenityCounts = Object.fromEntries(
+        AMENITY_OPTIONS.map((amenity) => [
+          amenity,
+          poolFilteredByType.filter((f) => matchesAmenities(f, [amenity])).length,
+        ]),
+      );
+
+      const facilities = pool.filter(
+        (f) => matchesBookingType(f, input.bookingType) && matchesAmenities(f, input.amenities),
+      );
 
       // Price and distance sorting can't be expressed in Prisma's orderBy
       // (price is a derived min over nested rows; distance needs a geocoded
@@ -160,7 +196,7 @@ export const facilityRouter = router({
       // applied. Array.prototype.sort is stable in V8, so price/distance
       // ties keep their newest-first relative order for free.
 
-      return results;
+      return { results, totalCount: results.length, bookingTypeCounts, amenityCounts };
     }),
 
   bySlug: publicProcedure
@@ -203,4 +239,13 @@ export const facilityRouter = router({
   searchLocations: publicProcedure
     .input(z.object({ query: z.string().trim().min(2) }))
     .query(async ({ input }) => searchLocations(input.query)),
+
+  // Backs the "In deiner Nähe suchen" geolocation shortcut - browser gives
+  // us coordinates, we turn that into a city name the existing city-based
+  // search already knows how to handle.
+  reverseGeocode: publicProcedure
+    .input(z.object({ latitude: z.number(), longitude: z.number() }))
+    .query(async ({ input }) => ({
+      city: await reverseGeocode(input.latitude, input.longitude),
+    })),
 });

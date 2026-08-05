@@ -1,13 +1,22 @@
 "use client";
 
 import type { FacilityListItem } from "@woodaa/api";
-import type { Pflegegrad } from "@woodaa/validators";
+import type { BookingType, Pflegegrad } from "@woodaa/validators";
 import { useState } from "react";
 import { FacilityCard } from "@/components/FacilityCard";
 import { FacilityMap } from "@/components/FacilityMap";
+import { SearchToolbar } from "@/components/search/SearchToolbar";
 import { trpc } from "@/lib/trpc";
 
-export function SearchResultsView({ facilities }: { facilities: FacilityListItem[] }) {
+export function SearchResultsView({
+  facilities,
+  bookingTypeCounts,
+  amenityCounts,
+}: {
+  facilities: FacilityListItem[];
+  bookingTypeCounts: Record<BookingType, number>;
+  amenityCounts: Record<string, number>;
+}) {
   const [view, setView] = useState<"list" | "map">("list");
   // Gracefully empty for logged-out visitors, same pattern as Header.tsx's
   // auth.me query - no error, just no favorites pre-filled.
@@ -26,46 +35,34 @@ export function SearchResultsView({ facilities }: { facilities: FacilityListItem
       : undefined;
 
   return (
-    <div className="mt-8">
-      <div className="mb-4 flex gap-2">
-        <button
-          type="button"
-          onClick={() => setView("list")}
-          className={`rounded-brand-md border px-4 py-2 text-sm font-semibold transition ${
-            view === "list"
-              ? "border-brand-accent bg-brand-accent text-white"
-              : "border-brand-border text-brand-text hover:bg-brand-background"
-          }`}
-        >
-          Liste
-        </button>
-        <button
-          type="button"
-          onClick={() => setView("map")}
-          className={`rounded-brand-md border px-4 py-2 text-sm font-semibold transition ${
-            view === "map"
-              ? "border-brand-accent bg-brand-accent text-white"
-              : "border-brand-border text-brand-text hover:bg-brand-background"
-          }`}
-        >
-          Karte
-        </button>
-      </div>
+    <div className="mt-6">
+      <SearchToolbar
+        bookingTypeCounts={bookingTypeCounts}
+        amenityCounts={amenityCounts}
+        mapView={view === "map"}
+        onToggleMap={() => setView((v) => (v === "map" ? "list" : "map"))}
+      />
 
-      {view === "list" ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {facilities.map((facility) => (
-            <FacilityCard
-              key={facility.id}
-              facility={facility}
-              initialFavorited={favoritedSet.has(facility.id)}
-              pflegegrad={pflegegrad}
-            />
-          ))}
-        </div>
-      ) : (
-        <FacilityMap facilities={facilities} />
-      )}
+      <div className="mt-6">
+        {facilities.length === 0 ? (
+          <p className="rounded-brand-lg border border-brand-border bg-brand-surface p-8 text-center text-brand-text-muted">
+            Keine Einrichtungen gefunden. Versuche andere Filter.
+          </p>
+        ) : view === "list" ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {facilities.map((facility) => (
+              <FacilityCard
+                key={facility.id}
+                facility={facility}
+                initialFavorited={favoritedSet.has(facility.id)}
+                pflegegrad={pflegegrad}
+              />
+            ))}
+          </div>
+        ) : (
+          <FacilityMap facilities={facilities} />
+        )}
+      </div>
     </div>
   );
 }
