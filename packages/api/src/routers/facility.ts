@@ -4,6 +4,7 @@ import { AMENITY_OPTIONS, BookingType, FacilitySearchInput } from "@woodaa/valid
 import { z } from "zod";
 import { geocodeSearchOrigin, reverseGeocode, searchLocations, type GeoPoint } from "../geocoding";
 import { haversineDistanceKm } from "../geo";
+import { getNearbyPlaces } from "../nearbyPlaces";
 import { withPhotoUrl } from "../r2";
 import { publicProcedure, router } from "../trpc";
 
@@ -248,4 +249,10 @@ export const facilityRouter = router({
     .query(async ({ input }) => ({
       city: await reverseGeocode(input.latitude, input.longitude),
     })),
+
+  // "Umgebung der Unterkunft" section on the facility detail page -
+  // shopping/healthcare/transport points of interest near the facility.
+  nearbyPlaces: publicProcedure
+    .input(z.object({ latitude: z.number(), longitude: z.number() }))
+    .query(async ({ input }) => getNearbyPlaces(input.latitude, input.longitude)),
 });
