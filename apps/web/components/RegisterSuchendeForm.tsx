@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Pflegegrad } from "@woodaa/validators";
+import { GESETZLICHE_VERSICHERUNGSNUMMER_REGEX, type Pflegegrad } from "@woodaa/validators";
 import { establishSession, redirectFor } from "@/lib/authSession";
 import { GESETZLICHE_KRANKENKASSEN } from "@/lib/krankenkassen";
 import { pflegegradOptions } from "@/lib/pflegegradLabels";
@@ -42,10 +42,28 @@ export function RegisterSuchendeForm() {
               ? get("krankenkasseAndere")
               : gesetzlicheKasse;
 
-        // Guarded by the <select required> above - pflegegrad can't
-        // actually be "" once the browser lets the form submit.
+        // Guarded by the <select required>/radio required above - pflegegrad
+        // and krankenkasseArt can't actually be "" once the browser lets the
+        // form submit.
         if (pflegegrad === "") {
           setError("Bitte wähle einen Pflegegrad aus.");
+          return;
+        }
+        if (krankenkasseArt === "") {
+          setError("Bitte wähle gesetzlich oder privat versichert aus.");
+          return;
+        }
+
+        const versicherungsnummer = get("versicherungsnummer");
+        if (
+          krankenkasseArt === "GESETZLICH" &&
+          !GESETZLICHE_VERSICHERUNGSNUMMER_REGEX.test(versicherungsnummer)
+        ) {
+          setError(
+            "Das sieht nicht nach einer gültigen Versichertennummer aus - sie besteht aus " +
+              "einem Buchstaben gefolgt von 9 Ziffern (z. B. A123456789) und steht auf der " +
+              "Vorderseite deiner Versichertenkarte.",
+          );
           return;
         }
 
@@ -63,8 +81,9 @@ export function RegisterSuchendeForm() {
             phone: get("phone") || undefined,
             pflegegrad,
             pflegegradAntragLaeuft: form.get("pflegegradAntragLaeuft") === "on",
+            krankenkasseArt,
             krankenkasse,
-            versicherungsnummer: get("versicherungsnummer"),
+            versicherungsnummer,
             hatBevollmaechtigten,
             bevollmaechtigterVorname: hatBevollmaechtigten
               ? get("bevollmaechtigterVorname")
@@ -284,9 +303,12 @@ export function RegisterSuchendeForm() {
         <input
           name="versicherungsnummer"
           required
-          placeholder="z. B. A123456789"
+          placeholder={krankenkasseArt === "GESETZLICH" ? "z. B. A123456789" : undefined}
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
+        <span className="text-xs text-brand-text-muted">
+          Du findest sie auf der Vorderseite deiner Versichertenkarte.
+        </span>
       </label>
 
       <div className="border-t border-brand-border pt-4">
