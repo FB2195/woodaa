@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { BookingType, PaymentMethod, Pflegegrad } from "@woodaa/validators";
 import { CancelBookingBox } from "@/components/CancelBookingBox";
+import { DateRangeCalendar } from "@/components/booking/DateRangeCalendar";
 import { KostenuebernahmeUpload } from "@/components/booking/KostenuebernahmeUpload";
 import { StripePaymentStep } from "@/components/booking/StripePaymentStep";
 import { bookingTypeLabels, dateRangedBookingTypes } from "@/lib/bookingTypeLabels";
@@ -348,6 +349,17 @@ export function BookingForm({
               />
             </label>
           </div>
+
+          <DateRangeCalendar
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(newStart, newEnd) => {
+              setStartDate(newStart);
+              setEndDate(newEnd);
+            }}
+            disabled={endeOffen}
+          />
+
           <label className="flex items-center gap-2 text-sm text-brand-text">
             <input
               type="checkbox"

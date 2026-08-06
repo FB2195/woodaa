@@ -13,6 +13,7 @@ export type {
   AdminPendingReview,
   AdminPendingVollmacht,
 } from "./routers/admin";
+export type { MyBooking } from "./routers/booking";
 export type {
   FacilityCapacity,
   FacilityChangeRequest,

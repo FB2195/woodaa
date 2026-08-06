@@ -1,6 +1,8 @@
 import type { BookingType } from "@woodaa/validators";
 import type { FacilityWithOperatorDetails } from "@woodaa/api";
 import { AmenitiesEditor } from "./AmenitiesEditor";
+import { BookingApprovalModeForm } from "./BookingApprovalModeForm";
+import { BookingApprovals } from "./BookingApprovals";
 import { CategoryPanel } from "./CategoryPanel";
 import { FacilityContactForm } from "./FacilityContactForm";
 import { HouseRulesForm } from "./HouseRulesForm";
@@ -93,7 +95,11 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
 
       <AmenitiesEditor amenities={facility.amenities} />
 
+      <BookingApprovals bookings={facility.units.flatMap((u) => u.bookings)} />
+
       <PaymentApprovals bookings={facility.units.flatMap((u) => u.bookings)} />
+
+      <BookingApprovalModeForm mode={facility.bookingApprovalMode} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         {allBookingTypes.map((type) => (

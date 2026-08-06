@@ -1,3 +1,11 @@
+import type {
+  BookingAdminApprovalStatus,
+  BookingFacilityApprovalStatus,
+  BookingType,
+  PaymentMethod,
+  PaymentStatus,
+  UnitBookingStatus,
+} from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import {
   CancelBookingInput,
@@ -6,12 +14,37 @@ import {
   paymentMethodsRequiringStripe,
   RequestKostenuebernahmeUploadInput,
 } from "@woodaa/validators";
+import { z } from "zod";
 import { cancelBooking, createBooking } from "../availability";
 import { encryptSecret } from "../crypto";
+import { resolveBookingRecipient, sendBookingConfirmationEmail } from "../email";
 import { chargeAmountCents } from "../pricing";
 import { createPresignedDownloadUrl, createPresignedUploadUrl, newDocumentKey } from "../r2";
 import { stripeClient } from "../stripe";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
+
+// The exact shape returned by myBookings' `select` below - explicit rather
+// than a full `Booking &`, since (unlike e.g. AdminPendingBookingApproval)
+// this is a deliberate subset of Booking's columns, not all of them.
+export type MyBooking = {
+  id: string;
+  bookingType: BookingType;
+  status: UnitBookingStatus;
+  startDate: Date | null;
+  endDate: Date | null;
+  desiredStartDate: Date | null;
+  hoursPerDay: number | null;
+  guestFirstName: string | null;
+  guestLastName: string | null;
+  paymentMethod: PaymentMethod | null;
+  paymentStatus: PaymentStatus | null;
+  facilityApprovedAt: Date | null;
+  adminApprovalStatus: BookingAdminApprovalStatus;
+  facilityApprovalStatus: BookingFacilityApprovalStatus;
+  createdAt: Date;
+  cancelledAt: Date | null;
+  facility: { name: string; slug: string; street: string; postalCode: string; city: string };
+};
 
 // Verbindliche, sofort bestätigte Buchung ("wie Booking.com") - im
 // Unterschied zu bookingRequest.create (unverbindliche Anfrage) wird hier
@@ -25,6 +58,9 @@ export const bookingRouter = router({
       where: { id: input.facilityId, status: "ACTIVE" },
       select: {
         id: true,
+        name: true,
+        slug: true,
+        bookingApprovalMode: true,
         capacities: {
           where: { bookingType: input.bookingType },
           select: { pflegegradPricing: true },
@@ -96,6 +132,21 @@ export const bookingRouter = router({
       // needs woodaa staff's sign-off, independent of the facility-side
       // payment approval above - see admin.pendingBookingApprovals.
       adminApprovalStatus: user.vollmachtDocumentKey ? "AUSSTEHEND" : "NICHT_ERFORDERLICH",
+      facilityApprovalStatus:
+        facility.bookingApprovalMode === "MANUELL" ? "AUSSTEHEND" : "NICHT_ERFORDERLICH",
+    });
+
+    const { to, recipientName } = resolveBookingRecipient(user);
+    await sendBookingConfirmationEmail({
+      to,
+      recipientName,
+      guestName: `${input.guestFirstName} ${input.guestLastName}`.trim(),
+      facilityName: facility.name,
+      facilitySlug: facility.slug,
+      bookingType: input.bookingType,
+      startDate: input.startDate ? new Date(input.startDate) : null,
+      endDate: input.endDate ? new Date(input.endDate) : null,
+      facilityApprovalRequired: facility.bookingApprovalMode === "MANUELL",
     });
 
     if (!usesStripe || amountCents === null) {
@@ -172,6 +223,54 @@ export const bookingRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       return { url: await createPresignedDownloadUrl(booking.kostenuebernahmeDocumentKey) };
+    }),
+
+  // Für "Meine Buchungen" im Konto - nur die eigenen Buchungen, neueste
+  // zuerst. Kein decrypt der Versicherungsnummer, die wird hier nicht
+  // gebraucht.
+  myBookings: protectedProcedure.query(({ ctx }): Promise<MyBooking[]> =>
+    ctx.db.booking.findMany({
+      where: { userId: ctx.user.id },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        bookingType: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        desiredStartDate: true,
+        hoursPerDay: true,
+        guestFirstName: true,
+        guestLastName: true,
+        paymentMethod: true,
+        paymentStatus: true,
+        facilityApprovedAt: true,
+        adminApprovalStatus: true,
+        facilityApprovalStatus: true,
+        createdAt: true,
+        cancelledAt: true,
+        facility: {
+          select: { name: true, slug: true, street: true, postalCode: true, city: true },
+        },
+      },
+    }),
+  ),
+
+  // Storno durch die eingeloggte Nutzerin/den eingeloggten Nutzer selbst,
+  // aus "Meine Buchungen" heraus - Berechtigung ist die Konto-Ownership
+  // (userId), nicht die guestEmail wie bei der öffentlichen `cancel`
+  // Prozedur unten (die z. B. auch für Buchungen ohne aktuelle Session
+  // funktionieren muss, etwa über einen Link in der Bestätigungsmail).
+  myCancel: protectedProcedure
+    .input(z.object({ bookingId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const booking = await cancelBooking(ctx.db, input.bookingId, {
+        requireUserId: ctx.user.id,
+      });
+      if (booking.paymentStatus === "BEZAHLT" && booking.stripePaymentIntentId) {
+        await stripeClient().refunds.create({ payment_intent: booking.stripePaymentIntentId });
+      }
+      return booking;
     }),
 
   // Storno durch die Suchende/den Suchenden selbst - keine Login-Pflicht,

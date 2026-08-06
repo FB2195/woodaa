@@ -5,7 +5,17 @@
  */
 function appUrl(): string {
   if (process.env.APP_URL) return process.env.APP_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  // VERCEL_ENV is "production" for the live custom domain and "preview" for
+  // per-PR/per-branch deployments - only preview builds should ever link to
+  // their own ephemeral *.vercel.app URL. Production (and any non-Vercel
+  // prod deploy that forgot to set APP_URL) must always link back to the
+  // real domain, not whichever deployment happened to send the email.
+  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  if (process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production") {
+    return "https://woodaa.de";
+  }
   return "http://localhost:3000";
 }
 
@@ -182,6 +192,168 @@ bitte bestätige, dass diese Adresse deine neue E-Mail-Adresse bei woodaa werden
 ${confirmUrl}
 
 Der Link ist 1 Stunde gültig. Danach ist diese Adresse deine neue Login-E-Mail-Adresse.`,
+  });
+}
+
+// Shared by every booking-related email (initial confirmation, facility
+// decision): sends to the account's Bevollmächtigter instead of the
+// Versicherte/n if one was declared at registration - purely informational
+// contact fields, not to be confused with the document-based
+// "Bevollmächtigte/r Angehörige/r" flow (User.vollmachtDocumentKey).
+export function resolveBookingRecipient(user: {
+  name: string;
+  email: string;
+  hatBevollmaechtigten: boolean;
+  bevollmaechtigterVorname: string | null;
+  bevollmaechtigterNachname: string | null;
+  bevollmaechtigterEmail: string | null;
+}): { to: string; recipientName: string } {
+  if (user.hatBevollmaechtigten && user.bevollmaechtigterEmail) {
+    return {
+      to: user.bevollmaechtigterEmail,
+      recipientName: user.bevollmaechtigterVorname
+        ? `${user.bevollmaechtigterVorname} ${user.bevollmaechtigterNachname ?? ""}`.trim()
+        : user.name,
+    };
+  }
+  return { to: user.email, recipientName: user.name };
+}
+
+const bookingTypeLabels: Record<string, string> = {
+  STATIONAERE_AUFNAHME: "Stationäre Aufnahme",
+  KURZZEITPFLEGE: "Kurzzeitpflege",
+  TAGESPFLEGE: "Tagespflege",
+  NACHTPFLEGE: "Nachtpflege",
+};
+
+function formatGermanDate(date: Date): string {
+  return date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+// Direkt nach dem Anlegen einer Buchung verschickt (unabhängig vom
+// Zahlungsstatus) - die spätere Bestätigung/Ablehnung durch das Pflegeheim
+// löst eine eigene, separate E-Mail aus (siehe sendBookingFacilityDecisionEmail).
+export async function sendBookingConfirmationEmail({
+  to,
+  recipientName,
+  guestName,
+  facilityName,
+  facilitySlug,
+  bookingType,
+  startDate,
+  endDate,
+  facilityApprovalRequired,
+}: {
+  to: string;
+  recipientName: string;
+  guestName: string;
+  facilityName: string;
+  facilitySlug: string;
+  bookingType: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  // True when the facility has manual booking approval enabled - in that
+  // case a second email follows once it decides (see
+  // sendBookingFacilityDecisionEmail). Otherwise the booking is already
+  // final and no further "confirmed" email will come.
+  facilityApprovalRequired: boolean;
+}) {
+  const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
+  const facilityUrl = `${appUrl()}/einrichtung/${facilitySlug}`;
+  const dateRangeLine = startDate
+    ? `Zeitraum: ${formatGermanDate(startDate)} bis ${endDate ? formatGermanDate(endDate) : "auf Weiteres"}`
+    : null;
+  const statusLine = facilityApprovalRequired
+    ? "Die Einrichtung prüft deine Buchung noch - wir informieren dich per E-Mail, sobald sie bestätigt wurde."
+    : "Deine Buchung ist bestätigt.";
+
+  await sendEmail({
+    to,
+    subject: `Buchungsbestätigung: ${bookingTypeLabel} bei ${facilityName}`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${recipientName},</p>
+      <p>vielen Dank für die Buchung über woodaa. Wir haben deine Anfrage erhalten:</p>
+      <ul>
+        <li>Einrichtung: <a href="${facilityUrl}">${facilityName}</a></li>
+        <li>Leistung: ${bookingTypeLabel}</li>
+        <li>Versicherte Person: ${guestName}</li>
+        ${dateRangeLine ? `<li>${dateRangeLine}</li>` : ""}
+      </ul>
+      <p>${statusLine}</p>
+      <p>Den aktuellen Status deiner Buchung findest du jederzeit unter "Meine Buchungen" in deinem woodaa-Konto: <a href="${appUrl()}/konto">${appUrl()}/konto</a></p>
+    `,
+    text: `Hallo ${recipientName},
+
+vielen Dank für die Buchung über woodaa. Wir haben deine Anfrage erhalten:
+
+Einrichtung: ${facilityName} (${facilityUrl})
+Leistung: ${bookingTypeLabel}
+Versicherte Person: ${guestName}
+${dateRangeLine ? dateRangeLine + "\n" : ""}
+${statusLine}
+
+Den aktuellen Status deiner Buchung findest du jederzeit unter "Meine Buchungen" in deinem woodaa-Konto: ${appUrl()}/konto`,
+  });
+}
+
+// Verschickt, wenn eine Einrichtung mit bookingApprovalMode=MANUELL eine
+// Buchung annimmt oder ablehnt (siehe operator.confirmBooking/rejectBooking).
+// Getrennt von sendBookingConfirmationEmail, die sofort bei Buchungseingang
+// rausgeht, unabhängig von diesem späteren Entscheid.
+export async function sendBookingFacilityDecisionEmail({
+  to,
+  recipientName,
+  guestName,
+  facilityName,
+  facilitySlug,
+  bookingType,
+  decision,
+}: {
+  to: string;
+  recipientName: string;
+  guestName: string;
+  facilityName: string;
+  facilitySlug: string;
+  bookingType: string;
+  decision: "BESTAETIGT" | "ABGELEHNT";
+}) {
+  const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
+  const facilityUrl = `${appUrl()}/einrichtung/${facilitySlug}`;
+  const accountUrl = `${appUrl()}/konto`;
+
+  const subject =
+    decision === "BESTAETIGT"
+      ? `Deine Buchung bei ${facilityName} wurde bestätigt`
+      : `Deine Buchung bei ${facilityName} konnte nicht bestätigt werden`;
+
+  const bodyHtml =
+    decision === "BESTAETIGT"
+      ? `<p><strong>${facilityName}</strong> hat deine Buchung (${bookingTypeLabel} für ${guestName}) bestätigt.</p>`
+      : `<p><strong>${facilityName}</strong> konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen. Die Buchung wurde storniert, eine eventuell bereits erfolgte Zahlung wird automatisch erstattet.</p>`;
+
+  const bodyText =
+    decision === "BESTAETIGT"
+      ? `${facilityName} hat deine Buchung (${bookingTypeLabel} für ${guestName}) bestätigt.`
+      : `${facilityName} konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen. Die Buchung wurde storniert, eine eventuell bereits erfolgte Zahlung wird automatisch erstattet.`;
+
+  await sendEmail({
+    to,
+    subject,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${recipientName},</p>
+      ${bodyHtml}
+      <p>Einrichtung: <a href="${facilityUrl}">${facilityName}</a></p>
+      <p>Details findest du unter "Meine Buchungen" in deinem woodaa-Konto: <a href="${accountUrl}">${accountUrl}</a></p>
+    `,
+    text: `Hallo ${recipientName},
+
+${bodyText}
+
+Einrichtung: ${facilityName} (${facilityUrl})
+
+Details findest du unter "Meine Buchungen" in deinem woodaa-Konto: ${accountUrl}`,
   });
 }
 

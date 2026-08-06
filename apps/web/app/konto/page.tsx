@@ -2,6 +2,7 @@ import { AccountDetailsForm } from "@/components/account/AccountDetailsForm";
 import { CareApplicationsSection } from "@/components/account/CareApplicationsSection";
 import { DeleteAccountForm } from "@/components/account/DeleteAccountForm";
 import { ExportDataButton } from "@/components/account/ExportDataButton";
+import { MyBookingsSection } from "@/components/account/MyBookingsSection";
 import { VollmachtSection } from "@/components/account/VollmachtSection";
 import { Header } from "@/components/Header";
 import { TwoFactorSetup } from "@/components/TwoFactorSetup";
@@ -38,6 +39,7 @@ export default async function AccountPage() {
 
         {me.role === "SUCHENDE" && (
           <>
+            <MyBookingsSection />
             <CareApplicationsSection />
             <VollmachtSection />
           </>
