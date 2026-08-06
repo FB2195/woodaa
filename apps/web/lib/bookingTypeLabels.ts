@@ -15,6 +15,11 @@ export const dateRangedBookingTypes: BookingType[] = [
   "NACHTPFLEGE",
 ];
 
+// Nur Tages-/Nachtpflege ist ihrer Natur nach regelmäßig/auf Weiteres
+// buchbar (kein festes Enddatum nötig) - Kurzzeitpflege ist per Definition
+// zeitlich begrenzt und braucht immer ein festes Enddatum.
+export const openEndedBookingTypes: BookingType[] = ["TAGESPFLEGE", "NACHTPFLEGE"];
+
 export const bookingTypeOptions = (
   Object.keys(bookingTypeLabels) as BookingType[]
 ).map((value) => ({ value, label: bookingTypeLabels[value] }));

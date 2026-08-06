@@ -6,7 +6,7 @@ import { CancelBookingBox } from "@/components/CancelBookingBox";
 import { DateRangeCalendar } from "@/components/booking/DateRangeCalendar";
 import { KostenuebernahmeUpload } from "@/components/booking/KostenuebernahmeUpload";
 import { StripePaymentStep } from "@/components/booking/StripePaymentStep";
-import { bookingTypeLabels, dateRangedBookingTypes } from "@/lib/bookingTypeLabels";
+import { bookingTypeLabels, dateRangedBookingTypes, openEndedBookingTypes } from "@/lib/bookingTypeLabels";
 import { formatPriceEuro } from "@/lib/format";
 import { paymentMethodLabels } from "@/lib/paymentMethodLabels";
 import {
@@ -30,6 +30,7 @@ type PflegegradRate = {
 type Capacity = {
   bookingType: BookingType;
   monthlyPriceCents: number | null;
+  minStayNights: number | null;
   pflegegradPricing: PflegegradRate[];
 };
 type Profile = {
@@ -157,6 +158,7 @@ export function BookingForm({
   const [hoursPerDay, setHoursPerDay] = useState(6);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("KARTE");
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
   const createBooking = trpc.booking.create.useMutation();
 
   // Bevollmächtigte/r: prefill with the care recipient's name, not the
@@ -178,7 +180,9 @@ export function BookingForm({
       ? profile.geburtsdatum.toISOString().slice(0, 10)
       : "";
   const isDateRanged = bookingType ? dateRangedBookingTypes.includes(bookingType) : false;
+  const allowsOpenEnd = bookingType ? openEndedBookingTypes.includes(bookingType) : false;
   const isStationaer = bookingType === "STATIONAERE_AUFNAHME";
+  const isKurzzeitpflege = bookingType === "KURZZEITPFLEGE";
   const isTagesNachtpflege = bookingType === "TAGESPFLEGE" || bookingType === "NACHTPFLEGE";
   const capacity = capacities.find((c) => c.bookingType === bookingType);
   const rate =
@@ -190,6 +194,19 @@ export function BookingForm({
           (new Date(endDate).getTime() - new Date(startDate).getTime()) / (24 * 60 * 60 * 1000),
         ) + 1
       : null;
+
+  // Nächte, nicht Kalendertage (anders als `days` oben, das für die
+  // Zuschuss-Vorschau bewusst inklusiv beide Tage zählt) - der
+  // Mindestaufenthalt einer Einrichtung ist als Nächte konfiguriert.
+  const nights =
+    isKurzzeitpflege && startDate && endDate
+      ? Math.round(
+          (new Date(endDate).getTime() - new Date(startDate).getTime()) / (24 * 60 * 60 * 1000),
+        )
+      : null;
+  const minStayNights = isKurzzeitpflege ? (capacity?.minStayNights ?? null) : null;
+  const belowMinStay =
+    minStayNights !== null && nights !== null && nights < minStayNights;
 
   const pflegegradAntragLabel =
     pflegegrad === "" || pflegegrad === 0
@@ -259,7 +276,14 @@ export function BookingForm({
       className="mt-6 flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-6"
       onSubmit={(event) => {
         event.preventDefault();
+        setClientError(null);
         if (!bookingType) return;
+        if (belowMinStay) {
+          setClientError(
+            `Diese Einrichtung erfordert bei Kurzzeitpflege einen Mindestaufenthalt von ${minStayNights} Nächten - der gewählte Zeitraum umfasst nur ${nights} ${nights === 1 ? "Nacht" : "Nächte"}.`,
+          );
+          return;
+        }
         const form = new FormData(event.currentTarget);
         const get = (name: string) => String(form.get(name) ?? "").trim();
         const desiredStartDateRaw = get("desiredStartDate");
@@ -341,14 +365,23 @@ export function BookingForm({
               <input
                 type="date"
                 name="endDate"
-                required={!endeOffen}
-                disabled={endeOffen}
+                required={!(allowsOpenEnd && endeOffen)}
+                disabled={allowsOpenEnd && endeOffen}
                 value={endDate}
                 onChange={(event) => setEndDate(event.target.value)}
                 className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent disabled:bg-brand-background disabled:text-brand-text-muted"
               />
             </label>
           </div>
+
+          {isKurzzeitpflege && minStayNights !== null && (
+            <p className={`text-xs ${belowMinStay ? "text-red-600" : "text-brand-text-muted"}`}>
+              Mindestaufenthalt bei dieser Einrichtung: {minStayNights}{" "}
+              {minStayNights === 1 ? "Nacht" : "Nächte"}
+              {nights !== null &&
+                ` (gewählter Zeitraum: ${nights} ${nights === 1 ? "Nacht" : "Nächte"})`}
+            </p>
+          )}
 
           <DateRangeCalendar
             startDate={startDate}
@@ -357,17 +390,19 @@ export function BookingForm({
               setStartDate(newStart);
               setEndDate(newEnd);
             }}
-            disabled={endeOffen}
+            disabled={allowsOpenEnd && endeOffen}
           />
 
-          <label className="flex items-center gap-2 text-sm text-brand-text">
-            <input
-              type="checkbox"
-              checked={endeOffen}
-              onChange={(event) => setEndeOffen(event.target.checked)}
-            />
-            Vorerst ohne Enddatum (regelmäßig, bis auf Weiteres)
-          </label>
+          {allowsOpenEnd && (
+            <label className="flex items-center gap-2 text-sm text-brand-text">
+              <input
+                type="checkbox"
+                checked={endeOffen}
+                onChange={(event) => setEndeOffen(event.target.checked)}
+              />
+              Vorerst ohne Enddatum (regelmäßig, bis auf Weiteres)
+            </label>
+          )}
         </div>
       )}
 
@@ -569,6 +604,7 @@ export function BookingForm({
         Storno: Bis 48 Std. vorher kannst du kostenlos stornieren.
       </p>
 
+      {clientError && <p className="text-sm text-red-600">{clientError}</p>}
       {createBooking.isError && (
         <p className="text-sm text-red-600">{createBooking.error.message}</p>
       )}

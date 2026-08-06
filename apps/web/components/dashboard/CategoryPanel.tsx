@@ -301,6 +301,43 @@ export function CategoryPanel({
             </button>
           </form>
         )}
+
+        {bookingType === "KURZZEITPFLEGE" && (
+          <form
+            className="flex items-end gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const form = new FormData(event.currentTarget);
+              const minStayNightsRaw = String(form.get("minStayNights") ?? "").trim();
+              runMutation(() =>
+                updatePricing.mutateAsync({
+                  bookingType,
+                  minStayNights: minStayNightsRaw ? Number(minStayNightsRaw) : undefined,
+                }),
+              );
+            }}
+          >
+            <label className="flex flex-col gap-1 text-xs text-brand-text-muted">
+              Mindestaufenthalt (Nächte)
+              <input
+                type="number"
+                name="minStayNights"
+                min={1}
+                max={60}
+                placeholder="kein Minimum"
+                defaultValue={capacity?.minStayNights ?? ""}
+                className="w-40 rounded-brand-md border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={updatePricing.isPending}
+              className="rounded-brand-md border border-brand-border px-4 py-2 text-sm font-semibold text-brand-text transition hover:bg-brand-background disabled:opacity-50"
+            >
+              {updatePricing.isPending ? "…" : "Speichern"}
+            </button>
+          </form>
+        )}
       </div>
 
       <PflegegradPricingTable bookingType={bookingType} rates={capacity?.pflegegradPricing ?? []} />
