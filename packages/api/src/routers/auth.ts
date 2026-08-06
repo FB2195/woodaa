@@ -137,13 +137,11 @@ export const authRouter = router({
               street: input.street,
               postalCode: input.postalCode,
               city: input.city,
-              phone: input.phone,
-              pflegegrad: input.pflegegrad ?? null,
+              phone: input.phone ?? "",
+              pflegegrad: input.pflegegrad,
               pflegegradAntragLaeuft: input.pflegegradAntragLaeuft,
-              krankenkasse: input.krankenkasse ?? null,
-              versicherungsnummerEncrypted: input.versicherungsnummer
-                ? encryptSecret(input.versicherungsnummer)
-                : null,
+              krankenkasse: input.krankenkasse,
+              versicherungsnummerEncrypted: encryptSecret(input.versicherungsnummer),
               hatBevollmaechtigten: input.hatBevollmaechtigten,
               bevollmaechtigterVorname: input.hatBevollmaechtigten
                 ? input.bevollmaechtigterVorname

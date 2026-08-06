@@ -191,11 +191,13 @@ export const RegisterSuchendeInput = z.object({
   street: z.string().trim().min(1).max(200),
   postalCode: z.string().trim().min(1).max(20),
   city: z.string().trim().min(1).max(200),
-  phone: z.string().trim().min(1).max(50),
-  pflegegrad: Pflegegrad.optional(),
+  // The one optional field - everything else about the account holder is
+  // required at registration (see RegisterSuchendeForm).
+  phone: z.string().trim().max(50).optional(),
+  pflegegrad: Pflegegrad,
   pflegegradAntragLaeuft: z.boolean().default(false),
-  krankenkasse: z.string().trim().max(200).optional(),
-  versicherungsnummer: Versicherungsnummer.optional(),
+  krankenkasse: z.string().trim().min(1).max(200),
+  versicherungsnummer: Versicherungsnummer,
   hatBevollmaechtigten: z.boolean().default(false),
   bevollmaechtigterVorname: z.string().trim().max(100).optional(),
   bevollmaechtigterNachname: z.string().trim().max(100).optional(),
