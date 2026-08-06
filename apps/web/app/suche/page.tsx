@@ -70,7 +70,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const onlyAvailable = params.onlyAvailable !== "false";
 
   const trpcServer = await getTrpcServer();
-  const { results: facilities, bookingTypeCounts, amenityCounts } = await trpcServer.facility.list({
+  const {
+    results: facilities,
+    bookingTypeCounts,
+    amenityCounts,
+    usedFallbackRadius,
+  } = await trpcServer.facility.list({
     city,
     bookingType: bookingType.success ? bookingType.data : undefined,
     maxPriceCents,
@@ -112,6 +117,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {facilities.length}{" "}
           {facilities.length === 1 ? "Einrichtung gefunden" : "Einrichtungen gefunden"}
         </p>
+        {usedFallbackRadius && (
+          <p className="mt-1 text-sm text-brand-text-muted">
+            Keine Treffer direkt für „{params.city}" - hier Einrichtungen im Umkreis von 5&nbsp;km.
+          </p>
+        )}
 
         <SearchResultsView
           facilities={facilities}

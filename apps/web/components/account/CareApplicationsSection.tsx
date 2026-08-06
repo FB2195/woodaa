@@ -33,9 +33,8 @@ export function CareApplicationsSection() {
       : "Höherstufung ist bereits beantragt";
 
   return (
-    <div className="mt-10 border-t border-brand-border pt-8">
-      <h2 className="text-lg font-semibold text-brand-text">Meine Pflegeleistungen</h2>
-      <p className="mt-1 text-sm text-brand-text-muted">
+    <div>
+      <p className="text-sm text-brand-text-muted">
         Hinterlege deine Versicherungsnummer und deinen Pflegegrad - wir
         helfen dir dann, offene Anträge direkt bei eurer Krankenkasse
         einzureichen.

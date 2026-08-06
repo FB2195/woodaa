@@ -57,11 +57,8 @@ export function VollmachtSection() {
   }
 
   return (
-    <div className="mt-10 border-t border-brand-border pt-8">
-      <h2 className="text-lg font-semibold text-brand-text">
-        Bevollmächtigte/r Angehörige/r
-      </h2>
-      <p className="mt-1 text-sm text-brand-text-muted">
+    <div>
+      <p className="text-sm text-brand-text-muted">
         Buchst du für eine andere Person (z. B. deine Eltern)? Lade eine Vollmacht hoch -
         wir prüfen sie, danach kannst du in ihrem Namen buchen. Jede Buchung von diesem
         Konto wird zusätzlich von unserem Team geprüft, bevor sie endgültig bestätigt wird.

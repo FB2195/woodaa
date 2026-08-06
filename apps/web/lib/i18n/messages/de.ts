@@ -5,6 +5,8 @@ import type { Messages } from "../types";
 // compile-time error rather than a silently-blank string in production.
 export const de: Messages = {
   header: {
+    home: "Startseite",
+    searchFacilities: "Pflegeheim suchen",
     registerFacility: "Pflegeheim registrieren",
     dashboard: "Dashboard",
     favorites: "Favoriten",

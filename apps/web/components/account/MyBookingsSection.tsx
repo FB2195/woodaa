@@ -159,15 +159,11 @@ export function MyBookingsSection() {
   if (isLoading || !data) return null;
 
   return (
-    <div className="mt-10 border-t border-brand-border pt-8">
-      <h2 className="text-lg font-semibold text-brand-text">Meine Buchungen</h2>
-
+    <div>
       {data.length === 0 ? (
-        <p className="mt-2 text-sm text-brand-text-muted">
-          Du hast noch keine Buchung vorgenommen.
-        </p>
+        <p className="text-sm text-brand-text-muted">Du hast noch keine Buchung vorgenommen.</p>
       ) : (
-        <ul className="mt-4 flex flex-col gap-3">
+        <ul className="flex flex-col gap-3">
           {data.map((booking) => (
             <BookingRow key={booking.id} booking={booking} />
           ))}
