@@ -29,6 +29,7 @@ export function Header() {
   const utils = trpc.useUtils();
   const me = trpc.auth.me.useQuery(undefined, { retry: false });
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loginMenuOpen, setLoginMenuOpen] = useState(false);
   const t = useTranslations("header");
 
   async function logout() {
@@ -47,10 +48,13 @@ export function Header() {
   }
 
   const dashboardHref = me.data ? dashboardFor[me.data.role] : null;
-  const profileHref = me.data ? "/konto" : "/login";
 
   function closeMenu() {
     setMenuOpen(false);
+  }
+
+  function closeLoginMenu() {
+    setLoginMenuOpen(false);
   }
 
   return (
@@ -71,13 +75,47 @@ export function Header() {
         </Link>
 
         <div className="flex items-center gap-2">
-          <Link
-            href={profileHref}
-            aria-label={t("myProfile")}
-            className="flex h-9 w-9 items-center justify-center rounded-brand-md border border-brand-border text-brand-text hover:bg-brand-background"
-          >
-            <PersonIcon />
-          </Link>
+          {me.data ? (
+            <Link
+              href="/konto"
+              aria-label={t("myProfile")}
+              className="flex h-9 w-9 items-center justify-center rounded-brand-md border border-brand-border text-brand-text hover:bg-brand-background"
+            >
+              <PersonIcon />
+            </Link>
+          ) : (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setLoginMenuOpen((open) => !open)}
+                aria-label={t("myProfile")}
+                aria-expanded={loginMenuOpen}
+                className="flex h-9 w-9 items-center justify-center rounded-brand-md border border-brand-border text-brand-text hover:bg-brand-background"
+              >
+                <PersonIcon />
+              </button>
+
+              {loginMenuOpen && (
+                <nav className="absolute right-0 top-full z-10 mt-2 flex w-64 flex-col gap-1 rounded-brand-lg border border-brand-border bg-brand-surface p-2 text-sm text-brand-text-muted shadow-lg">
+                  <Link href="/login" onClick={closeLoginMenu} className="rounded-brand-md px-3 py-2 hover:bg-brand-background hover:text-brand-text">
+                    {t("login")}
+                  </Link>
+                  <Link href="/registrieren" onClick={closeLoginMenu} className="rounded-brand-md px-3 py-2 hover:bg-brand-background hover:text-brand-text">
+                    {t("register")}
+                  </Link>
+                  <Link href="/betreiber/login" onClick={closeLoginMenu} className="rounded-brand-md px-3 py-2 hover:bg-brand-background hover:text-brand-text">
+                    {t("operatorLogin")}
+                  </Link>
+
+                  <div className="my-1 border-t border-brand-border" />
+
+                  <Link href="/betreiber/registrieren" onClick={closeLoginMenu} className="rounded-brand-md px-3 py-2 font-medium text-brand-accent hover:bg-brand-background">
+                    {t("registerFacility")}
+                  </Link>
+                </nav>
+              )}
+            </div>
+          )}
 
           <button
             type="button"
@@ -120,23 +158,10 @@ export function Header() {
             {t("searchFacilities")}
           </Link>
 
-          <div className="my-2 border-t border-brand-border" />
-
-          {/* Nur für ausgeloggte Besucher/innen relevant - ein eingeloggter
-              Suchender oder eine Einrichtung/ein Admin hat hier nichts zu tun. */}
-          {!me.data && (
+          {me.data && (
             <>
-              <Link href="/betreiber/registrieren" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-                {t("registerFacility")}
-              </Link>
-              <Link href="/betreiber/login" onClick={closeMenu} className="rounded-brand-md px-2 py-2 pl-6 hover:bg-brand-background hover:text-brand-text">
-                {t("operatorLogin")}
-              </Link>
-            </>
-          )}
+              <div className="my-2 border-t border-brand-border" />
 
-          {me.data ? (
-            <>
               {dashboardHref && (
                 <Link href={dashboardHref} onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
                   {t("dashboard")}
@@ -157,15 +182,6 @@ export function Header() {
               >
                 {t("logout")}
               </button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-                {t("login")}
-              </Link>
-              <Link href="/registrieren" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-                {t("register")}
-              </Link>
             </>
           )}
 
@@ -200,6 +216,21 @@ export function Header() {
           <Link href="/fehler-melden" onClick={closeMenu} className="rounded-brand-md px-2 py-2 font-medium text-brand-text hover:bg-brand-background">
             {t("reportIssue")}
           </Link>
+
+          {/* Ganz unten, hervorgehoben - für eingeloggte Suchende/Betreiber/
+              Admins irrelevant, siehe Gating oben. */}
+          {!me.data && (
+            <>
+              <div className="my-2 border-t border-brand-border" />
+              <Link
+                href="/betreiber/registrieren"
+                onClick={closeMenu}
+                className="rounded-brand-md bg-brand-accent px-3 py-2.5 text-center font-semibold text-white transition hover:opacity-90"
+              >
+                {t("registerFacility")}
+              </Link>
+            </>
+          )}
         </nav>
       )}
     </header>
