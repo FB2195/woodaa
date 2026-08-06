@@ -2,6 +2,8 @@ import type { Messages } from "../types";
 
 export const tr: Messages = {
   header: {
+    home: "Ana Sayfa",
+    searchFacilities: "Bakım evi ara",
     registerFacility: "Bakım kurumunu kaydet",
     dashboard: "Panel",
     favorites: "Favoriler",

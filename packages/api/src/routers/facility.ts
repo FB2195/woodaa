@@ -3,7 +3,7 @@ import type { FacilityWithCapacities } from "@woodaa/db";
 import { AMENITY_OPTIONS, BookingType, FacilitySearchInput } from "@woodaa/validators";
 import { z } from "zod";
 import { geocodeSearchOrigin, reverseGeocode, searchLocations, type GeoPoint } from "../geocoding";
-import { haversineDistanceKm } from "../geo";
+import { boundingBoxForRadius, haversineDistanceKm } from "../geo";
 import { getNearbyPlaces } from "../nearbyPlaces";
 import { monthlyEquivalentCents } from "../pricing";
 import { withPhotoUrl } from "../r2";
@@ -42,6 +42,11 @@ export type FacilitySearchResult = {
   totalCount: number;
   bookingTypeCounts: Record<BookingType, number>;
   amenityCounts: Record<string, number>;
+  // True when no facility matched the searched city/PLZ exactly, and these
+  // results come from a radius fallback around the geocoded search term
+  // instead (see FALLBACK_SEARCH_RADIUS_KM) - lets the results page explain
+  // why it's showing places outside the searched city.
+  usedFallbackRadius: boolean;
 };
 
 function avgOf(values: number[]): number | null {
@@ -125,18 +130,49 @@ function cheapestPrice(
   return priced.length ? Math.min(...priced) : null;
 }
 
+// Facilities near a PLZ boundary shouldn't just vanish from search - a
+// facility in 95030 is a few hundred meters from someone searching 95028,
+// but neither the city-name nor the postalCode-prefix match catches that.
+// Applied only as a fallback when the strict match finds nothing, so a
+// normal city-name search (which can legitimately span more than this many
+// km across a big city) keeps its existing unrestricted behavior.
+const FALLBACK_SEARCH_RADIUS_KM = 5;
+
 export const facilityRouter = router({
   list: publicProcedure
     .input(FacilitySearchInput)
     .query(async ({ ctx, input }): Promise<FacilitySearchResult> => {
-      // bookingType and amenities are deliberately NOT in this WHERE clause -
-      // they're the two "faceted" dimensions the results toolbar shows as
-      // chips with live counts, computed in JS below against this same
-      // pool. city/maxPriceCents/pflegegrad are "hard" filters that always
-      // apply to the pool itself (same as before this facet support existed).
-      const pool = await ctx.db.facility.findMany({
+      // maxPriceCents/pflegegrad are "hard" filters that always apply to the
+      // pool itself (same as before facet support existed) - bookingType and
+      // amenities are deliberately NOT here, they're the two "faceted"
+      // dimensions the results toolbar shows as chips with live counts,
+      // computed in JS below against this same pool.
+      const nonCityWhere = {
+        status: "ACTIVE" as const,
+        ...(input.maxPriceCents !== undefined
+          ? { capacities: { some: { monthlyPriceCents: { lte: input.maxPriceCents } } } }
+          : {}),
+        // Both minPflegegrad/maxPflegegrad null = "not specified" - stays
+        // visible under any Pflegegrad filter (fail-open).
+        ...(input.pflegegrad !== undefined
+          ? {
+              AND: [
+                { OR: [{ minPflegegrad: null }, { minPflegegrad: { lte: input.pflegegrad } }] },
+                { OR: [{ maxPflegegrad: null }, { maxPflegegrad: { gte: input.pflegegrad } }] },
+              ],
+            }
+          : {}),
+      };
+      // Cover photo only (not the whole gallery) - the list view just needs
+      // a card thumbnail, bySlug below fetches the full gallery.
+      const poolInclude = {
+        capacities: { include: { pflegegradPricing: true } },
+        photos: { take: 1, orderBy: { createdAt: "asc" as const } },
+      };
+
+      let pool = await ctx.db.facility.findMany({
         where: {
-          status: "ACTIVE",
+          ...nonCityWhere,
           // "city" is really "Ort oder PLZ" from the user's perspective - a
           // postal-code search like "10555" previously matched nothing at
           // all since only the city name was checked.
@@ -148,28 +184,30 @@ export const facilityRouter = router({
                 ],
               }
             : {}),
-          ...(input.maxPriceCents !== undefined
-            ? { capacities: { some: { monthlyPriceCents: { lte: input.maxPriceCents } } } }
-            : {}),
-          // Both minPflegegrad/maxPflegegrad null = "not specified" - stays
-          // visible under any Pflegegrad filter (fail-open).
-          ...(input.pflegegrad !== undefined
-            ? {
-                AND: [
-                  { OR: [{ minPflegegrad: null }, { minPflegegrad: { lte: input.pflegegrad } }] },
-                  { OR: [{ maxPflegegrad: null }, { maxPflegegrad: { gte: input.pflegegrad } }] },
-                ],
-              }
-            : {}),
         },
-        // Cover photo only (not the whole gallery) - the list view just
-        // needs a card thumbnail, bySlug below fetches the full gallery.
-        include: {
-          capacities: { include: { pflegegradPricing: true } },
-          photos: { take: 1, orderBy: { createdAt: "asc" } },
-        },
+        include: poolInclude,
         orderBy: { createdAt: "desc" },
       });
+
+      let origin: GeoPoint | null = null;
+      let usedFallbackRadius = false;
+
+      if (input.city && pool.length === 0) {
+        origin = await geocodeSearchOrigin(input.city);
+        if (origin) {
+          const bbox = boundingBoxForRadius(origin, FALLBACK_SEARCH_RADIUS_KM);
+          pool = await ctx.db.facility.findMany({
+            where: {
+              ...nonCityWhere,
+              latitude: { gte: bbox.minLat, lte: bbox.maxLat },
+              longitude: { gte: bbox.minLng, lte: bbox.maxLng },
+            },
+            include: poolInclude,
+            orderBy: { createdAt: "desc" },
+          });
+          usedFallbackRadius = true;
+        }
+      }
 
       const poolFilteredByAmenities = pool.filter((f) => matchesAmenities(f, input.amenities));
       const poolFilteredByType = pool.filter((f) => matchesBookingType(f, input.bookingType));
@@ -197,9 +235,10 @@ export const facilityRouter = router({
       // (price is a derived min over nested rows; distance needs a geocoded
       // origin + Haversine) - no PostGIS, so this happens in JS after fetch.
       // The unbounded findMany above is already today's behavior, no
-      // pagination regression introduced here.
-      let origin: GeoPoint | null = null;
-      if (input.city && (input.radiusKm !== undefined || input.sort === "distance_asc")) {
+      // pagination regression introduced here. origin may already be
+      // resolved from the fallback-radius pool query above - only re-geocode
+      // if it isn't (avoids a second, redundant lookup for the same query).
+      if (!origin && input.city && (input.radiusKm !== undefined || input.sort === "distance_asc")) {
         origin = await geocodeSearchOrigin(input.city);
       }
 
@@ -256,13 +295,21 @@ export const facilityRouter = router({
         };
       });
 
-      if (input.radiusKm !== undefined && origin) {
+      // usedFallbackRadius: the bounding box above is a loose rectangle, so
+      // this Haversine cut is what actually enforces FALLBACK_SEARCH_RADIUS_KM.
+      const effectiveRadiusKm = input.radiusKm ?? (usedFallbackRadius ? FALLBACK_SEARCH_RADIUS_KM : undefined);
+      if (effectiveRadiusKm !== undefined && origin) {
         results = results.filter(
-          (f) => f.distanceKm !== null && f.distanceKm <= input.radiusKm!,
+          (f) => f.distanceKm !== null && f.distanceKm <= effectiveRadiusKm,
         );
       }
 
-      if (input.sort === "price_asc") {
+      // No exact city/PLZ match, showing nearby results instead - closest
+      // first is more useful here than createdAt-desc, unless the caller
+      // asked for a different sort explicitly.
+      const effectiveSort = input.sort ?? (usedFallbackRadius ? "distance_asc" : undefined);
+
+      if (effectiveSort === "price_asc") {
         // Sorts by the same figure the card actually shows (displayPriceCents
         // - Pflegegrad-specific when that filter is set) rather than always
         // the generic cheapest price, so the order matches what's on screen.
@@ -274,14 +321,14 @@ export const facilityRouter = router({
           if (pb === null) return -1;
           return pa - pb;
         });
-      } else if (input.sort === "distance_asc" && origin) {
+      } else if (effectiveSort === "distance_asc" && origin) {
         results.sort((a, b) => {
           if (a.distanceKm === null && b.distanceKm === null) return 0;
           if (a.distanceKm === null) return 1;
           if (b.distanceKm === null) return -1;
           return a.distanceKm - b.distanceKm;
         });
-      } else if (input.sort === "availability_first") {
+      } else if (effectiveSort === "availability_first") {
         // isAvailableForRequest is null when no date/time filter was given
         // (or onlyAvailable already excluded the fully-booked ones) - treat
         // that the same as "available" so this sort is a no-op rather than
@@ -297,7 +344,13 @@ export const facilityRouter = router({
       // applied. Array.prototype.sort is stable in V8, so price/distance
       // ties keep their newest-first relative order for free.
 
-      return { results, totalCount: results.length, bookingTypeCounts, amenityCounts };
+      return {
+        results,
+        totalCount: results.length,
+        bookingTypeCounts,
+        amenityCounts,
+        usedFallbackRadius,
+      };
     }),
 
   bySlug: publicProcedure

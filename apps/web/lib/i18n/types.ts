@@ -1,5 +1,7 @@
 export type Messages = {
   header: {
+    home: string;
+    searchFacilities: string;
     registerFacility: string;
     dashboard: string;
     favorites: string;

@@ -2,6 +2,8 @@ import type { Messages } from "../types";
 
 export const en: Messages = {
   header: {
+    home: "Home",
+    searchFacilities: "Search care facilities",
     registerFacility: "Register your care facility",
     dashboard: "Dashboard",
     favorites: "Favorites",

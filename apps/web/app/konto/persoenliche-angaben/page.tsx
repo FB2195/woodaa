@@ -1,8 +1,9 @@
-import { AccountMenu } from "@/components/account/AccountMenu";
+import { AccountDetailsForm } from "@/components/account/AccountDetailsForm";
+import { SubPageHeader } from "@/components/account/SubPageHeader";
 import { Header } from "@/components/Header";
 import { getTrpcServer } from "@/lib/trpc-server";
 
-export default async function AccountPage() {
+export default async function PersoenlicheAngabenPage() {
   const trpcServer = await getTrpcServer();
   const me = await trpcServer.auth.me();
 
@@ -10,10 +11,8 @@ export default async function AccountPage() {
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-2xl font-bold text-brand-heading">Hallo {me.name}</h1>
-        <p className="mt-1 text-sm text-brand-text-muted">{me.email}</p>
-
-        <AccountMenu role={me.role} />
+        <SubPageHeader title="Persönliche Angaben" />
+        <AccountDetailsForm name={me.name} email={me.email} role={me.role} />
       </section>
     </main>
   );

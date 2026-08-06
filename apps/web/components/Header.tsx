@@ -113,15 +113,26 @@ export function Header() {
 
       {menuOpen && (
         <nav className="flex flex-col gap-1 border-t border-brand-border px-6 py-5 text-sm text-brand-text-muted">
-          {(!me.data || me.data.role === "SUCHENDE") && (
-            <Link href="/betreiber/registrieren" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
-              {t("registerFacility")}
-            </Link>
-          )}
+          <Link href="/" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
+            {t("home")}
+          </Link>
+          <Link href="/suche" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
+            {t("searchFacilities")}
+          </Link>
+
+          <div className="my-2 border-t border-brand-border" />
+
+          {/* Nur für ausgeloggte Besucher/innen relevant - ein eingeloggter
+              Suchender oder eine Einrichtung/ein Admin hat hier nichts zu tun. */}
           {!me.data && (
-            <Link href="/betreiber/login" onClick={closeMenu} className="rounded-brand-md px-2 py-2 pl-6 hover:bg-brand-background hover:text-brand-text">
-              {t("operatorLogin")}
-            </Link>
+            <>
+              <Link href="/betreiber/registrieren" onClick={closeMenu} className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text">
+                {t("registerFacility")}
+              </Link>
+              <Link href="/betreiber/login" onClick={closeMenu} className="rounded-brand-md px-2 py-2 pl-6 hover:bg-brand-background hover:text-brand-text">
+                {t("operatorLogin")}
+              </Link>
+            </>
           )}
 
           {me.data ? (
