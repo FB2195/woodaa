@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Pflegegrad } from "@woodaa/validators";
 import { establishSession, redirectFor } from "@/lib/authSession";
+import { GESETZLICHE_KRANKENKASSEN } from "@/lib/krankenkassen";
 import { pflegegradOptions } from "@/lib/pflegegradLabels";
 import { trpc } from "@/lib/trpc";
+
+const ANDERE_KASSE = "Andere gesetzliche Krankenkasse";
 
 export function RegisterSuchendeForm() {
   const router = useRouter();
@@ -14,6 +17,8 @@ export function RegisterSuchendeForm() {
   const [error, setError] = useState<string | null>(null);
   const [pflegegrad, setPflegegrad] = useState<Pflegegrad | "">("");
   const [hatBevollmaechtigten, setHatBevollmaechtigten] = useState(false);
+  const [krankenkasseArt, setKrankenkasseArt] = useState<"GESETZLICH" | "PRIVAT" | "">("");
+  const [gesetzlicheKasse, setGesetzlicheKasse] = useState("");
   const register = trpc.auth.register.useMutation();
 
   const pflegegradAntragLabel =
@@ -30,6 +35,20 @@ export function RegisterSuchendeForm() {
         const form = new FormData(event.currentTarget);
         const get = (name: string) => String(form.get(name) ?? "").trim();
 
+        const krankenkasse =
+          krankenkasseArt === "PRIVAT"
+            ? get("krankenkassePrivatName")
+            : gesetzlicheKasse === ANDERE_KASSE
+              ? get("krankenkasseAndere")
+              : gesetzlicheKasse;
+
+        // Guarded by the <select required> above - pflegegrad can't
+        // actually be "" once the browser lets the form submit.
+        if (pflegegrad === "") {
+          setError("Bitte wähle einen Pflegegrad aus.");
+          return;
+        }
+
         try {
           const result = await register.mutateAsync({
             role: "SUCHENDE",
@@ -41,11 +60,11 @@ export function RegisterSuchendeForm() {
             street: get("street"),
             postalCode: get("postalCode"),
             city: get("city"),
-            phone: get("phone"),
-            pflegegrad: pflegegrad === "" ? undefined : pflegegrad,
+            phone: get("phone") || undefined,
+            pflegegrad,
             pflegegradAntragLaeuft: form.get("pflegegradAntragLaeuft") === "on",
-            krankenkasse: get("krankenkasse") || undefined,
-            versicherungsnummer: get("versicherungsnummer") || undefined,
+            krankenkasse,
+            versicherungsnummer: get("versicherungsnummer"),
             hatBevollmaechtigten,
             bevollmaechtigterVorname: hatBevollmaechtigten
               ? get("bevollmaechtigterVorname")
@@ -135,11 +154,10 @@ export function RegisterSuchendeForm() {
       </div>
 
       <label className="flex flex-col gap-1 text-sm text-brand-text">
-        Telefonnummer
+        Telefonnummer (optional)
         <input
           type="tel"
           name="phone"
-          required
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
       </label>
@@ -173,6 +191,7 @@ export function RegisterSuchendeForm() {
         Pflegegrad
         <select
           name="pflegegrad"
+          required
           value={pflegegrad}
           onChange={(event) =>
             setPflegegrad(
@@ -195,19 +214,76 @@ export function RegisterSuchendeForm() {
         {pflegegradAntragLabel}
       </label>
 
-      <label className="flex flex-col gap-1 text-sm text-brand-text">
-        Krankenkasse (optional)
-        <input
-          name="krankenkasse"
-          placeholder="z. B. AOK, TK, Barmer…"
-          className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
-        />
-      </label>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm text-brand-text">Krankenversicherung</legend>
+        <label className="flex items-center gap-2 text-sm text-brand-text">
+          <input
+            type="radio"
+            name="krankenkasseArt"
+            required
+            checked={krankenkasseArt === "GESETZLICH"}
+            onChange={() => setKrankenkasseArt("GESETZLICH")}
+          />
+          Gesetzliche Krankenkasse
+        </label>
+        <label className="flex items-center gap-2 text-sm text-brand-text">
+          <input
+            type="radio"
+            name="krankenkasseArt"
+            required
+            checked={krankenkasseArt === "PRIVAT"}
+            onChange={() => setKrankenkasseArt("PRIVAT")}
+          />
+          Private Krankenversicherung
+        </label>
+      </fieldset>
+
+      {krankenkasseArt === "GESETZLICH" && (
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Krankenkasse
+          <select
+            required
+            value={gesetzlicheKasse}
+            onChange={(event) => setGesetzlicheKasse(event.target.value)}
+            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          >
+            <option value="">Bitte wählen</option>
+            {GESETZLICHE_KRANKENKASSEN.map((kasse) => (
+              <option key={kasse} value={kasse}>
+                {kasse}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {krankenkasseArt === "GESETZLICH" && gesetzlicheKasse === ANDERE_KASSE && (
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Name der Krankenkasse
+          <input
+            name="krankenkasseAndere"
+            required
+            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          />
+        </label>
+      )}
+
+      {krankenkasseArt === "PRIVAT" && (
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Name der privaten Krankenversicherung
+          <input
+            name="krankenkassePrivatName"
+            required
+            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          />
+        </label>
+      )}
 
       <label className="flex flex-col gap-1 text-sm text-brand-text">
-        Versicherungsnummer (optional)
+        Versicherungsnummer
         <input
           name="versicherungsnummer"
+          required
           placeholder="z. B. A123456789"
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
