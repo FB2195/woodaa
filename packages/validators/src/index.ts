@@ -50,15 +50,20 @@ export const Pflegegrad = z.union([
 ]);
 export type Pflegegrad = z.infer<typeof Pflegegrad>;
 
-// A real Sozialversicherungsnummer, not just a display string - loosely
-// validated (12 chars: 2 digits, 6 digits birthdate, letter, 2 digits, 1
-// checksum digit per the official format) but not over-strict, since
-// getting this wrong shouldn't block submission - the Pflegekasse
-// validates it for real.
-export const Versicherungsnummer = z
-  .string()
-  .trim()
-  .regex(/^[0-9]{8}[A-Za-z][0-9]{3}$/, "Das sieht nicht wie eine gültige Versicherungsnummer aus.");
+// The Krankenversicherungsnummer (KVNR) printed on the front of every
+// gesetzliche Gesundheitskarte: one letter followed by 9 digits (e.g.
+// A123456789) - not to be confused with the unrelated Sozialversicherungs-
+// nummer (Rentenversicherung). Only meaningful for GKV members; private
+// insurers issue their own, differently-formatted policy numbers (see
+// RegisterSuchendeInput, which only enforces this pattern when
+// krankenkasseArt is GESETZLICH). Used unconditionally elsewhere
+// (booking/care profile) where the insurance type isn't tracked, so it
+// stays a loose length check there rather than this exact pattern.
+export const GESETZLICHE_VERSICHERUNGSNUMMER_REGEX = /^[A-Za-z][0-9]{9}$/;
+export const GESETZLICHE_VERSICHERUNGSNUMMER_MESSAGE =
+  "Das sieht nicht nach einer gültigen Versichertennummer aus - sie besteht aus einem Buchstaben gefolgt von 9 Ziffern (z. B. A123456789) und steht auf der Vorderseite deiner Versichertenkarte.";
+
+export const Versicherungsnummer = z.string().trim().min(1).max(50);
 export type Versicherungsnummer = z.infer<typeof Versicherungsnummer>;
 
 export const SortOption = z.enum([
@@ -196,6 +201,7 @@ export const RegisterSuchendeInput = z.object({
   phone: z.string().trim().max(50).optional(),
   pflegegrad: Pflegegrad,
   pflegegradAntragLaeuft: z.boolean().default(false),
+  krankenkasseArt: z.enum(["GESETZLICH", "PRIVAT"]),
   krankenkasse: z.string().trim().min(1).max(200),
   versicherungsnummer: Versicherungsnummer,
   hatBevollmaechtigten: z.boolean().default(false),
@@ -234,11 +240,24 @@ export type RegisterBetreiberInput = z.infer<typeof RegisterBetreiberInput>;
 export const RegisterInput = z
   .discriminatedUnion("role", [RegisterSuchendeInput, RegisterBetreiberInput])
   .superRefine((data, ctx) => {
-    if (data.role === "SUCHENDE" && !bevollmaechtigterFieldsOk(data)) {
+    if (data.role !== "SUCHENDE") return;
+    if (!bevollmaechtigterFieldsOk(data)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Bitte alle Angaben zum Bevollmächtigten ausfüllen.",
         path: ["bevollmaechtigterVorname"],
+      });
+    }
+    // Private Krankenversicherungen vergeben eigene, uneinheitliche
+    // Mitgliedsnummern - das feste KVNR-Format gilt nur für GKV-Mitglieder.
+    if (
+      data.krankenkasseArt === "GESETZLICH" &&
+      !GESETZLICHE_VERSICHERUNGSNUMMER_REGEX.test(data.versicherungsnummer)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: GESETZLICHE_VERSICHERUNGSNUMMER_MESSAGE,
+        path: ["versicherungsnummer"],
       });
     }
   });
