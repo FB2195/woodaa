@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import { trpc } from "@/lib/trpc";
 
 function LocateIcon() {
@@ -67,18 +66,14 @@ export function LocationAutocomplete({
             setGeoStatus("error");
             return;
           }
-          // flushSync forces the controlled input's DOM value to commit
-          // synchronously before requestSubmit() reads the form - this
-          // callback runs outside React's event system (a native
-          // geolocation callback), so a plain setState here left
-          // requestSubmit() serializing the form before the re-render
-          // committed, submitting an empty city.
-          flushSync(() => {
-            setValue(city);
-            setOpen(false);
-            setGeoStatus("idle");
-          });
-          inputRef.current?.form?.requestSubmit();
+          // Just fills the field, same as picking a suggestion from the
+          // list below (see the plain suggestion onClick) - it doesn't
+          // submit the form. Submitting immediately used to skip past
+          // every other filter (Pflegeart, Preis, Radius, ...) the user
+          // hadn't gotten a chance to set yet.
+          setValue(city);
+          setOpen(false);
+          setGeoStatus("idle");
         } catch {
           setGeoStatus("error");
         }
