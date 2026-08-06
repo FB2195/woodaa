@@ -319,6 +319,30 @@ export type CreateBookingInput = {
 export async function createBooking(db: PrismaClient, input: CreateBookingInput) {
   const { startDate, endDate } = normalizeRange(input.startDate, input.endDate);
 
+  // A facility may require a minimum number of nights for Kurzzeitpflege
+  // (see FacilityCapacity.minStayNights). Checked here (not just
+  // client-side in BookingForm.tsx) so it also covers
+  // operator.createManualBooking, and so a direct API call can't bypass it.
+  // Only checked when both dates are given - a manual phone/walk-in
+  // Kurzzeitpflege booking with an open end date (staff doesn't know the
+  // discharge date yet) has nothing to check against and stays allowed, as
+  // before.
+  if (input.bookingType === "KURZZEITPFLEGE" && startDate && endDate) {
+    const capacity = await db.facilityCapacity.findUnique({
+      where: {
+        facilityId_bookingType: { facilityId: input.facilityId, bookingType: "KURZZEITPFLEGE" },
+      },
+      select: { minStayNights: true },
+    });
+    const nights = Math.round((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+    if (capacity?.minStayNights && nights < capacity.minStayNights) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: `Diese Einrichtung erfordert bei Kurzzeitpflege einen Mindestaufenthalt von ${capacity.minStayNights} Nächten.`,
+      });
+    }
+  }
+
   return db.$transaction(async (tx) => {
     const candidates = await freeUnitCandidates(
       tx,

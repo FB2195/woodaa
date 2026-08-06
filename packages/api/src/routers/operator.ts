@@ -206,6 +206,7 @@ export const operatorRouter = router({
     .mutation(async ({ ctx, input }) => {
       const facility = await requireOwnFacility(ctx);
       const availableFrom = input.availableFrom ? new Date(input.availableFrom) : null;
+      const minStayNights = input.minStayNights ?? null;
 
       return ctx.db.facilityCapacity.upsert({
         where: {
@@ -219,9 +220,11 @@ export const operatorRouter = router({
           totalSlots: 0,
           availableSlots: 0,
           availableFrom,
+          minStayNights,
         },
         update: {
           availableFrom,
+          minStayNights,
         },
       });
     }),

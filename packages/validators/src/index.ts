@@ -401,6 +401,9 @@ export type RequestFacilityChangeInput = z.infer<typeof RequestFacilityChangeInp
 export const UpdatePricingInput = z.object({
   bookingType: BookingType,
   availableFrom: z.string().datetime().optional(),
+  // KURZZEITPFLEGE only - omitted (rather than 0/null) clears it, same
+  // "whole form resubmits every time" convention as availableFrom above.
+  minStayNights: z.number().int().min(1).max(60).optional(),
 });
 export type UpdatePricingInput = z.infer<typeof UpdatePricingInput>;
 
