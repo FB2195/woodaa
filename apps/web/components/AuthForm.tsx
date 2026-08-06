@@ -18,6 +18,7 @@ const copy: Record<Mode, { title: string; submit: string }> = {
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
+  const utils = trpc.useUtils();
   const [error, setError] = useState<string | null>(null);
   const [challengeToken, setChallengeToken] = useState<string | null>(null);
 
@@ -39,6 +40,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           try {
             const result = await verifyTwoFactor.mutateAsync({ challengeToken, code });
             await establishSession(result);
+            await utils.invalidate();
             router.push(redirectFor(result.user.role));
             router.refresh();
           } catch (err) {
@@ -94,6 +96,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               return;
             }
             await establishSession(result);
+            await utils.invalidate();
             router.push(redirectFor(result.user.role));
             router.refresh();
             return;
@@ -102,6 +105,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           const name = String(form.get("name") ?? "");
           const result = await bootstrapAdmin.mutateAsync({ name, email, password });
           await establishSession(result);
+          await utils.invalidate();
           router.push(redirectFor(result.user.role));
           router.refresh();
         } catch (err) {

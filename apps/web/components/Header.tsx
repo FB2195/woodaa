@@ -26,6 +26,7 @@ function PersonIcon() {
 
 export function Header() {
   const router = useRouter();
+  const utils = trpc.useUtils();
   const me = trpc.auth.me.useQuery(undefined, { retry: false });
   const [menuOpen, setMenuOpen] = useState(false);
   const t = useTranslations("header");
@@ -33,6 +34,14 @@ export function Header() {
   async function logout() {
     setMenuOpen(false);
     await fetch("/api/auth/session", { method: "DELETE" });
+    // router.refresh() alone only re-fetches Server Components, not this
+    // component's own React Query cache - and even invalidate() isn't
+    // enough on its own: React Query keeps the last successful `data`
+    // around when a background refetch errors (401 after logout), so
+    // `me.data` stayed populated until a manual reload. reset() clears it
+    // to undefined synchronously before refetching.
+    await utils.auth.me.reset();
+    await utils.invalidate();
     router.push("/");
     router.refresh();
   }
