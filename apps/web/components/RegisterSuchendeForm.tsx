@@ -10,6 +10,7 @@ import { trpc } from "@/lib/trpc";
 
 export function RegisterSuchendeForm() {
   const router = useRouter();
+  const utils = trpc.useUtils();
   const [error, setError] = useState<string | null>(null);
   const [pflegegrad, setPflegegrad] = useState<Pflegegrad | "">("");
   const [hatBevollmaechtigten, setHatBevollmaechtigten] = useState(false);
@@ -66,6 +67,7 @@ export function RegisterSuchendeForm() {
             datenschutzAccepted: true,
           });
           await establishSession(result);
+          await utils.invalidate();
           router.push(redirectFor(result.user.role));
           router.refresh();
         } catch (err) {
