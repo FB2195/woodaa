@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -44,9 +45,14 @@ export function VerifyEmailStatus() {
         E-Mail-Adresse bestätigt!
       </p>
       <p className="mt-2 text-sm text-brand-text-muted">
-        {verifyEmail.data.email} ist jetzt verifiziert. Du kannst dieses
-        Fenster schließen oder zum Dashboard zurückkehren.
+        {verifyEmail.data.email} ist jetzt verifiziert.
       </p>
+      <Link
+        href="/"
+        className="mt-4 inline-block rounded-brand-md bg-brand-accent px-6 py-3 font-semibold text-white transition hover:opacity-90"
+      >
+        Zurück zu woodaa
+      </Link>
     </div>
   );
 }

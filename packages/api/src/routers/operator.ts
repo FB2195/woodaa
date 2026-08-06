@@ -17,6 +17,7 @@ import {
 } from "@woodaa/validators";
 import { z } from "zod";
 import { cancelBooking, createBooking, setUnitCount } from "../availability";
+import { resolveBookingRecipient, sendBookingFacilityDecisionEmail } from "../email";
 import { createFacilityForOperator } from "../lib/facility";
 import { cheapestMonthlyEquivalentCents } from "../pricing";
 import {
@@ -146,6 +147,18 @@ export const operatorRouter = router({
       return ctx.db.facility.update({
         where: { id: facility.id },
         data: input,
+      });
+    }),
+
+  // Nicht-kritisch (wie updateFacility oben) - wirkt sich nur auf künftig
+  // erstellte Buchungen aus, kein admin-approval-Gate nötig.
+  updateBookingApprovalMode: operatorProcedure
+    .input(z.object({ mode: z.enum(["AUTOMATISCH", "MANUELL"]) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      return ctx.db.facility.update({
+        where: { id: facility.id },
+        data: { bookingApprovalMode: input.mode },
       });
     }),
 
@@ -346,6 +359,78 @@ export const operatorRouter = router({
         await stripeClient().refunds.create({ payment_intent: booking.stripePaymentIntentId });
       }
       return booking;
+    }),
+
+  // Für Buchungen mit facilityApprovalStatus=AUSSTEHEND (bookingApprovalMode
+  // war MANUELL zum Buchungszeitpunkt) - unabhängig vom Zahlungsstatus/
+  // adminApprovalStatus, siehe BookingFacilityApprovalStatus in schema.prisma.
+  confirmBooking: operatorProcedure
+    .input(z.object({ bookingId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const booking = await ctx.db.booking.findUnique({
+        where: { id: input.bookingId },
+        include: { user: true },
+      });
+      if (!booking || booking.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
+      }
+      const updated = await ctx.db.booking.update({
+        where: { id: booking.id },
+        data: { facilityApprovalStatus: "BESTAETIGT", facilityDecisionAt: new Date() },
+      });
+      if (booking.user) {
+        const { to, recipientName } = resolveBookingRecipient(booking.user);
+        await sendBookingFacilityDecisionEmail({
+          to,
+          recipientName,
+          guestName: `${booking.guestFirstName ?? ""} ${booking.guestLastName ?? ""}`.trim(),
+          facilityName: facility.name,
+          facilitySlug: facility.slug,
+          bookingType: booking.bookingType,
+          decision: "BESTAETIGT",
+        });
+      }
+      return updated;
+    }),
+
+  // Storniert die Buchung gleich mit (wie rejectBookingPayment unten) - ohne
+  // Annahme durch die Einrichtung darf der Platz nicht länger blockiert
+  // bleiben, eine eventuell bereits erfolgte Zahlung wird erstattet.
+  rejectBooking: operatorProcedure
+    .input(z.object({ bookingId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const booking = await ctx.db.booking.findUnique({
+        where: { id: input.bookingId },
+        include: { user: true },
+      });
+      if (!booking || booking.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
+      }
+      await ctx.db.booking.update({
+        where: { id: booking.id },
+        data: { facilityApprovalStatus: "ABGELEHNT", facilityDecisionAt: new Date() },
+      });
+      const cancelled = await cancelBooking(ctx.db, booking.id, {
+        requireFacilityId: facility.id,
+      });
+      if (cancelled.paymentStatus === "BEZAHLT" && cancelled.stripePaymentIntentId) {
+        await stripeClient().refunds.create({ payment_intent: cancelled.stripePaymentIntentId });
+      }
+      if (booking.user) {
+        const { to, recipientName } = resolveBookingRecipient(booking.user);
+        await sendBookingFacilityDecisionEmail({
+          to,
+          recipientName,
+          guestName: `${booking.guestFirstName ?? ""} ${booking.guestLastName ?? ""}`.trim(),
+          facilityName: facility.name,
+          facilitySlug: facility.slug,
+          bookingType: booking.bookingType,
+          decision: "ABGELEHNT",
+        });
+      }
+      return cancelled;
     }),
 
   // RECHNUNG/KOSTENUEBERNAHME_KASSE-Buchungen brauchen das "Go" des Heims,

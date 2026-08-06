@@ -59,6 +59,26 @@ enum PaymentStatus {
   ABGELEHNT
 }
 
+// Ob neue Online-Buchungen für das Heim sofort als bestätigt gelten
+// (AUTOMATISCH, bisheriges Verhalten) oder erst nach manueller Prüfung durch
+// die Einrichtung (MANUELL) - siehe Booking.facilityApprovalStatus.
+enum BookingApprovalMode {
+  AUTOMATISCH
+  MANUELL
+}
+
+// Getrennt von PaymentStatus/adminApprovalStatus: das ist die fachliche
+// "Nimmt die Einrichtung diese Buchung an?"-Entscheidung, unabhängig davon,
+// ob/wie bezahlt wird oder ob eine Bevollmächtigten-Prüfung nötig ist.
+// NICHT_ERFORDERLICH, wenn die Einrichtung zum Buchungszeitpunkt
+// AUTOMATISCH eingestellt hatte.
+enum BookingFacilityApprovalStatus {
+  NICHT_ERFORDERLICH
+  AUSSTEHEND
+  BESTAETIGT
+  ABGELEHNT
+}
+
 enum FacilityStatus {
   ACTIVE
   PENDING_REVIEW
@@ -352,6 +372,9 @@ model Facility {
   wifiInfo               String?
   parkingInfo            String?
   petsPolicy             String?
+  // Nicht-kritisch (wie die Unterkunftsrichtlinien oben) - wirkt sich nur auf
+  // künftige Buchungen aus, kein admin-approval-Gate nötig.
+  bookingApprovalMode    BookingApprovalMode     @default(AUTOMATISCH)
   operatorUserId         String?                 @unique
   operator               User?                   @relation("FacilityOperator", fields: [operatorUserId], references: [id])
   capacities             FacilityCapacity[]
@@ -497,14 +520,14 @@ model FacilityUnit {
 // 20260804_availability_engine) - das ist die eigentliche
 // Doppelbuchungssperre, nicht Applikationscode mit Locking/Retries.
 model Booking {
-  id                           String                     @id @default(cuid())
-  facility                     Facility                   @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  id                           String                        @id @default(cuid())
+  facility                     Facility                      @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   facilityId                   String
-  unit                         FacilityUnit               @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unit                         FacilityUnit                  @relation(fields: [unitId], references: [id], onDelete: Cascade)
   unitId                       String
   bookingType                  BookingType
   source                       UnitBookingSource
-  status                       UnitBookingStatus          @default(BESTAETIGT)
+  status                       UnitBookingStatus             @default(BESTAETIGT)
   // NULL endDate with a set startDate = "Ende offen" (open-ended, common
   // for ongoing Tages-/Nachtpflege) - the GIST exclusion constraint already
   // handles this correctly via daterange()'s unbounded-upper-bound
@@ -513,7 +536,7 @@ model Booking {
   endDate                      DateTime?
   // The logged-in Suchende who made this booking - null for phone/walk-in
   // bookings entered by facility staff (no woodaa account involved).
-  user                         User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user                         User?                         @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId                       String?
   guestName                    String?
   guestEmail                   String?
@@ -533,7 +556,7 @@ model Booking {
   // AES-256-GCM encrypted, same as User.versicherungsnummerEncrypted.
   versicherungsnummerEncrypted String?
   pflegegrad                   Int?
-  pflegegradAntragLaeuft       Boolean                    @default(false)
+  pflegegradAntragLaeuft       Boolean                       @default(false)
   // STATIONAERE_AUFNAHME only, informational: the family's stated preferred
   // move-in date. Doesn't change occupancy/exclusion-constraint semantics
   // (a confirmed STATIONAERE_AUFNAHME booking still occupies the unit
@@ -567,9 +590,14 @@ model Booking {
   // Independent of paymentStatus/facilityApprovedAt above: a Bevollmächtigte
   // account's RECHNUNG booking needs both this AND the facility's payment
   // freigabe before it's fully confirmed.
-  adminApprovalStatus          BookingAdminApprovalStatus @default(NICHT_ERFORDERLICH)
+  adminApprovalStatus          BookingAdminApprovalStatus    @default(NICHT_ERFORDERLICH)
   adminApprovedAt              DateTime?
-  createdAt                    DateTime                   @default(now())
+  // Set at creation from the facility's bookingApprovalMode at that moment
+  // (NICHT_ERFORDERLICH if AUTOMATISCH) - independent of paymentStatus and
+  // adminApprovalStatus above, see BookingFacilityApprovalStatus.
+  facilityApprovalStatus       BookingFacilityApprovalStatus @default(NICHT_ERFORDERLICH)
+  facilityDecisionAt           DateTime?
+  createdAt                    DateTime                      @default(now())
   cancelledAt                  DateTime?
 
   @@index([facilityId, bookingType])

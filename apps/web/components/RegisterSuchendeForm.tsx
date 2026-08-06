@@ -120,6 +120,7 @@ export function RegisterSuchendeForm() {
           Vorname
           <input
             name="vorname"
+            autoComplete="given-name"
             required
             className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
@@ -128,6 +129,7 @@ export function RegisterSuchendeForm() {
           Nachname
           <input
             name="nachname"
+            autoComplete="family-name"
             required
             className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
@@ -139,6 +141,7 @@ export function RegisterSuchendeForm() {
         <input
           type="date"
           name="geburtsdatum"
+          autoComplete="bday"
           required
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
@@ -148,6 +151,7 @@ export function RegisterSuchendeForm() {
         Straße & Hausnummer
         <input
           name="street"
+          autoComplete="street-address"
           required
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
@@ -158,6 +162,7 @@ export function RegisterSuchendeForm() {
           PLZ
           <input
             name="postalCode"
+            autoComplete="postal-code"
             required
             className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
@@ -166,6 +171,7 @@ export function RegisterSuchendeForm() {
           Ort
           <input
             name="city"
+            autoComplete="address-level2"
             required
             className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
@@ -177,6 +183,7 @@ export function RegisterSuchendeForm() {
         <input
           type="tel"
           name="phone"
+          autoComplete="tel"
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
       </label>
@@ -186,6 +193,7 @@ export function RegisterSuchendeForm() {
         <input
           type="email"
           name="email"
+          autoComplete="email"
           required
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
@@ -196,6 +204,7 @@ export function RegisterSuchendeForm() {
         <input
           type="password"
           name="password"
+          autoComplete="new-password"
           required
           minLength={8}
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"

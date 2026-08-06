@@ -1,6 +1,7 @@
 import {
   Prisma,
   type BookingAdminApprovalStatus,
+  type BookingFacilityApprovalStatus,
   type PaymentStatus,
   type PrismaClient,
 } from "@prisma/client";
@@ -305,6 +306,10 @@ export type CreateBookingInput = {
   // BookingAdminApprovalStatus in schema.prisma. Defaults to
   // NICHT_ERFORDERLICH (the Prisma schema default) when omitted.
   adminApprovalStatus?: BookingAdminApprovalStatus;
+  // Set from the facility's bookingApprovalMode at booking time - see
+  // BookingFacilityApprovalStatus in schema.prisma. Defaults to
+  // NICHT_ERFORDERLICH (the Prisma schema default) when omitted.
+  facilityApprovalStatus?: BookingFacilityApprovalStatus;
 };
 
 // Atomically claims one free unit and books it. Auto-assigns the unit -
@@ -373,6 +378,9 @@ export async function createBooking(db: PrismaClient, input: CreateBookingInput)
             ...(input.adminApprovalStatus
               ? { adminApprovalStatus: input.adminApprovalStatus }
               : {}),
+            ...(input.facilityApprovalStatus
+              ? { facilityApprovalStatus: input.facilityApprovalStatus }
+              : {}),
           },
         });
         await tx.$executeRaw`RELEASE SAVEPOINT claim_attempt`;
@@ -396,7 +404,7 @@ export async function createBooking(db: PrismaClient, input: CreateBookingInput)
 export async function cancelBooking(
   db: PrismaClient,
   bookingId: string,
-  options?: { requireFacilityId?: string; requireGuestEmail?: string },
+  options?: { requireFacilityId?: string; requireGuestEmail?: string; requireUserId?: string },
 ) {
   return db.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({ where: { id: bookingId } });
@@ -411,6 +419,9 @@ export async function cancelBooking(
       booking.guestEmail?.toLowerCase() !== options.requireGuestEmail.trim().toLowerCase()
     ) {
       throw new TRPCError({ code: "FORBIDDEN", message: "E-Mail-Adresse stimmt nicht überein." });
+    }
+    if (options?.requireUserId && booking.userId !== options.requireUserId) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
     }
     if (booking.status === "STORNIERT") return booking;
 

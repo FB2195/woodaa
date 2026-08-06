@@ -65,6 +65,7 @@ export function RegisterBetreiberForm() {
         Straße & Hausnummer
         <input
           name="street"
+          autoComplete="street-address"
           required
           placeholder="Musterstraße 12"
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
@@ -76,6 +77,7 @@ export function RegisterBetreiberForm() {
           PLZ
           <input
             name="postalCode"
+            autoComplete="postal-code"
             required
             placeholder="12345"
             className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
@@ -85,6 +87,7 @@ export function RegisterBetreiberForm() {
           Ort
           <input
             name="city"
+            autoComplete="address-level2"
             required
             placeholder="Musterstadt"
             className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
@@ -96,6 +99,7 @@ export function RegisterBetreiberForm() {
         Bundesland
         <input
           name="state"
+          autoComplete="address-level1"
           required
           placeholder="Nordrhein-Westfalen"
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
@@ -110,6 +114,7 @@ export function RegisterBetreiberForm() {
         Name des Ansprechpartners
         <input
           name="name"
+          autoComplete="name"
           required
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
@@ -120,6 +125,7 @@ export function RegisterBetreiberForm() {
         <input
           type="tel"
           name="operatorPhone"
+          autoComplete="tel"
           required
           placeholder="030 12345678"
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
@@ -141,6 +147,7 @@ export function RegisterBetreiberForm() {
         <input
           type="email"
           name="email"
+          autoComplete="email"
           required
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
@@ -151,6 +158,7 @@ export function RegisterBetreiberForm() {
         <input
           type="password"
           name="password"
+          autoComplete="new-password"
           required
           minLength={8}
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
