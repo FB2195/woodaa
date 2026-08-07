@@ -27,7 +27,7 @@ import {
   newPhotoKey,
   withPhotoUrl,
 } from "../r2";
-import { stripeClient } from "../stripe";
+import { refundBookingPayment, stripeClient } from "../stripe";
 import { operatorProcedure, router } from "../trpc";
 import type { Context } from "../trpc";
 
@@ -418,9 +418,7 @@ export const operatorRouter = router({
       const cancelled = await cancelBooking(ctx.db, booking.id, {
         requireFacilityId: facility.id,
       });
-      if (cancelled.paymentStatus === "BEZAHLT" && cancelled.stripePaymentIntentId) {
-        await stripeClient().refunds.create({ payment_intent: cancelled.stripePaymentIntentId });
-      }
+      await refundBookingPayment(ctx.db, cancelled);
       if (booking.user) {
         const { to, recipientName } = resolveBookingRecipient(booking.user);
         await sendBookingFacilityDecisionEmail({

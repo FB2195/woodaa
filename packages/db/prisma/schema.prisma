@@ -604,6 +604,10 @@ model Booking {
   facilityDecisionAt           DateTime?
   createdAt                    DateTime                      @default(now())
   cancelledAt                  DateTime?
+  // Set when a Stripe refund call throws after the booking was already
+  // cancelled (see cancelBooking) - stays null on the happy path, gives
+  // staff something to search for instead of the money silently vanishing.
+  refundFailedAt               DateTime?
 
   @@index([facilityId, bookingType])
   @@index([unitId, status])
