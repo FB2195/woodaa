@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { MAX_DOCUMENT_BYTES } from "@woodaa/validators";
 import { trpc } from "@/lib/trpc";
 
 export function KostenuebernahmeUpload({ bookingId }: { bookingId: string }) {
@@ -16,6 +17,12 @@ export function KostenuebernahmeUpload({ bookingId }: { bookingId: string }) {
     setError(null);
     if (file.type !== "application/pdf") {
       setError("Bitte lade die Bestätigung als PDF hoch.");
+      return;
+    }
+    if (file.size > MAX_DOCUMENT_BYTES) {
+      setError(
+        `Die Datei darf maximal ${Math.round(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB groß sein.`,
+      );
       return;
     }
 
@@ -43,8 +50,8 @@ export function KostenuebernahmeUpload({ bookingId }: { bookingId: string }) {
   if (uploaded) {
     return (
       <p className="mt-3 text-sm text-brand-accent">
-        Kostenübernahmebestätigung hochgeladen - die Einrichtung prüft sie und gibt die
-        Buchung frei.
+        Kostenübernahmebestätigung hochgeladen - die Einrichtung prüft sie und gibt die Buchung
+        frei.
       </p>
     );
   }
@@ -52,8 +59,8 @@ export function KostenuebernahmeUpload({ bookingId }: { bookingId: string }) {
   return (
     <div className="mt-3 flex flex-col gap-2 rounded-brand-md bg-brand-background p-3">
       <p className="text-sm text-brand-text">
-        Bitte lade die Kostenübernahmebestätigung deiner Pflegekasse hoch, damit die
-        Einrichtung die Buchung freigeben kann.
+        Bitte lade die Kostenübernahmebestätigung deiner Pflegekasse hoch, damit die Einrichtung die
+        Buchung freigeben kann.
       </p>
       <input
         ref={inputRef}

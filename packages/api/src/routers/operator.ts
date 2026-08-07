@@ -7,6 +7,7 @@ import {
   CreateFacilityInput,
   CreateManualBookingInput,
   MAX_FACILITY_PHOTOS,
+  MAX_PHOTO_BYTES,
   RenameUnitInput,
   RequestFacilityChangeInput,
   RequestPhotoUploadInput,
@@ -24,10 +25,11 @@ import {
   createPresignedDownloadUrl,
   createPresignedUploadUrl,
   deleteObject,
+  headUploadedObjectSize,
   newPhotoKey,
   withPhotoUrl,
 } from "../r2";
-import { refundBookingPayment, stripeClient } from "../stripe";
+import { refundBookingPayment } from "../stripe";
 import { operatorProcedure, router } from "../trpc";
 import type { Context } from "../trpc";
 
@@ -37,9 +39,7 @@ const PHOTO_CONTENT_TYPE_EXTENSION: Record<AllowedPhotoContentType, string> = {
   "image/webp": "webp",
 };
 
-async function requireOwnFacility(
-  ctx: Context & { user: NonNullable<Context["user"]> },
-) {
+async function requireOwnFacility(ctx: Context & { user: NonNullable<Context["user"]> }) {
   const facility = await ctx.db.facility.findUnique({
     where: { operatorUserId: ctx.user.id },
   });
@@ -93,62 +93,58 @@ export const operatorRouter = router({
     };
   }),
 
-  createFacility: operatorProcedure
-    .input(CreateFacilityInput)
-    .mutation(async ({ ctx, input }) => {
-      // No email-verification gate here on purpose - the free availability
-      // tool should be usable immediately after signup. Verification is
-      // required later, at requestPublicListing, where it actually matters
-      // (a real address going out to families searching woodaa).
-      const user = await ctx.db.user.findUniqueOrThrow({
-        where: { id: ctx.user.id },
-      });
+  createFacility: operatorProcedure.input(CreateFacilityInput).mutation(async ({ ctx, input }) => {
+    // No email-verification gate here on purpose - the free availability
+    // tool should be usable immediately after signup. Verification is
+    // required later, at requestPublicListing, where it actually matters
+    // (a real address going out to families searching woodaa).
+    const user = await ctx.db.user.findUniqueOrThrow({
+      where: { id: ctx.user.id },
+    });
 
-      const existing = await ctx.db.facility.findUnique({
-        where: { operatorUserId: ctx.user.id },
+    const existing = await ctx.db.facility.findUnique({
+      where: { operatorUserId: ctx.user.id },
+    });
+    if (existing) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "Du hast bereits eine Einrichtung angelegt.",
       });
-      if (existing) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Du hast bereits eine Einrichtung angelegt.",
-        });
-      }
+    }
 
-      return createFacilityForOperator(ctx.db, user, input);
-    }),
+    return createFacilityForOperator(ctx.db, user, input);
+  }),
 
   // Non-critical fields only (description, amenities, Pflegegrad-Eignung,
   // Unterkunftsrichtlinien) - applies immediately. Name/address/operator
   // contact details are trust-sensitive and go through requestFacilityChange
   // + admin approval instead (see RequestFacilityChangeInput).
-  updateFacility: operatorProcedure
-    .input(UpdateFacilityInput)
-    .mutation(async ({ ctx, input }) => {
-      const facility = await requireOwnFacility(ctx);
+  updateFacility: operatorProcedure.input(UpdateFacilityInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
 
-      // Going from no description to having one is the "request public
-      // listing" moment (see PublicListingPrompt.tsx / admin.pendingFacilities'
-      // description-not-empty filter) - that's the one action that actually
-      // needs a confirmed email, since it puts a real address in front of
-      // families searching woodaa.
-      if (!facility.description && input.description) {
-        const user = await ctx.db.user.findUniqueOrThrow({
-          where: { id: ctx.user.id },
-        });
-        if (!user.emailVerifiedAt) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message:
-              "Bitte bestätige zuerst deine E-Mail-Adresse, bevor deine Einrichtung öffentlich sichtbar wird.",
-          });
-        }
-      }
-
-      return ctx.db.facility.update({
-        where: { id: facility.id },
-        data: input,
+    // Going from no description to having one is the "request public
+    // listing" moment (see PublicListingPrompt.tsx / admin.pendingFacilities'
+    // description-not-empty filter) - that's the one action that actually
+    // needs a confirmed email, since it puts a real address in front of
+    // families searching woodaa.
+    if (!facility.description && input.description) {
+      const user = await ctx.db.user.findUniqueOrThrow({
+        where: { id: ctx.user.id },
       });
-    }),
+      if (!user.emailVerifiedAt) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Bitte bestätige zuerst deine E-Mail-Adresse, bevor deine Einrichtung öffentlich sichtbar wird.",
+        });
+      }
+    }
+
+    return ctx.db.facility.update({
+      where: { id: facility.id },
+      data: input,
+    });
+  }),
 
   // Nicht-kritisch (wie updateFacility oben) - wirkt sich nur auf künftig
   // erstellte Buchungen aus, kein admin-approval-Gate nötig.
@@ -201,33 +197,31 @@ export const operatorRouter = router({
   // monthlyPriceCents ist kein Formularfeld mehr - siehe
   // setPflegegradPricing, das es automatisch aus den echten
   // Pflegegrad-Sätzen herleitet.
-  updatePricing: operatorProcedure
-    .input(UpdatePricingInput)
-    .mutation(async ({ ctx, input }) => {
-      const facility = await requireOwnFacility(ctx);
-      const availableFrom = input.availableFrom ? new Date(input.availableFrom) : null;
-      const minStayNights = input.minStayNights ?? null;
+  updatePricing: operatorProcedure.input(UpdatePricingInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    const availableFrom = input.availableFrom ? new Date(input.availableFrom) : null;
+    const minStayNights = input.minStayNights ?? null;
 
-      return ctx.db.facilityCapacity.upsert({
-        where: {
-          facilityId_bookingType: { facilityId: facility.id, bookingType: input.bookingType },
-        },
-        // 0/0 on first create - a real count only exists once setUnitCount
-        // has run at least once; the pricing form can be filled in first.
-        create: {
-          facilityId: facility.id,
-          bookingType: input.bookingType,
-          totalSlots: 0,
-          availableSlots: 0,
-          availableFrom,
-          minStayNights,
-        },
-        update: {
-          availableFrom,
-          minStayNights,
-        },
-      });
-    }),
+    return ctx.db.facilityCapacity.upsert({
+      where: {
+        facilityId_bookingType: { facilityId: facility.id, bookingType: input.bookingType },
+      },
+      // 0/0 on first create - a real count only exists once setUnitCount
+      // has run at least once; the pricing form can be filled in first.
+      create: {
+        facilityId: facility.id,
+        bookingType: input.bookingType,
+        totalSlots: 0,
+        availableSlots: 0,
+        availableFrom,
+        minStayNights,
+      },
+      update: {
+        availableFrom,
+        minStayNights,
+      },
+    });
+  }),
 
   // Real per-Pflegegrad rates - the actual basis for every Eigenanteil/
   // Zuschuss calculation, see CapacityPflegegradPricing in schema.prisma.
@@ -304,29 +298,25 @@ export const operatorRouter = router({
   // "Wie viele Plätze gibt es insgesamt in dieser Kategorie" - Erhöhen legt
   // anonyme neue Plätze an, Verringern entfernt nur Plätze ohne aktive
   // Buchung (siehe setUnitCount in availability.ts).
-  setUnitCount: operatorProcedure
-    .input(SetUnitCountInput)
-    .mutation(async ({ ctx, input }) => {
-      const facility = await requireOwnFacility(ctx);
-      await ctx.db.$transaction((tx) =>
-        setUnitCount(tx, facility.id, input.bookingType, input.totalUnits),
-      );
-      return { success: true };
-    }),
+  setUnitCount: operatorProcedure.input(SetUnitCountInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    await ctx.db.$transaction((tx) =>
+      setUnitCount(tx, facility.id, input.bookingType, input.totalUnits),
+    );
+    return { success: true };
+  }),
 
-  renameUnit: operatorProcedure
-    .input(RenameUnitInput)
-    .mutation(async ({ ctx, input }) => {
-      const facility = await requireOwnFacility(ctx);
-      const unit = await ctx.db.facilityUnit.findUnique({ where: { id: input.unitId } });
-      if (!unit || unit.facilityId !== facility.id) {
-        throw new TRPCError({ code: "NOT_FOUND" });
-      }
-      return ctx.db.facilityUnit.update({
-        where: { id: input.unitId },
-        data: { label: input.label },
-      });
-    }),
+  renameUnit: operatorProcedure.input(RenameUnitInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    const unit = await ctx.db.facilityUnit.findUnique({ where: { id: input.unitId } });
+    if (!unit || unit.facilityId !== facility.id) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+    return ctx.db.facilityUnit.update({
+      where: { id: input.unitId },
+      data: { label: input.label },
+    });
+  }),
 
   // Für Telefon-/Vor-Ort-Buchungen: ein Klick pro Kategorie, das System
   // weist automatisch einen freien Platz zu (siehe createBooking) - Personal
@@ -351,18 +341,14 @@ export const operatorRouter = router({
   // Storniert jede Buchung der eigenen Einrichtung, unabhängig von der
   // Quelle - auch eine online sofort verbindliche Buchung, falls die
   // Einrichtung sie im Nachhinein doch nicht annehmen kann.
-  cancelBooking: operatorProcedure
-    .input(CancelBookingInput)
-    .mutation(async ({ ctx, input }) => {
-      const facility = await requireOwnFacility(ctx);
-      const booking = await cancelBooking(ctx.db, input.bookingId, {
-        requireFacilityId: facility.id,
-      });
-      if (booking.paymentStatus === "BEZAHLT" && booking.stripePaymentIntentId) {
-        await stripeClient().refunds.create({ payment_intent: booking.stripePaymentIntentId });
-      }
-      return booking;
-    }),
+  cancelBooking: operatorProcedure.input(CancelBookingInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    const booking = await cancelBooking(ctx.db, input.bookingId, {
+      requireFacilityId: facility.id,
+    });
+    await refundBookingPayment(ctx.db, booking);
+    return booking;
+  }),
 
   // Für Buchungen mit facilityApprovalStatus=AUSSTEHEND (bookingApprovalMode
   // war MANUELL zum Buchungszeitpunkt) - unabhängig vom Zahlungsstatus/
@@ -514,10 +500,7 @@ export const operatorRouter = router({
         });
       }
 
-      const key = newPhotoKey(
-        facility.id,
-        PHOTO_CONTENT_TYPE_EXTENSION[input.contentType],
-      );
+      const key = newPhotoKey(facility.id, PHOTO_CONTENT_TYPE_EXTENSION[input.contentType]);
       const uploadUrl = await createPresignedUploadUrl(key, input.contentType);
       return { uploadUrl, key };
     }),
@@ -526,10 +509,23 @@ export const operatorRouter = router({
     .input(ConfirmPhotoUploadInput)
     .mutation(async ({ ctx, input }) => {
       const facility = await requireOwnFacility(ctx);
-      // No existence check against R2 by design - only reachable by the
-      // authenticated owner of this exact facility, for a key they just
-      // requested via requestPhotoUpload. A fabricated key just yields a
-      // broken <img>, no cross-tenant risk.
+      // Only reachable by the authenticated owner of this exact facility,
+      // for a key they just requested via requestPhotoUpload - a fabricated
+      // key just yields no object below, no cross-tenant read/write risk.
+      // What the presigned PUT itself can't enforce upfront is the byte
+      // size (see createPresignedUploadUrl) - checked here instead, against
+      // the object that's now actually sitting in R2.
+      const size = await headUploadedObjectSize(input.key);
+      if (size === null || size > MAX_PHOTO_BYTES) {
+        await deleteObject(input.key);
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            size === null
+              ? "Upload nicht gefunden."
+              : `Datei überschreitet die maximale Größe von ${Math.round(MAX_PHOTO_BYTES / 1024 / 1024)} MB.`,
+        });
+      }
       const photo = await ctx.db.facilityPhoto.create({
         data: { facilityId: facility.id, key: input.key },
       });

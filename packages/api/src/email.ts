@@ -19,6 +19,21 @@ function appUrl(): string {
   return "http://localhost:3000";
 }
 
+// Every value that ends up inside an `html:` template below and didn't
+// originate from a fixed lookup table (bookingTypeLabels, ...) or an
+// already-sanitized slug/URL must go through this first - names, emails and
+// facility/guest-supplied text are otherwise interpolated as raw HTML into
+// mail sent from woodaa's own domain. Only for the `html:` variant; the
+// `text:` sibling of every email uses the unescaped value as-is.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function logoHtml(): string {
   return `<p><img src="${appUrl()}/logo.png" alt="woodaa" width="160" style="display:block;height:auto;max-width:160px" /></p>`;
 }
@@ -74,13 +89,14 @@ export async function sendVerificationEmail({
   token: string;
 }) {
   const verifyUrl = `${appUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+  const safeName = escapeHtml(name);
 
   await sendEmail({
     to,
     subject: "Bitte bestätige deine E-Mail-Adresse bei woodaa",
     html: `
       ${logoHtml()}
-      <p>Hallo ${name},</p>
+      <p>Hallo ${safeName},</p>
       <p>bitte bestätige deine E-Mail-Adresse, um dein woodaa-Konto zu aktivieren:</p>
       <p><a href="${verifyUrl}">${verifyUrl}</a></p>
       <p>Der Link ist 24 Stunden gültig.</p>
@@ -107,13 +123,14 @@ export async function sendPasswordResetEmail({
   token: string;
 }) {
   const resetUrl = `${appUrl()}/passwort-zuruecksetzen?token=${encodeURIComponent(token)}`;
+  const safeName = escapeHtml(name);
 
   await sendEmail({
     to,
     subject: "Passwort zurücksetzen bei woodaa",
     html: `
       ${logoHtml()}
-      <p>Hallo ${name},</p>
+      <p>Hallo ${safeName},</p>
       <p>du hast angefordert, dein Passwort bei woodaa zurückzusetzen:</p>
       <p><a href="${resetUrl}">${resetUrl}</a></p>
       <p>Der Link ist 1 Stunde gültig und nur einmal verwendbar.</p>
@@ -142,14 +159,16 @@ export async function sendEmailChangeOldAddressEmail({
   token: string;
 }) {
   const confirmUrl = `${appUrl()}/konto/email-bestaetigen?step=old&token=${encodeURIComponent(token)}`;
+  const safeName = escapeHtml(name);
+  const safeNewEmail = escapeHtml(newEmail);
 
   await sendEmail({
     to,
     subject: "Bestätige die Änderung deiner E-Mail-Adresse bei woodaa",
     html: `
       ${logoHtml()}
-      <p>Hallo ${name},</p>
-      <p>du hast angefordert, deine E-Mail-Adresse bei woodaa auf <strong>${newEmail}</strong> zu ändern:</p>
+      <p>Hallo ${safeName},</p>
+      <p>du hast angefordert, deine E-Mail-Adresse bei woodaa auf <strong>${safeNewEmail}</strong> zu ändern:</p>
       <p><a href="${confirmUrl}">${confirmUrl}</a></p>
       <p>Der Link ist 1 Stunde gültig. Erst nachdem du hier bestätigst, schicken wir eine Bestätigungs-E-Mail an die neue Adresse.</p>
       <p>Falls du das nicht warst, kannst du diese E-Mail ignorieren — deine E-Mail-Adresse bleibt unverändert.</p>
@@ -175,13 +194,14 @@ export async function sendEmailChangeNewAddressEmail({
   token: string;
 }) {
   const confirmUrl = `${appUrl()}/konto/email-bestaetigen?step=new&token=${encodeURIComponent(token)}`;
+  const safeName = escapeHtml(name);
 
   await sendEmail({
     to,
     subject: "Bestätige deine neue E-Mail-Adresse bei woodaa",
     html: `
       ${logoHtml()}
-      <p>Hallo ${name},</p>
+      <p>Hallo ${safeName},</p>
       <p>bitte bestätige, dass diese Adresse deine neue E-Mail-Adresse bei woodaa werden soll:</p>
       <p><a href="${confirmUrl}">${confirmUrl}</a></p>
       <p>Der Link ist 1 Stunde gültig. Danach ist diese Adresse deine neue Login-E-Mail-Adresse.</p>
@@ -266,18 +286,21 @@ export async function sendBookingConfirmationEmail({
   const statusLine = facilityApprovalRequired
     ? "Die Einrichtung prüft deine Buchung noch - wir informieren dich per E-Mail, sobald sie bestätigt wurde."
     : "Deine Buchung ist bestätigt.";
+  const safeRecipientName = escapeHtml(recipientName);
+  const safeGuestName = escapeHtml(guestName);
+  const safeFacilityName = escapeHtml(facilityName);
 
   await sendEmail({
     to,
     subject: `Buchungsbestätigung: ${bookingTypeLabel} bei ${facilityName}`,
     html: `
       ${logoHtml()}
-      <p>Hallo ${recipientName},</p>
+      <p>Hallo ${safeRecipientName},</p>
       <p>vielen Dank für die Buchung über woodaa. Wir haben deine Anfrage erhalten:</p>
       <ul>
-        <li>Einrichtung: <a href="${facilityUrl}">${facilityName}</a></li>
+        <li>Einrichtung: <a href="${facilityUrl}">${safeFacilityName}</a></li>
         <li>Leistung: ${bookingTypeLabel}</li>
-        <li>Versicherte Person: ${guestName}</li>
+        <li>Versicherte Person: ${safeGuestName}</li>
         ${dateRangeLine ? `<li>${dateRangeLine}</li>` : ""}
       </ul>
       <p>${statusLine}</p>
@@ -340,10 +363,14 @@ export async function sendBookingFacilityDecisionEmail({
         ? `Deine Buchung bei ${facilityName} konnte nicht bestätigt werden`
         : `Zahlung für deine Buchung bei ${facilityName} war nicht erfolgreich`;
 
+  const safeFacilityName = escapeHtml(facilityName);
+  const safeGuestName = escapeHtml(guestName);
+  const safeRecipientName = escapeHtml(recipientName);
+
   const rejectionReasonSentence: Record<"EINRICHTUNG" | "ZAHLUNG" | "WOODAA", string> = {
-    EINRICHTUNG: `<strong>${facilityName}</strong> konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen.`,
-    ZAHLUNG: `<strong>${facilityName}</strong> hat die gewählte Zahlungsart für deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht freigegeben.`,
-    WOODAA: `woodaa konnte deine Buchung (${bookingTypeLabel} für ${guestName}) bei <strong>${facilityName}</strong> leider nicht freigeben.`,
+    EINRICHTUNG: `<strong>${safeFacilityName}</strong> konnte deine Buchung (${bookingTypeLabel} für ${safeGuestName}) leider nicht annehmen.`,
+    ZAHLUNG: `<strong>${safeFacilityName}</strong> hat die gewählte Zahlungsart für deine Buchung (${bookingTypeLabel} für ${safeGuestName}) leider nicht freigegeben.`,
+    WOODAA: `woodaa konnte deine Buchung (${bookingTypeLabel} für ${safeGuestName}) bei <strong>${safeFacilityName}</strong> leider nicht freigeben.`,
   };
   const rejectionReasonSentenceText: Record<"EINRICHTUNG" | "ZAHLUNG" | "WOODAA", string> = {
     EINRICHTUNG: `${facilityName} konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen.`,
@@ -353,10 +380,10 @@ export async function sendBookingFacilityDecisionEmail({
 
   const bodyHtml =
     decision === "BESTAETIGT"
-      ? `<p><strong>${facilityName}</strong> hat deine Buchung (${bookingTypeLabel} für ${guestName}) bestätigt.</p>`
+      ? `<p><strong>${safeFacilityName}</strong> hat deine Buchung (${bookingTypeLabel} für ${safeGuestName}) bestätigt.</p>`
       : decision === "ABGELEHNT"
         ? `<p>${rejectionReasonSentence[rejectionSource]} Die Buchung wurde storniert, eine eventuell bereits erfolgte Zahlung wird automatisch erstattet.</p>`
-        : `<p>Die Zahlung für deine Buchung (${bookingTypeLabel} für ${guestName}) bei <strong>${facilityName}</strong> konnte nicht abgeschlossen werden. Die Buchung wurde storniert und der Platz wieder freigegeben. Du kannst gerne erneut buchen, sobald das Zahlungsproblem behoben ist.</p>`;
+        : `<p>Die Zahlung für deine Buchung (${bookingTypeLabel} für ${safeGuestName}) bei <strong>${safeFacilityName}</strong> konnte nicht abgeschlossen werden. Die Buchung wurde storniert und der Platz wieder freigegeben. Du kannst gerne erneut buchen, sobald das Zahlungsproblem behoben ist.</p>`;
 
   const bodyText =
     decision === "BESTAETIGT"
@@ -370,9 +397,9 @@ export async function sendBookingFacilityDecisionEmail({
     subject,
     html: `
       ${logoHtml()}
-      <p>Hallo ${recipientName},</p>
+      <p>Hallo ${safeRecipientName},</p>
       ${bodyHtml}
-      <p>Einrichtung: <a href="${facilityUrl}">${facilityName}</a></p>
+      <p>Einrichtung: <a href="${facilityUrl}">${safeFacilityName}</a></p>
       <p>Details findest du unter "Meine Buchungen" in deinem woodaa-Konto: <a href="${accountUrl}">${accountUrl}</a></p>
     `,
     text: `Hallo ${recipientName},
@@ -427,17 +454,20 @@ export async function sendOperatorNewBookingEmail({
     actionSentences.push("Die gewählte Zahlungsart wartet auf deine Freigabe.");
   }
   const actionLine = actionSentences.join(" ");
+  const safeOperatorName = escapeHtml(operatorName);
+  const safeGuestName = escapeHtml(guestName);
+  const safeFacilityName = escapeHtml(facilityName);
 
   await sendEmail({
     to,
     subject: `Neue Buchung bei ${facilityName}: ${bookingTypeLabel}`,
     html: `
       ${logoHtml()}
-      <p>Hallo ${operatorName},</p>
-      <p>bei <strong>${facilityName}</strong> ist eine neue Buchung eingegangen:</p>
+      <p>Hallo ${safeOperatorName},</p>
+      <p>bei <strong>${safeFacilityName}</strong> ist eine neue Buchung eingegangen:</p>
       <ul>
         <li>Leistung: ${bookingTypeLabel}</li>
-        <li>Versicherte Person: ${guestName}</li>
+        <li>Versicherte Person: ${safeGuestName}</li>
         ${dateRangeLine ? `<li>${dateRangeLine}</li>` : ""}
       </ul>
       <p>${actionLine}</p>
@@ -482,6 +512,8 @@ export async function sendAdminPendingBookingApprovalEmail({
   }
   const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
   const dashboardUrl = `${appUrl()}/admin/dashboard`;
+  const safeGuestName = escapeHtml(guestName);
+  const safeFacilityName = escapeHtml(facilityName);
 
   await sendEmail({
     to,
@@ -490,9 +522,9 @@ export async function sendAdminPendingBookingApprovalEmail({
       ${logoHtml()}
       <p>Eine Buchung von einem bevollmächtigten Account wartet auf die woodaa-Freigabe:</p>
       <ul>
-        <li>Einrichtung: ${facilityName}</li>
+        <li>Einrichtung: ${safeFacilityName}</li>
         <li>Leistung: ${bookingTypeLabel}</li>
-        <li>Versicherte Person: ${guestName}</li>
+        <li>Versicherte Person: ${safeGuestName}</li>
       </ul>
       <p>Freigeben oder ablehnen im Admin-Dashboard: <a href="${dashboardUrl}">${dashboardUrl}</a></p>
     `,
@@ -526,13 +558,15 @@ export async function sendCareApplicationEmail({
   const subject = `Antrag ${bookingTypeLabel} - Versicherungsnummer ${versicherungsnummer}`;
   const content = Buffer.from(pdfBytes).toString("base64");
   const fileSlug = bookingTypeLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const safeApplicantName = escapeHtml(applicantName);
+  const safeVersicherungsnummer = escapeHtml(versicherungsnummer);
 
   await sendEmail({
     to,
     subject,
     html: `
       <p>Antrag auf Kostenübernahme für <strong>${bookingTypeLabel}</strong></p>
-      <p>Versicherte Person: ${applicantName}<br />Versicherungsnummer: ${versicherungsnummer}</p>
+      <p>Versicherte Person: ${safeApplicantName}<br />Versicherungsnummer: ${safeVersicherungsnummer}</p>
       <p>Digital eingereicht über woodaa (woodaa.de). Siehe angehängtes PDF für die vollständigen Angaben und die digitale Signatur.</p>
     `,
     text: `Antrag auf Kostenübernahme für ${bookingTypeLabel}

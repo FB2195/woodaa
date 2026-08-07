@@ -5,7 +5,11 @@ import { appRouter, createContext, recomputeAllCapacityCaches } from "@woodaa/ap
 import { db } from "@woodaa/db";
 import Fastify from "fastify";
 
-const server = Fastify({ logger: true });
+// trustProxy so req.ip resolves the real client address from
+// X-Forwarded-For when Railway sits this behind its own edge proxy -
+// otherwise every caller would share the proxy's IP and the per-IP rate
+// limiting in packages/api/src/rateLimit.ts would bucket them all together.
+const server = Fastify({ logger: true, trustProxy: true });
 
 // Date-ranged categories (Kurzzeit-/Tages-/Nachtpflege) can flip from
 // "occupied" to "free" purely because midnight passed, with no booking
@@ -35,7 +39,7 @@ async function main() {
       createContext: ({ req }: CreateFastifyContextOptions) => {
         const header = req.headers.authorization;
         const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
-        return createContext({ token });
+        return createContext({ token, ip: req.ip });
       },
     },
   });

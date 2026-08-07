@@ -1,5 +1,11 @@
 import { ChatMessageInput, CreateSupportRequestInput } from "@woodaa/validators";
-import { publicProcedure, router } from "../trpc";
+import { publicProcedure, rateLimited, router } from "../trpc";
+
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+// support.create is a plain DB write (cheap); support.chat calls the
+// Anthropic API on every request (real per-call cost) - tighter limit.
+const SUPPORT_CREATE_RATE_LIMIT = 10;
+const SUPPORT_CHAT_RATE_LIMIT = 15;
 
 const CHAT_SYSTEM_PROMPT = `Du bist der Kundenservice-Chat von woodaa, einer Plattform, die Familien mit Pflegeeinrichtungen in Deutschland verbindet (stationäre Aufnahme, Kurzzeitpflege, Tages-/Nachtpflege).
 Beantworte Fragen zu woodaa selbst: Suche, Buchung, Zahlung, Bewertungen, Konto, Pflegegrad-Zuschüsse (allgemein, keine Rechtsberatung). Sei kurz, freundlich und auf Deutsch.
@@ -41,22 +47,28 @@ async function callAnthropic(messages: ChatMessageInput["messages"]): Promise<st
 }
 
 export const supportRouter = router({
-  create: publicProcedure.input(CreateSupportRequestInput).mutation(async ({ ctx, input }) => {
-    return ctx.db.supportRequest.create({
-      data: {
-        type: input.type,
-        name: input.name,
-        email: input.email,
-        phone: input.phone,
-        message: input.message,
-        pageUrl: input.pageUrl,
-        userId: ctx.user?.id,
-      },
-    });
-  }),
+  create: publicProcedure
+    .use(rateLimited("support.create", SUPPORT_CREATE_RATE_LIMIT, RATE_LIMIT_WINDOW_MS))
+    .input(CreateSupportRequestInput)
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.supportRequest.create({
+        data: {
+          type: input.type,
+          name: input.name,
+          email: input.email,
+          phone: input.phone,
+          message: input.message,
+          pageUrl: input.pageUrl,
+          userId: ctx.user?.id,
+        },
+      });
+    }),
 
-  chat: publicProcedure.input(ChatMessageInput).mutation(async ({ input }) => {
-    const reply = await callAnthropic(input.messages);
-    return { reply };
-  }),
+  chat: publicProcedure
+    .use(rateLimited("support.chat", SUPPORT_CHAT_RATE_LIMIT, RATE_LIMIT_WINDOW_MS))
+    .input(ChatMessageInput)
+    .mutation(async ({ input }) => {
+      const reply = await callAnthropic(input.messages);
+      return { reply };
+    }),
 });
