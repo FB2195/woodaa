@@ -145,18 +145,27 @@ export const bookingRouter = router({
         facility.bookingApprovalMode === "MANUELL" ? "AUSSTEHEND" : "NICHT_ERFORDERLICH",
     });
 
-    const { to, recipientName } = resolveBookingRecipient(user);
-    await sendBookingConfirmationEmail({
-      to,
-      recipientName,
-      guestName: `${input.guestFirstName} ${input.guestLastName}`.trim(),
-      facilityName: facility.name,
-      facilitySlug: facility.slug,
-      bookingType: input.bookingType,
-      startDate: input.startDate ? new Date(input.startDate) : null,
-      endDate: input.endDate ? new Date(input.endDate) : null,
-      facilityApprovalRequired: facility.bookingApprovalMode === "MANUELL",
-    });
+    // KARTE/KLARNA/PAYPAL: the payment isn't confirmed yet at this point -
+    // the confirmation email only goes out once Stripe's payment_intent.
+    // succeeded webhook actually confirms it (see webhooks.ts), not here.
+    // RECHNUNG/KOSTENUEBERNAHME_KASSE settle outside Stripe entirely
+    // (invoiced by the facility / already covered by the Kasse), so there's
+    // no "payment confirmed" moment to wait for - the booking itself is the
+    // commitment, same as before.
+    if (!usesStripe) {
+      const { to, recipientName } = resolveBookingRecipient(user);
+      await sendBookingConfirmationEmail({
+        to,
+        recipientName,
+        guestName: `${input.guestFirstName} ${input.guestLastName}`.trim(),
+        facilityName: facility.name,
+        facilitySlug: facility.slug,
+        bookingType: input.bookingType,
+        startDate: input.startDate ? new Date(input.startDate) : null,
+        endDate: input.endDate ? new Date(input.endDate) : null,
+        facilityApprovalRequired: facility.bookingApprovalMode === "MANUELL",
+      });
+    }
 
     // Betreiber-Benachrichtigung: nur wenn tatsächlich etwas von ihm/ihr
     // gebraucht wird, entweder die manuelle Buchungsbestätigung oder die
