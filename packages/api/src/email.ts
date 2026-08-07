@@ -298,9 +298,10 @@ Den aktuellen Status deiner Buchung findest du jederzeit unter "Meine Buchungen"
 }
 
 // Verschickt, wenn eine Einrichtung mit bookingApprovalMode=MANUELL eine
-// Buchung annimmt oder ablehnt (siehe operator.confirmBooking/rejectBooking).
-// Getrennt von sendBookingConfirmationEmail, die sofort bei Buchungseingang
-// rausgeht, unabhängig von diesem späteren Entscheid.
+// Buchung annimmt oder ablehnt (siehe operator.confirmBooking/rejectBooking),
+// oder wenn eine Karte/Klarna/PayPal-Zahlung fehlschlägt/abgebrochen wird
+// (siehe webhooks.ts). Getrennt von sendBookingConfirmationEmail, die sofort
+// bei Buchungseingang rausgeht, unabhängig von diesem späteren Entscheid.
 export async function sendBookingFacilityDecisionEmail({
   to,
   recipientName,
@@ -316,7 +317,7 @@ export async function sendBookingFacilityDecisionEmail({
   facilityName: string;
   facilitySlug: string;
   bookingType: string;
-  decision: "BESTAETIGT" | "ABGELEHNT";
+  decision: "BESTAETIGT" | "ABGELEHNT" | "ZAHLUNG_FEHLGESCHLAGEN";
 }) {
   const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
   const facilityUrl = `${appUrl()}/einrichtung/${facilitySlug}`;
@@ -325,17 +326,23 @@ export async function sendBookingFacilityDecisionEmail({
   const subject =
     decision === "BESTAETIGT"
       ? `Deine Buchung bei ${facilityName} wurde bestätigt`
-      : `Deine Buchung bei ${facilityName} konnte nicht bestätigt werden`;
+      : decision === "ABGELEHNT"
+        ? `Deine Buchung bei ${facilityName} konnte nicht bestätigt werden`
+        : `Zahlung für deine Buchung bei ${facilityName} war nicht erfolgreich`;
 
   const bodyHtml =
     decision === "BESTAETIGT"
       ? `<p><strong>${facilityName}</strong> hat deine Buchung (${bookingTypeLabel} für ${guestName}) bestätigt.</p>`
-      : `<p><strong>${facilityName}</strong> konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen. Die Buchung wurde storniert, eine eventuell bereits erfolgte Zahlung wird automatisch erstattet.</p>`;
+      : decision === "ABGELEHNT"
+        ? `<p><strong>${facilityName}</strong> konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen. Die Buchung wurde storniert, eine eventuell bereits erfolgte Zahlung wird automatisch erstattet.</p>`
+        : `<p>Die Zahlung für deine Buchung (${bookingTypeLabel} für ${guestName}) bei <strong>${facilityName}</strong> konnte nicht abgeschlossen werden. Die Buchung wurde storniert und der Platz wieder freigegeben. Du kannst gerne erneut buchen, sobald das Zahlungsproblem behoben ist.</p>`;
 
   const bodyText =
     decision === "BESTAETIGT"
       ? `${facilityName} hat deine Buchung (${bookingTypeLabel} für ${guestName}) bestätigt.`
-      : `${facilityName} konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen. Die Buchung wurde storniert, eine eventuell bereits erfolgte Zahlung wird automatisch erstattet.`;
+      : decision === "ABGELEHNT"
+        ? `${facilityName} konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen. Die Buchung wurde storniert, eine eventuell bereits erfolgte Zahlung wird automatisch erstattet.`
+        : `Die Zahlung für deine Buchung (${bookingTypeLabel} für ${guestName}) bei ${facilityName} konnte nicht abgeschlossen werden. Die Buchung wurde storniert und der Platz wieder freigegeben. Du kannst gerne erneut buchen, sobald das Zahlungsproblem behoben ist.`;
 
   await sendEmail({
     to,

@@ -1,6 +1,11 @@
 import { db } from "@woodaa/db";
 import type Stripe from "stripe";
-import { resolveBookingRecipient, sendBookingConfirmationEmail } from "./email";
+import { cancelBooking } from "./availability";
+import {
+  resolveBookingRecipient,
+  sendBookingConfirmationEmail,
+  sendBookingFacilityDecisionEmail,
+} from "./email";
 import { stripeClient, stripeWebhookSecret } from "./stripe";
 
 // Thin on purpose - the Next.js route (apps/web/app/api/webhooks/stripe)
@@ -34,8 +39,20 @@ export async function handleStripeWebhook(rawBody: string, signature: string): P
       where: { stripePaymentIntentId: paymentIntent.id },
       include: { user: true, facility: { select: { name: true, slug: true } } },
     });
-    if (!booking?.user) return;
+    if (!booking) return;
 
+    // Rare race: the booking got cancelled (and cancelBooking tried to
+    // cancel this same PaymentIntent, see availability.ts) concurrently
+    // with Stripe capturing the payment, so the cancel lost the race and
+    // the charge went through anyway. The unit is already released and
+    // won't be reclaimed here - refund instead of confirming a booking
+    // that no longer holds a place.
+    if (booking.status === "STORNIERT") {
+      await stripeClient().refunds.create({ payment_intent: paymentIntent.id });
+      return;
+    }
+
+    if (!booking.user) return;
     const { to, recipientName } = resolveBookingRecipient(booking.user);
     await sendBookingConfirmationEmail({
       to,
@@ -48,5 +65,36 @@ export async function handleStripeWebhook(rawBody: string, signature: string): P
       endDate: booking.endDate,
       facilityApprovalRequired: booking.facilityApprovalStatus === "AUSSTEHEND",
     });
+    return;
+  }
+
+  // Karte/Klarna/PayPal payment never completed (declined, 3DS abandoned,
+  // customer closed the checkout, ...) - the booking must not keep blocking
+  // its unit forever just because it's still sitting at paymentStatus
+  // AUSSTEHEND (see createBooking/cancelBooking in availability.ts).
+  if (event.type === "payment_intent.payment_failed" || event.type === "payment_intent.canceled") {
+    const paymentIntent = event.data.object as Stripe.PaymentIntent;
+    const booking = await db.booking.findFirst({
+      where: { stripePaymentIntentId: paymentIntent.id },
+      include: { user: true, facility: { select: { name: true, slug: true } } },
+    });
+    // Already STORNIERT (manual cancel raced ahead, or this is a
+    // replayed/duplicate webhook) - nothing left to release.
+    if (!booking || booking.status === "STORNIERT") return;
+
+    await cancelBooking(db, booking.id);
+
+    if (booking.user) {
+      const { to, recipientName } = resolveBookingRecipient(booking.user);
+      await sendBookingFacilityDecisionEmail({
+        to,
+        recipientName,
+        guestName: `${booking.guestFirstName ?? ""} ${booking.guestLastName ?? ""}`.trim(),
+        facilityName: booking.facility.name,
+        facilitySlug: booking.facility.slug,
+        bookingType: booking.bookingType,
+        decision: "ZAHLUNG_FEHLGESCHLAGEN",
+      });
+    }
   }
 }
