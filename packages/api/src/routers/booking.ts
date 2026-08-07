@@ -17,7 +17,12 @@ import {
 import { z } from "zod";
 import { cancelBooking, createBooking } from "../availability";
 import { encryptSecret } from "../crypto";
-import { resolveBookingRecipient, sendBookingConfirmationEmail } from "../email";
+import {
+  resolveBookingRecipient,
+  sendAdminPendingBookingApprovalEmail,
+  sendBookingConfirmationEmail,
+  sendOperatorNewBookingEmail,
+} from "../email";
 import { chargeAmountCents } from "../pricing";
 import { createPresignedDownloadUrl, createPresignedUploadUrl, newDocumentKey } from "../r2";
 import { stripeClient } from "../stripe";
@@ -65,6 +70,10 @@ export const bookingRouter = router({
           where: { bookingType: input.bookingType },
           select: { pflegegradPricing: true },
         },
+        // Für die Betreiber-Benachrichtigung unten - operator ist nullish
+        // für Einrichtungen ohne verknüpften Login-Account (z. B. von woodaa
+        // im Namen eines Heims angelegt), die Mail entfällt dann einfach.
+        operator: { select: { name: true, email: true } },
       },
     });
     if (!facility) {
@@ -148,6 +157,38 @@ export const bookingRouter = router({
       endDate: input.endDate ? new Date(input.endDate) : null,
       facilityApprovalRequired: facility.bookingApprovalMode === "MANUELL",
     });
+
+    // Betreiber-Benachrichtigung: nur wenn tatsächlich etwas von ihm/ihr
+    // gebraucht wird, entweder die manuelle Buchungsbestätigung oder die
+    // Zahlungsfreigabe bei RECHNUNG/KOSTENUEBERNAHME_KASSE (siehe
+    // Booking.paymentMethod/paymentStatus oben).
+    const facilityApprovalRequired = facility.bookingApprovalMode === "MANUELL";
+    const paymentApprovalRequired =
+      input.paymentMethod === "RECHNUNG" || input.paymentMethod === "KOSTENUEBERNAHME_KASSE";
+    if ((facilityApprovalRequired || paymentApprovalRequired) && facility.operator) {
+      await sendOperatorNewBookingEmail({
+        to: facility.operator.email,
+        operatorName: facility.operator.name,
+        guestName: `${input.guestFirstName} ${input.guestLastName}`.trim(),
+        facilityName: facility.name,
+        bookingType: input.bookingType,
+        startDate: input.startDate ? new Date(input.startDate) : null,
+        endDate: input.endDate ? new Date(input.endDate) : null,
+        facilityApprovalRequired,
+        paymentApprovalRequired,
+      });
+    }
+
+    // Bevollmächtigte/r Angehörige/r: woodaa-Mitarbeitende müssen die
+    // Buchung ebenfalls freigeben, siehe adminApprovalStatus oben und
+    // admin.pendingBookingApprovals.
+    if (user.vollmachtDocumentKey) {
+      await sendAdminPendingBookingApprovalEmail({
+        guestName: `${input.guestFirstName} ${input.guestLastName}`.trim(),
+        facilityName: facility.name,
+        bookingType: input.bookingType,
+      });
+    }
 
     if (!usesStripe || amountCents === null) {
       return { booking, stripeClientSecret: null };
