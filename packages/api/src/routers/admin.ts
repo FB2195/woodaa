@@ -5,6 +5,7 @@ import { z } from "zod";
 import { cancelBooking } from "../availability";
 import { geocodeAddress } from "../geocoding";
 import { createPresignedDownloadUrl, withPhotoUrl } from "../r2";
+import { refundBookingPayment } from "../stripe";
 import { adminProcedure, router } from "../trpc";
 
 export type AdminPendingReview = Review & { facility: { name: string; slug: string } };
@@ -33,6 +34,8 @@ export type AdminPendingBookingApproval = Booking & {
   facility: { name: string; slug: string };
   user: { name: string; email: string; vollmachtReviewStatus: User["vollmachtReviewStatus"] } | null;
 };
+
+export type AdminFailedRefundBooking = Booking & { facility: { name: string; slug: string } };
 
 export const adminRouter = router({
   pendingFacilities: adminProcedure.query(async ({ ctx }) => {
@@ -203,6 +206,20 @@ export const adminRouter = router({
     },
   ),
 
+  // Stornierte Buchungen, deren Stripe-Rückerstattung fehlgeschlagen ist
+  // (siehe refundBookingPayment in stripe.ts) - nur zur Sichtbarkeit, keine
+  // eigene "erneut versuchen"-Aktion, die Erstattung läuft dann manuell im
+  // Stripe-Dashboard.
+  bookingsWithFailedRefunds: adminProcedure.query(
+    async ({ ctx }): Promise<AdminFailedRefundBooking[]> => {
+      return ctx.db.booking.findMany({
+        where: { refundFailedAt: { not: null } },
+        include: { facility: { select: { name: true, slug: true } } },
+        orderBy: { refundFailedAt: "desc" },
+      });
+    },
+  ),
+
   approveBookingAdmin: adminProcedure
     .input(z.object({ bookingId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
@@ -218,7 +235,10 @@ export const adminRouter = router({
 
   // Storniert die Buchung gleich mit - ohne Freigabe durch woodaa darf eine
   // Buchung von einem bevollmächtigten Account nicht bestehen bleiben,
-  // gleiches Prinzip wie operator.rejectBookingPayment.
+  // gleiches Prinzip wie operator.rejectBookingPayment. adminApprovalStatus
+  // läuft unabhängig von paymentMethod/paymentStatus - eine bereits per
+  // Karte/Klarna/PayPal bezahlte Buchung braucht hier also genau wie bei
+  // operator.rejectBooking eine Rückerstattung.
   rejectBookingAdmin: adminProcedure
     .input(z.object({ bookingId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
@@ -230,7 +250,9 @@ export const adminRouter = router({
         where: { id: input.bookingId },
         data: { adminApprovalStatus: "ABGELEHNT" },
       });
-      return cancelBooking(ctx.db, booking.id);
+      const cancelled = await cancelBooking(ctx.db, booking.id);
+      await refundBookingPayment(ctx.db, cancelled);
+      return cancelled;
     }),
 
   // Proposed edits to a facility's name/address/operator contact details -

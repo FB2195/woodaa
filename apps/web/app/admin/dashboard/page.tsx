@@ -6,6 +6,7 @@ import { PendingReviewRow } from "@/components/admin/PendingReviewRow";
 import { PendingSupportRequestRow } from "@/components/admin/PendingSupportRequestRow";
 import { PendingVollmachtRow } from "@/components/admin/PendingVollmachtRow";
 import { TwoFactorSetup } from "@/components/TwoFactorSetup";
+import { formatDate } from "@/lib/format";
 import { getTrpcServer } from "@/lib/trpc-server";
 
 export default async function AdminDashboardPage() {
@@ -19,6 +20,7 @@ export default async function AdminDashboardPage() {
     pendingBookingApprovals,
     openSupportRequests,
     pendingFacilityChanges,
+    bookingsWithFailedRefunds,
   ] = await Promise.all([
     trpcServer.admin.pendingFacilities(),
     trpcServer.admin.activeFacilities(),
@@ -28,6 +30,7 @@ export default async function AdminDashboardPage() {
     trpcServer.admin.pendingBookingApprovals(),
     trpcServer.admin.openSupportRequests(),
     trpcServer.admin.pendingFacilityChanges(),
+    trpcServer.admin.bookingsWithFailedRefunds(),
   ]);
 
   return (
@@ -171,6 +174,30 @@ export default async function AdminDashboardPage() {
             ))
           )}
         </div>
+
+        {bookingsWithFailedRefunds.length > 0 && (
+          <>
+            <h2 className="mt-12 text-2xl font-bold text-brand-heading">
+              Fehlgeschlagene Rückerstattungen
+            </h2>
+            <p className="mt-1 text-sm text-brand-text-muted">
+              Die Buchung wurde storniert, aber die Stripe-Rückerstattung ist fehlgeschlagen -
+              bitte manuell im Stripe-Dashboard prüfen.
+            </p>
+            <ul className="mt-6 flex flex-col gap-2 text-sm">
+              {bookingsWithFailedRefunds.map((booking) => (
+                <li
+                  key={booking.id}
+                  className="rounded-brand-md border border-red-200 bg-red-50 p-4 text-red-700"
+                >
+                  {booking.guestFirstName} {booking.guestLastName} · {booking.facility.name}
+                  {booking.stripePaymentIntentId && ` · ${booking.stripePaymentIntentId}`}
+                  {booking.refundFailedAt && ` · ${formatDate(booking.refundFailedAt)}`}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
     </main>
   );

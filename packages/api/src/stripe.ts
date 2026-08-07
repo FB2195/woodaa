@@ -1,4 +1,5 @@
 import type { Agent } from "http";
+import type { PaymentStatus, PrismaClient } from "@prisma/client";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import Stripe from "stripe";
 
@@ -39,4 +40,27 @@ export function stripeWebhookSecret(): string {
     throw new Error("Missing required env var STRIPE_WEBHOOK_SECRET");
   }
   return secret;
+}
+
+// Shared by every cancel/reject path that may need to undo a captured
+// payment (operator.rejectBooking, admin.rejectBookingAdmin, booking.cancel/
+// myCancel). The booking is always already STORNIERT by the time this runs
+// (cancelBooking commits in its own transaction first), so a failed refund
+// here can't be rolled back into "still booked" - instead it's recorded on
+// refundFailedAt for staff to find and rethrown so the caller still sees the
+// mutation fail.
+export async function refundBookingPayment(
+  db: PrismaClient,
+  booking: { id: string; paymentStatus: PaymentStatus | null; stripePaymentIntentId: string | null },
+): Promise<void> {
+  if (booking.paymentStatus !== "BEZAHLT" || !booking.stripePaymentIntentId) {
+    return;
+  }
+  try {
+    await stripeClient().refunds.create({ payment_intent: booking.stripePaymentIntentId });
+  } catch (err) {
+    console.error(`Stripe-Rückerstattung fehlgeschlagen für Buchung ${booking.id}:`, err);
+    await db.booking.update({ where: { id: booking.id }, data: { refundFailedAt: new Date() } });
+    throw err;
+  }
 }

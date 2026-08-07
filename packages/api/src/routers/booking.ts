@@ -20,7 +20,7 @@ import { encryptSecret } from "../crypto";
 import { resolveBookingRecipient, sendBookingConfirmationEmail } from "../email";
 import { chargeAmountCents } from "../pricing";
 import { createPresignedDownloadUrl, createPresignedUploadUrl, newDocumentKey } from "../r2";
-import { stripeClient } from "../stripe";
+import { refundBookingPayment, stripeClient } from "../stripe";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
 
 // The exact shape returned by myBookings' `select` below - explicit rather
@@ -267,9 +267,7 @@ export const bookingRouter = router({
       const booking = await cancelBooking(ctx.db, input.bookingId, {
         requireUserId: ctx.user.id,
       });
-      if (booking.paymentStatus === "BEZAHLT" && booking.stripePaymentIntentId) {
-        await stripeClient().refunds.create({ payment_intent: booking.stripePaymentIntentId });
-      }
+      await refundBookingPayment(ctx.db, booking);
       return booking;
     }),
 
@@ -286,9 +284,7 @@ export const bookingRouter = router({
     // Hinweistext im Buchungsformular - eine anteilige Stornogebühr bei
     // später Stornierung durchzusetzen bräuchte eine separate Abbuchung,
     // die es in diesem MVP noch nicht gibt (siehe BookingForm.tsx).
-    if (booking.paymentStatus === "BEZAHLT" && booking.stripePaymentIntentId) {
-      await stripeClient().refunds.create({ payment_intent: booking.stripePaymentIntentId });
-    }
+    await refundBookingPayment(ctx.db, booking);
     return booking;
   }),
 });
