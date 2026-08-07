@@ -6,7 +6,8 @@ import {
   type PrismaClient,
 } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import type { BookingType, PaymentMethod } from "@woodaa/validators";
+import { paymentMethodsRequiringStripe, type BookingType, type PaymentMethod } from "@woodaa/validators";
+import { stripeClient } from "./stripe";
 
 type Tx = Prisma.TransactionClient;
 
@@ -430,7 +431,12 @@ export async function cancelBooking(
   bookingId: string,
   options?: { requireFacilityId?: string; requireGuestEmail?: string; requireUserId?: string },
 ) {
-  return db.$transaction(async (tx) => {
+  // Tracks whether this call is the one that actually flipped the booking
+  // to STORNIERT (as opposed to it already being STORNIERT beforehand) -
+  // used below to only attempt the Stripe cancel on a real transition.
+  let justCancelled = false;
+
+  const updated = await db.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({ where: { id: bookingId } });
     if (!booking) {
       throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
@@ -454,8 +460,34 @@ export async function cancelBooking(
       data: { status: "STORNIERT", cancelledAt: new Date() },
     });
     await syncCapacityCache(tx, booking.facilityId, booking.bookingType);
+    justCancelled = true;
     return updated;
   });
+
+  // Payment still in flight (not yet captured) on a Karte/Klarna/PayPal
+  // booking - cancel the PaymentIntent so a payment_intent.succeeded
+  // webhook that arrives after this point can't flip paymentStatus to
+  // BEZAHLT for a booking whose unit has already been released (see
+  // webhooks.ts, which refunds as a fallback if this race is lost anyway).
+  // Done after the transaction, not inside it, so this network call
+  // doesn't hold the DB transaction open. Stripe rejects cancelling a
+  // PaymentIntent that's already in a terminal state (e.g. it succeeded
+  // moments ago) - tolerated, not fatal, the booking is cancelled either way.
+  if (
+    justCancelled &&
+    updated.paymentMethod &&
+    paymentMethodsRequiringStripe.includes(updated.paymentMethod as PaymentMethod) &&
+    updated.stripePaymentIntentId &&
+    updated.paymentStatus !== "BEZAHLT"
+  ) {
+    try {
+      await stripeClient().paymentIntents.cancel(updated.stripePaymentIntentId);
+    } catch (err) {
+      console.error("Failed to cancel Stripe PaymentIntent on booking cancel", err);
+    }
+  }
+
+  return updated;
 }
 
 // Provisions/deprovisions anonymous units to match `desiredTotal`. Removing

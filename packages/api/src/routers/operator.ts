@@ -458,7 +458,10 @@ export const operatorRouter = router({
     .input(BookingPaymentApprovalInput)
     .mutation(async ({ ctx, input }) => {
       const facility = await requireOwnFacility(ctx);
-      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      const booking = await ctx.db.booking.findUnique({
+        where: { id: input.bookingId },
+        include: { user: true },
+      });
       if (!booking || booking.facilityId !== facility.id) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
       }
@@ -466,7 +469,23 @@ export const operatorRouter = router({
         where: { id: booking.id },
         data: { paymentStatus: "ABGELEHNT" },
       });
-      return cancelBooking(ctx.db, booking.id, { requireFacilityId: facility.id });
+      const cancelled = await cancelBooking(ctx.db, booking.id, {
+        requireFacilityId: facility.id,
+      });
+      if (booking.user) {
+        const { to, recipientName } = resolveBookingRecipient(booking.user);
+        await sendBookingFacilityDecisionEmail({
+          to,
+          recipientName,
+          guestName: `${booking.guestFirstName ?? ""} ${booking.guestLastName ?? ""}`.trim(),
+          facilityName: facility.name,
+          facilitySlug: facility.slug,
+          bookingType: booking.bookingType,
+          decision: "ABGELEHNT",
+          rejectionSource: "ZAHLUNG",
+        });
+      }
+      return cancelled;
     }),
 
   kostenuebernahmeDownloadUrl: operatorProcedure

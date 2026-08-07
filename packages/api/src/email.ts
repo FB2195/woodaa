@@ -298,9 +298,14 @@ Den aktuellen Status deiner Buchung findest du jederzeit unter "Meine Buchungen"
 }
 
 // Verschickt, wenn eine Einrichtung mit bookingApprovalMode=MANUELL eine
-// Buchung annimmt oder ablehnt (siehe operator.confirmBooking/rejectBooking).
-// Getrennt von sendBookingConfirmationEmail, die sofort bei Buchungseingang
-// rausgeht, unabhängig von diesem späteren Entscheid.
+// Buchung annimmt oder ablehnt (siehe operator.confirmBooking/rejectBooking),
+// bei einer Ablehnung durch die Zahlungsfreigabe des Heims
+// (operator.rejectBookingPayment) oder durch die woodaa-Freigabe für
+// bevollmächtigte Accounts (admin.rejectBookingAdmin) - der `rejectionSource`
+// steuert nur die Formulierung, nicht den Versand selbst - sowie wenn eine
+// Karte/Klarna/PayPal-Zahlung fehlschlägt/abgebrochen wird (siehe
+// webhooks.ts). Getrennt von sendBookingConfirmationEmail, die sofort bei
+// Buchungseingang rausgeht, unabhängig von diesem späteren Entscheid.
 export async function sendBookingFacilityDecisionEmail({
   to,
   recipientName,
@@ -309,6 +314,7 @@ export async function sendBookingFacilityDecisionEmail({
   facilitySlug,
   bookingType,
   decision,
+  rejectionSource = "EINRICHTUNG",
 }: {
   to: string;
   recipientName: string;
@@ -316,7 +322,12 @@ export async function sendBookingFacilityDecisionEmail({
   facilityName: string;
   facilitySlug: string;
   bookingType: string;
-  decision: "BESTAETIGT" | "ABGELEHNT";
+  decision: "BESTAETIGT" | "ABGELEHNT" | "ZAHLUNG_FEHLGESCHLAGEN";
+  // Nur relevant bei decision=ABGELEHNT: wer genau die Buchung storniert hat
+  // - "EINRICHTUNG" (rejectBooking) lehnt die Buchung selbst ab, "ZAHLUNG"
+  // (rejectBookingPayment) lehnt nur die gewählte Zahlungsart ab, "WOODAA"
+  // (admin.rejectBookingAdmin) ist die Freigabe für bevollmächtigte Accounts.
+  rejectionSource?: "EINRICHTUNG" | "ZAHLUNG" | "WOODAA";
 }) {
   const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
   const facilityUrl = `${appUrl()}/einrichtung/${facilitySlug}`;
@@ -325,17 +336,34 @@ export async function sendBookingFacilityDecisionEmail({
   const subject =
     decision === "BESTAETIGT"
       ? `Deine Buchung bei ${facilityName} wurde bestätigt`
-      : `Deine Buchung bei ${facilityName} konnte nicht bestätigt werden`;
+      : decision === "ABGELEHNT"
+        ? `Deine Buchung bei ${facilityName} konnte nicht bestätigt werden`
+        : `Zahlung für deine Buchung bei ${facilityName} war nicht erfolgreich`;
+
+  const rejectionReasonSentence: Record<"EINRICHTUNG" | "ZAHLUNG" | "WOODAA", string> = {
+    EINRICHTUNG: `<strong>${facilityName}</strong> konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen.`,
+    ZAHLUNG: `<strong>${facilityName}</strong> hat die gewählte Zahlungsart für deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht freigegeben.`,
+    WOODAA: `woodaa konnte deine Buchung (${bookingTypeLabel} für ${guestName}) bei <strong>${facilityName}</strong> leider nicht freigeben.`,
+  };
+  const rejectionReasonSentenceText: Record<"EINRICHTUNG" | "ZAHLUNG" | "WOODAA", string> = {
+    EINRICHTUNG: `${facilityName} konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen.`,
+    ZAHLUNG: `${facilityName} hat die gewählte Zahlungsart für deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht freigegeben.`,
+    WOODAA: `woodaa konnte deine Buchung (${bookingTypeLabel} für ${guestName}) bei ${facilityName} leider nicht freigeben.`,
+  };
 
   const bodyHtml =
     decision === "BESTAETIGT"
       ? `<p><strong>${facilityName}</strong> hat deine Buchung (${bookingTypeLabel} für ${guestName}) bestätigt.</p>`
-      : `<p><strong>${facilityName}</strong> konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen. Die Buchung wurde storniert, eine eventuell bereits erfolgte Zahlung wird automatisch erstattet.</p>`;
+      : decision === "ABGELEHNT"
+        ? `<p>${rejectionReasonSentence[rejectionSource]} Die Buchung wurde storniert, eine eventuell bereits erfolgte Zahlung wird automatisch erstattet.</p>`
+        : `<p>Die Zahlung für deine Buchung (${bookingTypeLabel} für ${guestName}) bei <strong>${facilityName}</strong> konnte nicht abgeschlossen werden. Die Buchung wurde storniert und der Platz wieder freigegeben. Du kannst gerne erneut buchen, sobald das Zahlungsproblem behoben ist.</p>`;
 
   const bodyText =
     decision === "BESTAETIGT"
       ? `${facilityName} hat deine Buchung (${bookingTypeLabel} für ${guestName}) bestätigt.`
-      : `${facilityName} konnte deine Buchung (${bookingTypeLabel} für ${guestName}) leider nicht annehmen. Die Buchung wurde storniert, eine eventuell bereits erfolgte Zahlung wird automatisch erstattet.`;
+      : decision === "ABGELEHNT"
+        ? `${rejectionReasonSentenceText[rejectionSource]} Die Buchung wurde storniert, eine eventuell bereits erfolgte Zahlung wird automatisch erstattet.`
+        : `Die Zahlung für deine Buchung (${bookingTypeLabel} für ${guestName}) bei ${facilityName} konnte nicht abgeschlossen werden. Die Buchung wurde storniert und der Platz wieder freigegeben. Du kannst gerne erneut buchen, sobald das Zahlungsproblem behoben ist.`;
 
   await sendEmail({
     to,
@@ -354,6 +382,127 @@ ${bodyText}
 Einrichtung: ${facilityName} (${facilityUrl})
 
 Details findest du unter "Meine Buchungen" in deinem woodaa-Konto: ${accountUrl}`,
+  });
+}
+
+// Verschickt an den Betreiber-Account einer Einrichtung, sobald eine neue
+// Buchung eintrifft, die aktiv sein Zutun braucht - entweder weil die
+// Einrichtung bookingApprovalMode=MANUELL nutzt (facilityApprovalRequired)
+// oder weil die Zahlungsart RECHNUNG/KOSTENUEBERNAHME_KASSE erst seine
+// Freigabe braucht (paymentApprovalRequired), siehe booking.create. Beide
+// Fälle können gleichzeitig zutreffen. Anders als sendBookingConfirmationEmail
+// geht diese Mail nicht an den Buchenden, sondern an den Betreiber.
+export async function sendOperatorNewBookingEmail({
+  to,
+  operatorName,
+  guestName,
+  facilityName,
+  bookingType,
+  startDate,
+  endDate,
+  facilityApprovalRequired,
+  paymentApprovalRequired,
+}: {
+  to: string;
+  operatorName: string;
+  guestName: string;
+  facilityName: string;
+  bookingType: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  facilityApprovalRequired: boolean;
+  paymentApprovalRequired: boolean;
+}) {
+  const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
+  const dashboardUrl = `${appUrl()}/betreiber/dashboard`;
+  const dateRangeLine = startDate
+    ? `Zeitraum: ${formatGermanDate(startDate)} bis ${endDate ? formatGermanDate(endDate) : "auf Weiteres"}`
+    : null;
+
+  const actionSentences: string[] = [];
+  if (facilityApprovalRequired) {
+    actionSentences.push("Die Buchung wartet auf deine Bestätigung.");
+  }
+  if (paymentApprovalRequired) {
+    actionSentences.push("Die gewählte Zahlungsart wartet auf deine Freigabe.");
+  }
+  const actionLine = actionSentences.join(" ");
+
+  await sendEmail({
+    to,
+    subject: `Neue Buchung bei ${facilityName}: ${bookingTypeLabel}`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${operatorName},</p>
+      <p>bei <strong>${facilityName}</strong> ist eine neue Buchung eingegangen:</p>
+      <ul>
+        <li>Leistung: ${bookingTypeLabel}</li>
+        <li>Versicherte Person: ${guestName}</li>
+        ${dateRangeLine ? `<li>${dateRangeLine}</li>` : ""}
+      </ul>
+      <p>${actionLine}</p>
+      <p>Details findest du in deinem woodaa-Dashboard: <a href="${dashboardUrl}">${dashboardUrl}</a></p>
+    `,
+    text: `Hallo ${operatorName},
+
+bei ${facilityName} ist eine neue Buchung eingegangen:
+
+Leistung: ${bookingTypeLabel}
+Versicherte Person: ${guestName}
+${dateRangeLine ? dateRangeLine + "\n" : ""}
+${actionLine}
+
+Details findest du in deinem woodaa-Dashboard: ${dashboardUrl}`,
+  });
+}
+
+// Verschickt an die in ADMIN_NOTIFICATION_EMAIL hinterlegte woodaa-Adresse,
+// sobald eine Buchung von einem bevollmächtigten Account (siehe
+// User.vollmachtDocumentKey) auf die Freigabe durch woodaa-Mitarbeitende
+// wartet (admin.pendingBookingApprovals). Keine Empfängerlogik nötig - im
+// Unterschied zu resolveBookingRecipient gibt es hier nur eine feste,
+// konfigurierte Zieladresse statt eines individuellen Kontos.
+export async function sendAdminPendingBookingApprovalEmail({
+  guestName,
+  facilityName,
+  bookingType,
+}: {
+  guestName: string;
+  facilityName: string;
+  bookingType: string;
+}) {
+  const to = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (!to) {
+    // Wie bei fehlendem RESEND_API_KEY: kein Hard-Fail, nur ein Log - die
+    // Buchung selbst darf davon nicht abhängen.
+    console.error(
+      "ADMIN_NOTIFICATION_EMAIL is not set - skipping admin booking approval notification",
+    );
+    return;
+  }
+  const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
+  const dashboardUrl = `${appUrl()}/admin/dashboard`;
+
+  await sendEmail({
+    to,
+    subject: `Buchung wartet auf Freigabe: ${bookingTypeLabel} bei ${facilityName}`,
+    html: `
+      ${logoHtml()}
+      <p>Eine Buchung von einem bevollmächtigten Account wartet auf die woodaa-Freigabe:</p>
+      <ul>
+        <li>Einrichtung: ${facilityName}</li>
+        <li>Leistung: ${bookingTypeLabel}</li>
+        <li>Versicherte Person: ${guestName}</li>
+      </ul>
+      <p>Freigeben oder ablehnen im Admin-Dashboard: <a href="${dashboardUrl}">${dashboardUrl}</a></p>
+    `,
+    text: `Eine Buchung von einem bevollmächtigten Account wartet auf die woodaa-Freigabe:
+
+Einrichtung: ${facilityName}
+Leistung: ${bookingTypeLabel}
+Versicherte Person: ${guestName}
+
+Freigeben oder ablehnen im Admin-Dashboard: ${dashboardUrl}`,
   });
 }
 

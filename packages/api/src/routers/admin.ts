@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import type { Review } from "@woodaa/db";
 import { z } from "zod";
 import { cancelBooking } from "../availability";
+import { resolveBookingRecipient, sendBookingFacilityDecisionEmail } from "../email";
 import { geocodeAddress } from "../geocoding";
 import { createPresignedDownloadUrl, withPhotoUrl } from "../r2";
 import { refundBookingPayment } from "../stripe";
@@ -242,7 +243,10 @@ export const adminRouter = router({
   rejectBookingAdmin: adminProcedure
     .input(z.object({ bookingId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
-      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      const booking = await ctx.db.booking.findUnique({
+        where: { id: input.bookingId },
+        include: { user: true, facility: { select: { name: true, slug: true } } },
+      });
       if (!booking) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
@@ -252,6 +256,19 @@ export const adminRouter = router({
       });
       const cancelled = await cancelBooking(ctx.db, booking.id);
       await refundBookingPayment(ctx.db, cancelled);
+      if (booking.user) {
+        const { to, recipientName } = resolveBookingRecipient(booking.user);
+        await sendBookingFacilityDecisionEmail({
+          to,
+          recipientName,
+          guestName: `${booking.guestFirstName ?? ""} ${booking.guestLastName ?? ""}`.trim(),
+          facilityName: booking.facility.name,
+          facilitySlug: booking.facility.slug,
+          bookingType: booking.bookingType,
+          decision: "ABGELEHNT",
+          rejectionSource: "WOODAA",
+        });
+      }
       return cancelled;
     }),
 
