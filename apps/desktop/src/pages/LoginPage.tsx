@@ -44,8 +44,8 @@ export function LoginPage() {
         {challengeToken ? (
           <div className="mt-6 flex flex-col gap-4">
             <p className="text-sm text-ink-500">
-              Gib den 6-stelligen Code aus deiner Authenticator-App ein, oder verwende einen
-              deiner Wiederherstellungscodes.
+              Gib den 6-stelligen Code aus deiner Authenticator-App ein, oder verwende einen deiner
+              Wiederherstellungscodes.
             </p>
             <label className="flex flex-col gap-1.5 text-sm text-ink-700">
               Code

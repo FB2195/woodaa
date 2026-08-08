@@ -6,6 +6,7 @@ import {
   ConfirmPhotoUploadInput,
   CreateFacilityInput,
   CreateManualBookingInput,
+  CreateResidentNoteInput,
   MAX_FACILITY_PHOTOS,
   MAX_PHOTO_BYTES,
   RenameUnitInput,
@@ -577,6 +578,46 @@ export const operatorRouter = router({
         await deleteObject(photo.key);
       }
       await ctx.db.facilityPhoto.delete({ where: { id: input.id } });
+      return { success: true };
+    }),
+
+  // "Bewohner:innen" area (apps/desktop) - all notes across the facility's
+  // bookings in one call rather than one query per resident, since the UI
+  // renders a note count/list per unit alongside the same units/bookings
+  // myFacility already returns.
+  residentNotes: operatorProcedure.query(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.residentNote.findMany({
+      where: { booking: { facilityId: facility.id } },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
+  addResidentNote: operatorProcedure
+    .input(CreateResidentNoteInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
+      }
+      return ctx.db.residentNote.create({
+        data: { bookingId: input.bookingId, body: input.body },
+      });
+    }),
+
+  removeResidentNote: operatorProcedure
+    .input(z.object({ noteId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const note = await ctx.db.residentNote.findUnique({
+        where: { id: input.noteId },
+        include: { booking: { select: { facilityId: true } } },
+      });
+      if (!note || note.booking.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.residentNote.delete({ where: { id: input.noteId } });
       return { success: true };
     }),
 });

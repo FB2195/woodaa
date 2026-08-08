@@ -662,11 +662,35 @@ model Booking {
   // whenever facilityApprovalStatus isn't AUSSTEHEND at all.
   approvalReminderSentAt       DateTime?
   approvalEscalatedAt          DateTime?
+  residentNotes                ResidentNote[]
 
   @@index([facilityId, bookingType])
   @@index([unitId, status])
   @@index([userId])
   @@index([stripePaymentIntentId])
+}
+
+// Internal, non-clinical notes a facility keeps about a current guest/
+// resident during their stay (see apps/desktop's "Bewohner:innen" area) -
+// explicitly NOT a Pflegedokumentation replacement (no vitals, incidents,
+// or care-plan data model here), just free-text operational context
+// ("Angehörige informiert", "mag keinen Kaffee", ...). Tied to the Booking
+// rather than the User/guest identity directly, since that's how "current
+// resident" is already modeled everywhere else in this schema, and it
+// keeps notes scoped to a single stay - cascades away with the booking on
+// purpose (data minimisation: no reason to retain staff notes about
+// someone no longer at the facility). No author field: today there is
+// exactly one login per facility (Facility.operatorUserId), so there is
+// no individual staff identity yet to attribute a note to - see the
+// (currently unbuilt) Personalverwaltung area.
+model ResidentNote {
+  id        String   @id @default(cuid())
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingId String
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
 }
 
 // Object storage lives in Cloudflare R2 - only the bucket object `key` is

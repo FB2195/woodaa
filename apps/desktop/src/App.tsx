@@ -3,6 +3,7 @@ import { AppShell } from "./components/AppShell";
 import { FullScreenSpinner } from "./components/FullScreenSpinner";
 import { useAuth } from "./lib/AuthContext";
 import { BelegungPage } from "./pages/BelegungPage";
+import { BewohnerPage } from "./pages/BewohnerPage";
 import { LoginPage } from "./pages/LoginPage";
 import { UnsupportedRolePage } from "./pages/UnsupportedRolePage";
 
@@ -29,6 +30,7 @@ export function App() {
     <AppShell>
       <Routes>
         <Route path="/" element={<BelegungPage />} />
+        <Route path="/bewohner" element={<BewohnerPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>

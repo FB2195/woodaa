@@ -28,7 +28,10 @@ export function OccupancyTimeline({ units }: { units: UnitWithBookings[] }) {
   );
   const days = useMemo(
     () =>
-      Array.from({ length: WINDOW_DAYS }, (_, i) => new Date(windowStart.getTime() + i * MS_PER_DAY)),
+      Array.from(
+        { length: WINDOW_DAYS },
+        (_, i) => new Date(windowStart.getTime() + i * MS_PER_DAY),
+      ),
     [windowStart],
   );
 
@@ -70,10 +73,7 @@ export function OccupancyTimeline({ units }: { units: UnitWithBookings[] }) {
                 overlay - bookings on one unit never overlap in time (DB
                 exclusion constraint, see availability.ts), so a single
                 positioning layer without row-stacking logic is enough. */}
-            <div
-              className="relative h-12"
-              style={{ gridColumn: `2 / span ${WINDOW_DAYS}` }}
-            >
+            <div className="relative h-12" style={{ gridColumn: `2 / span ${WINDOW_DAYS}` }}>
               <div
                 className="absolute inset-0 grid"
                 style={{ gridTemplateColumns: `repeat(${WINDOW_DAYS}, minmax(0, 1fr))` }}

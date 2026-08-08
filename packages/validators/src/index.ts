@@ -524,6 +524,14 @@ export const CreateManualBookingInput = z
   });
 export type CreateManualBookingInput = z.infer<typeof CreateManualBookingInput>;
 
+// See ResidentNote in schema.prisma for why this is tied to a bookingId
+// rather than a resident/guest identity.
+export const CreateResidentNoteInput = z.object({
+  bookingId: z.string().min(1),
+  body: z.string().trim().min(1).max(2000),
+});
+export type CreateResidentNoteInput = z.infer<typeof CreateResidentNoteInput>;
+
 export const CancelBookingInput = z.object({
   bookingId: z.string().min(1),
   // Nur für die öffentliche Stornierung durch Suchende - muss mit der

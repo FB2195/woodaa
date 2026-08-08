@@ -33,7 +33,9 @@ export function UnitGrid({
               <p className="text-sm font-semibold text-ink-900">{unit.label}</p>
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                  booking ? "bg-ink-900/5 text-ink-500" : "bg-accentScale-500/15 text-accentScale-700"
+                  booking
+                    ? "bg-ink-900/5 text-ink-500"
+                    : "bg-accentScale-500/15 text-accentScale-700"
                 }`}
               >
                 {booking ? "Belegt" : "Frei"}

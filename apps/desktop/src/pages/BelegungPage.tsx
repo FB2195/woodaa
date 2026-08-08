@@ -2,7 +2,11 @@ import { useState } from "react";
 import { OccupancyTimeline } from "../components/belegung/OccupancyTimeline";
 import { UnitGrid } from "../components/belegung/UnitGrid";
 import { WaitlistPanel } from "../components/belegung/WaitlistPanel";
-import { bookingTypeLabels, bookingTypeOrder, dateRangedBookingTypes } from "../lib/bookingTypeLabels";
+import {
+  bookingTypeLabels,
+  bookingTypeOrder,
+  dateRangedBookingTypes,
+} from "../lib/bookingTypeLabels";
 import { formatDate, formatPriceEuro } from "../lib/format";
 import { trpc } from "../lib/trpc";
 import type { BookingType } from "@woodaa/validators";
@@ -27,7 +31,9 @@ export function BelegungPage() {
   }
 
   const activeUnits = facility.units.filter((unit) => unit.bookingType === activeType);
-  const activeCapacity = facility.capacities.find((capacity) => capacity.bookingType === activeType);
+  const activeCapacity = facility.capacities.find(
+    (capacity) => capacity.bookingType === activeType,
+  );
   const activeWaitlist = (waitlistQuery.data ?? []).filter(
     (entry) => entry.bookingType === activeType,
   );
@@ -97,7 +103,11 @@ export function BelegungPage() {
           {dateRangedBookingTypes.includes(activeType) ? (
             <OccupancyTimeline units={activeUnits} />
           ) : (
-            <UnitGrid units={activeUnits} onCancelBooking={handleCancel} cancellingId={cancellingId} />
+            <UnitGrid
+              units={activeUnits}
+              onCancelBooking={handleCancel}
+              cancellingId={cancellingId}
+            />
           )}
         </div>
         <div className="app-no-drag">
