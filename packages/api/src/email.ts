@@ -38,19 +38,6 @@ function logoHtml(): string {
   return `<p><img src="${appUrl()}/logo.png" alt="woodaa" width="160" style="display:block;height:auto;max-width:160px" /></p>`;
 }
 
-// Escapes user-supplied strings (facility/guest names etc.) before they go
-// into an html email body - used by newer functions in this file. The
-// existing functions above predate this and interpolate raw strings; not
-// retrofitted here to keep this change scoped to what actually needs it.
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 async function sendEmail({
   to,
   subject,
