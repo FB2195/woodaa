@@ -126,6 +126,9 @@ importers:
       '@babel/core':
         specifier: ^7.25.2
         version: 7.29.7
+      '@react-native/gradle-plugin':
+        specifier: 0.74.87
+        version: 0.74.87
       '@trpc/server':
         specifier: ^11.0.0
         version: 11.18.0(typescript@5.9.3)
