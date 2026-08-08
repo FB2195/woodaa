@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ManualBookingDialog } from "../components/belegung/ManualBookingDialog";
 import { OccupancyTimeline } from "../components/belegung/OccupancyTimeline";
 import { UnitGrid } from "../components/belegung/UnitGrid";
 import { WaitlistPanel } from "../components/belegung/WaitlistPanel";
@@ -16,6 +17,7 @@ export function BelegungPage() {
   });
   const [activeType, setActiveType] = useState<BookingType>("STATIONAERE_AUFNAHME");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [showManualBooking, setShowManualBooking] = useState(false);
 
   if (facilityQuery.isLoading) {
     return <p className="pt-8 text-sm text-ink-400">Lädt…</p>;
@@ -44,10 +46,21 @@ export function BelegungPage() {
   return (
     <div className="pt-8">
       <div className="app-no-drag">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Belegung</h1>
-        <p className="mt-1 text-sm text-ink-500">
-          Überblick über alle Plätze eurer Einrichtung, nach Betreuungsart.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Belegung</h1>
+            <p className="mt-1 text-sm text-ink-500">
+              Überblick über alle Plätze eurer Einrichtung, nach Betreuungsart.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowManualBooking(true)}
+            className="shrink-0 rounded-xl2 bg-accentScale-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-250 ease-out-quart hover:bg-accentScale-600"
+          >
+            + Neue Buchung
+          </button>
+        </div>
 
         <div className="mt-6 flex flex-wrap gap-2">
           {bookingTypeOrder.map((type) => {
@@ -104,6 +117,13 @@ export function BelegungPage() {
           <WaitlistPanel entries={activeWaitlist} />
         </div>
       </div>
+
+      {showManualBooking && (
+        <ManualBookingDialog
+          bookingType={activeType}
+          onClose={() => setShowManualBooking(false)}
+        />
+      )}
     </div>
   );
 }
