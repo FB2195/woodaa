@@ -404,6 +404,8 @@ model Facility {
   photos                 FacilityPhoto[]
   reviews                Review[]
   changeRequests         FacilityChangeRequest[]
+  tasks                  FacilityTask[]
+  handoverNotes          HandoverNote[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -691,6 +693,34 @@ model ResidentNote {
   createdAt DateTime @default(now())
 
   @@index([bookingId])
+}
+
+// Team-Kommunikation (apps/desktop): a plain per-facility to-do list, not
+// tied to a specific shift/person - same "no individual staff identity
+// yet" reasoning as ResidentNote above (one login per facility today).
+model FacilityTask {
+  id          String    @id @default(cuid())
+  facility    Facility  @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId  String
+  title       String
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([facilityId])
+}
+
+// Team-Kommunikation (apps/desktop): a chronological Übergabe/handover feed
+// ("Frau Meier hat heute wenig gegessen", ...) - append-only, no
+// completion state (unlike FacilityTask), no edit/delete by design so the
+// shift log stays a reliable record of what was actually written when.
+model HandoverNote {
+  id         String   @id @default(cuid())
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId String
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([facilityId])
 }
 
 // Object storage lives in Cloudflare R2 - only the bucket object `key` is

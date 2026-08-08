@@ -532,6 +532,16 @@ export const CreateResidentNoteInput = z.object({
 });
 export type CreateResidentNoteInput = z.infer<typeof CreateResidentNoteInput>;
 
+export const CreateFacilityTaskInput = z.object({
+  title: z.string().trim().min(1).max(500),
+});
+export type CreateFacilityTaskInput = z.infer<typeof CreateFacilityTaskInput>;
+
+export const CreateHandoverNoteInput = z.object({
+  body: z.string().trim().min(1).max(2000),
+});
+export type CreateHandoverNoteInput = z.infer<typeof CreateHandoverNoteInput>;
+
 export const CancelBookingInput = z.object({
   bookingId: z.string().min(1),
   // Nur für die öffentliche Stornierung durch Suchende - muss mit der

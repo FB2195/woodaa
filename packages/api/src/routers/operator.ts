@@ -5,6 +5,8 @@ import {
   CancelBookingInput,
   ConfirmPhotoUploadInput,
   CreateFacilityInput,
+  CreateFacilityTaskInput,
+  CreateHandoverNoteInput,
   CreateManualBookingInput,
   CreateResidentNoteInput,
   MAX_FACILITY_PHOTOS,
@@ -619,5 +621,67 @@ export const operatorRouter = router({
       }
       await ctx.db.residentNote.delete({ where: { id: input.noteId } });
       return { success: true };
+    }),
+
+  // "Team" area (apps/desktop) - a plain per-facility to-do list.
+  tasks: operatorProcedure.query(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.facilityTask.findMany({
+      where: { facilityId: facility.id },
+      orderBy: [{ completedAt: "asc" }, { createdAt: "desc" }],
+    });
+  }),
+
+  addTask: operatorProcedure.input(CreateFacilityTaskInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.facilityTask.create({
+      data: { facilityId: facility.id, title: input.title },
+    });
+  }),
+
+  toggleTask: operatorProcedure
+    .input(z.object({ taskId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const task = await ctx.db.facilityTask.findUnique({ where: { id: input.taskId } });
+      if (!task || task.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return ctx.db.facilityTask.update({
+        where: { id: input.taskId },
+        data: { completedAt: task.completedAt ? null : new Date() },
+      });
+    }),
+
+  removeTask: operatorProcedure
+    .input(z.object({ taskId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const task = await ctx.db.facilityTask.findUnique({ where: { id: input.taskId } });
+      if (!task || task.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.facilityTask.delete({ where: { id: input.taskId } });
+      return { success: true };
+    }),
+
+  // "Team" area (apps/desktop) - an append-only Übergabe/handover feed, see
+  // HandoverNote in schema.prisma for why there's no edit/delete here.
+  handoverNotes: operatorProcedure.query(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.handoverNote.findMany({
+      where: { facilityId: facility.id },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+  }),
+
+  addHandoverNote: operatorProcedure
+    .input(CreateHandoverNoteInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      return ctx.db.handoverNote.create({
+        data: { facilityId: facility.id, body: input.body },
+      });
     }),
 });
