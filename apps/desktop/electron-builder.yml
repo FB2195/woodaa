@@ -1,0 +1,19 @@
+appId: de.woodaa.desktop
+productName: woodaa für Einrichtungen
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+mac:
+  category: public.app-category.business
+  target:
+    - target: dmg
+      arch: [universal]
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
