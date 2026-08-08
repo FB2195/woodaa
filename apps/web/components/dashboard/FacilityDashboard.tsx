@@ -90,6 +90,7 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
           wifiInfo: facility.wifiInfo,
           parkingInfo: facility.parkingInfo,
           petsPolicy: facility.petsPolicy,
+          cancellationPolicyDays: facility.cancellationPolicyDays,
         }}
       />
 

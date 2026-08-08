@@ -41,6 +41,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
           facilityId={facility.id}
           capacities={availableCapacities}
           profile={profile}
+          cancellationPolicyDays={facility.cancellationPolicyDays}
         />
       </section>
     </main>

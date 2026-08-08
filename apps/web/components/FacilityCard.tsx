@@ -6,6 +6,7 @@ import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { EigenanteilPreview } from "@/components/search/EigenanteilPreview";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { PlaceholderPhoto } from "@/components/PlaceholderPhoto";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { formatDistanceKm, formatPriceEuro } from "@/lib/format";
 import { cheapestCapacityPrice } from "@/lib/price";
 
@@ -71,9 +72,12 @@ export function FacilityCard({
         </div>
 
         <div className="p-6 pb-0">
-          <h3 className="text-lg font-semibold text-brand-heading">
-            {facility.name}
-          </h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-lg font-semibold text-brand-heading">
+              {facility.name}
+            </h3>
+            {facility.verifiedAt && <VerifiedBadge />}
+          </div>
           <p className="mt-1 text-sm text-brand-text-muted">
             {facility.city}, {facility.state}
             {facility.distanceKm != null && ` · ${formatDistanceKm(facility.distanceKm)} entfernt`}
