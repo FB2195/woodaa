@@ -5,12 +5,17 @@ import { useEffect, useRef, useState } from "react";
 import { AMENITY_OPTIONS, type BookingType } from "@woodaa/validators";
 import { bookingTypeOptions } from "@/lib/bookingTypeLabels";
 import { pflegegradOptions } from "@/lib/pflegegradLabels";
+import { SaveSearchButton } from "@/components/search/SaveSearchButton";
 import { sortLabels, sortOptions } from "@/lib/sortLabels";
 
 function SortIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7 4v16m0 0l-3-3m3 3l3-3M17 20V4m0 0l3 3m-3-3l-3 3" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M7 4v16m0 0l-3-3m3 3l3-3M17 20V4m0 0l3 3m-3-3l-3 3"
+      />
     </svg>
   );
 }
@@ -37,7 +42,8 @@ function MapIcon() {
 
 const toolbarButtonClass =
   "flex items-center gap-1.5 rounded-brand-md border border-brand-border px-4 py-2 text-sm font-semibold text-brand-text transition hover:bg-brand-surface";
-const toolbarButtonActiveClass = "border-brand-accent bg-brand-accent text-white hover:bg-brand-accent";
+const toolbarButtonActiveClass =
+  "border-brand-accent bg-brand-accent text-white hover:bg-brand-accent";
 
 export function SearchToolbar({
   bookingTypeCounts,
@@ -219,6 +225,8 @@ export function SearchToolbar({
           <MapIcon />
           Karte
         </button>
+
+        <SaveSearchButton />
       </div>
 
       <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
@@ -226,7 +234,9 @@ export function SearchToolbar({
           <button
             key={option.value}
             type="button"
-            onClick={() => setParam("type", currentType === option.value ? undefined : option.value)}
+            onClick={() =>
+              setParam("type", currentType === option.value ? undefined : option.value)
+            }
             className={`shrink-0 rounded-brand-full border px-4 py-2 text-sm font-medium transition ${
               currentType === option.value
                 ? "border-brand-accent bg-brand-accent text-white"

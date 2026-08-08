@@ -8,6 +8,7 @@ import { facilityRouter } from "./routers/facility";
 import { favoriteRouter } from "./routers/favorite";
 import { operatorRouter } from "./routers/operator";
 import { reviewRouter } from "./routers/review";
+import { savedSearchRouter } from "./routers/savedSearch";
 import { supportRouter } from "./routers/support";
 import { twoFactorRouter } from "./routers/twoFactor";
 import { waitlistRouter } from "./routers/waitlist";
@@ -35,6 +36,7 @@ export const appRouter = router({
   careApplication: careApplicationRouter,
   support: supportRouter,
   waitlist: waitlistRouter,
+  savedSearch: savedSearchRouter,
 });
 
 export type AppRouter = typeof appRouter;

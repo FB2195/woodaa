@@ -182,6 +182,7 @@ model User {
   refreshTokens                RefreshToken[]
   recoveryCodes                RecoveryCode[]
   favorites                    Favorite[]
+  savedSearches                SavedSearch[]
   passwordResetTokens          PasswordResetToken[]
   emailChangeRequests          EmailChangeRequest[]
   // Only meaningful for SUCHENDE - collected at registration so
@@ -448,6 +449,34 @@ model Favorite {
   createdAt  DateTime @default(now())
 
   @@unique([userId, facilityId])
+}
+
+// A saved "let me know when a spot opens" search - deliberately leaner than
+// the full FacilitySearchInput (no maxPrice/amenities/sort/date-range/
+// weekdays): those are result-ordering/refinement filters, not "does a spot
+// exist at all" criteria, and including them would make the periodic match
+// check (checkSavedSearchAlerts in savedSearchAlerts.ts) expensive and the
+// resulting alerts noisier rather than more useful. city is required since
+// an alert with no location filter would match too broadly to be useful.
+model SavedSearch {
+  id          String       @id @default(cuid())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  city        String
+  bookingType BookingType?
+  pflegegrad  Int?
+  createdAt   DateTime     @default(now())
+  lastCheckedAt DateTime?
+  // Facility ids that already matched as of the last check - the alert
+  // email only ever reports ids NOT in this set, so a still-matching
+  // facility isn't re-emailed on every run, only once when it first
+  // appears. Updated to the full current match set after every check
+  // (including on the very first run, so a search that already has matches
+  // at creation time doesn't immediately spam an email for pre-existing
+  // results - only for what's NEW since the last check).
+  lastMatchedFacilityIds String[] @default([])
+
+  @@index([userId])
 }
 
 model FacilityCapacity {
