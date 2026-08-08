@@ -1,14 +1,15 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { db } from "@woodaa/db";
 import { verifyAccessToken } from "./auth";
+import { checkRateLimit } from "./rateLimit";
 
 /**
  * tRPC context. `token` is the caller's raw JWT access token, extracted by
  * whichever transport is in use (Fastify reads the Authorization header,
  * the Next.js web app reads an httpOnly cookie via next/headers) — kept out
- * of this shared package so it stays framework-agnostic. `ip` is similarly
- * extracted per-transport (Fastify's req.ip, the web app's x-forwarded-for
- * header) and only used by rateLimited below — null when unavailable.
+ * of this shared package so it stays framework-agnostic. `ip` is the same
+ * story: each transport resolves its own client IP (Fastify's req.ip,
+ * Next's x-forwarded-for) and passes it in here for rateLimited() below.
  */
 export function createContext(opts?: { token?: string | null; ip?: string | null }) {
   const payload = opts?.token ? verifyAccessToken(opts.token) : null;
@@ -21,6 +22,18 @@ const t = initTRPC.context<Context>().create();
 
 export const router = t.router;
 export const publicProcedure = t.procedure;
+
+// Per-IP fixed-window limit for a publicProcedure - see rateLimit.ts for
+// what this can and can't guarantee. Keyed by `name` (unique per call site)
+// plus the caller's IP, so unrelated endpoints never share a bucket. Falls
+// back to a shared "unknown" bucket if the transport couldn't resolve an
+// IP, rather than skipping the check entirely.
+export function rateLimited(name: string, limit: number, windowMs: number) {
+  return t.middleware(({ ctx, next }) => {
+    checkRateLimit(`${name}:${ctx.ip ?? "unknown"}`, limit, windowMs);
+    return next();
+  });
+}
 
 const isAuthed = t.middleware(({ ctx, next }) => {
   if (!ctx.user) {
@@ -45,35 +58,3 @@ const isAdmin = t.middleware(({ ctx, next }) => {
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
 export const adminProcedure = t.procedure.use(isAdmin);
-
-// Simple in-memory per-IP rate limiter for public, unauthenticated
-// lead-capture endpoints (e.g. waitlist.create) - a fixed window per
-// "name:ip" key. MVP scope: state lives in this process's memory, so it
-// resets on redeploy/restart and isn't shared across serverless instances
-// (the Next.js web app's tRPC route runs on Vercel, not this long-lived
-// process) - good enough to blunt casual scripted abuse of a public form,
-// not a substitute for a real edge/WAF rate limiter if this becomes a
-// target. ctx.ip is null when the transport couldn't determine one (e.g.
-// local dev without a proxy) - those requests share a single "unknown"
-// bucket rather than bypassing the limit entirely.
-const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
-
-export function rateLimited(name: string, limit: number, windowMs: number) {
-  return t.middleware(({ ctx, next }) => {
-    const key = `${name}:${ctx.ip ?? "unknown"}`;
-    const now = Date.now();
-    const bucket = rateLimitBuckets.get(key);
-    if (!bucket || bucket.resetAt <= now) {
-      rateLimitBuckets.set(key, { count: 1, resetAt: now + windowMs });
-    } else {
-      bucket.count += 1;
-      if (bucket.count > limit) {
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: "Zu viele Anfragen. Bitte versuch es später noch einmal.",
-        });
-      }
-    }
-    return next();
-  });
-}

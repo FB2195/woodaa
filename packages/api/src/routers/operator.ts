@@ -7,7 +7,9 @@ import {
   CreateFacilityInput,
   CreateManualBookingInput,
   MAX_FACILITY_PHOTOS,
+  MAX_PHOTO_BYTES,
   RenameUnitInput,
+  ReplyToReviewInput,
   RequestFacilityChangeInput,
   RequestPhotoUploadInput,
   SetPflegegradPricingInput,
@@ -24,10 +26,11 @@ import {
   createPresignedDownloadUrl,
   createPresignedUploadUrl,
   deleteObject,
+  headUploadedObjectSize,
   newPhotoKey,
   withPhotoUrl,
 } from "../r2";
-import { refundBookingPayment, stripeClient } from "../stripe";
+import { refundBookingPayment } from "../stripe";
 import { operatorProcedure, router } from "../trpc";
 import type { Context } from "../trpc";
 
@@ -357,9 +360,7 @@ export const operatorRouter = router({
     const booking = await cancelBooking(ctx.db, input.bookingId, {
       requireFacilityId: facility.id,
     });
-    if (booking.paymentStatus === "BEZAHLT" && booking.stripePaymentIntentId) {
-      await stripeClient().refunds.create({ payment_intent: booking.stripePaymentIntentId });
-    }
+    await refundBookingPayment(ctx.db, booking);
     return booking;
   }),
 
@@ -522,14 +523,44 @@ export const operatorRouter = router({
     .input(ConfirmPhotoUploadInput)
     .mutation(async ({ ctx, input }) => {
       const facility = await requireOwnFacility(ctx);
-      // No existence check against R2 by design - only reachable by the
-      // authenticated owner of this exact facility, for a key they just
-      // requested via requestPhotoUpload. A fabricated key just yields a
-      // broken <img>, no cross-tenant risk.
+      // Only reachable by the authenticated owner of this exact facility,
+      // for a key they just requested via requestPhotoUpload - a fabricated
+      // key just yields no object below, no cross-tenant read/write risk.
+      // What the presigned PUT itself can't enforce upfront is the byte
+      // size (see createPresignedUploadUrl) - checked here instead, against
+      // the object that's now actually sitting in R2.
+      const size = await headUploadedObjectSize(input.key);
+      if (size === null || size > MAX_PHOTO_BYTES) {
+        await deleteObject(input.key);
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            size === null
+              ? "Upload nicht gefunden."
+              : `Datei überschreitet die maximale Größe von ${Math.round(MAX_PHOTO_BYTES / 1024 / 1024)} MB.`,
+        });
+      }
       const photo = await ctx.db.facilityPhoto.create({
         data: { facilityId: facility.id, key: input.key },
       });
       return withPhotoUrl(photo);
+    }),
+
+  // Booking.com-style host response - writes or overwrites the one reply
+  // this facility has on a review (see the comment on Review.operatorReply
+  // in schema.prisma for why this needs no separate admin-approval step).
+  replyToReview: operatorProcedure
+    .input(ReplyToReviewInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const review = await ctx.db.review.findUnique({ where: { id: input.reviewId } });
+      if (!review || review.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Bewertung nicht gefunden." });
+      }
+      return ctx.db.review.update({
+        where: { id: review.id },
+        data: { operatorReply: input.reply, operatorRepliedAt: new Date() },
+      });
     }),
 
   removePhoto: operatorProcedure

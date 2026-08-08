@@ -11,6 +11,7 @@ import {
   CancelBookingInput,
   ConfirmKostenuebernahmeUploadInput,
   CreateBookingInput,
+  MAX_DOCUMENT_BYTES,
   paymentMethodsRequiringStripe,
   RequestKostenuebernahmeUploadInput,
 } from "@woodaa/validators";
@@ -24,7 +25,13 @@ import {
   sendOperatorNewBookingEmail,
 } from "../email";
 import { chargeAmountCents } from "../pricing";
-import { createPresignedDownloadUrl, createPresignedUploadUrl, newDocumentKey } from "../r2";
+import {
+  createPresignedDownloadUrl,
+  createPresignedUploadUrl,
+  deleteObject,
+  headUploadedObjectSize,
+  newDocumentKey,
+} from "../r2";
 import { refundBookingPayment, stripeClient } from "../stripe";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
 
@@ -253,6 +260,17 @@ export const bookingRouter = router({
       if (!booking || booking.userId !== ctx.user.id) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
       }
+      const size = await headUploadedObjectSize(input.key);
+      if (size === null || size > MAX_DOCUMENT_BYTES) {
+        await deleteObject(input.key);
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            size === null
+              ? "Upload nicht gefunden."
+              : `Datei überschreitet die maximale Größe von ${Math.round(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB.`,
+        });
+      }
       return ctx.db.booking.update({
         where: { id: booking.id },
         data: {
@@ -330,10 +348,12 @@ export const bookingRouter = router({
     const booking = await cancelBooking(ctx.db, input.bookingId, {
       requireGuestEmail: input.guestEmail,
     });
-    // Volle Rückerstattung bei jeder Stornierung, unabhängig vom 48h-
-    // Hinweistext im Buchungsformular - eine anteilige Stornogebühr bei
-    // später Stornierung durchzusetzen bräuchte eine separate Abbuchung,
-    // die es in diesem MVP noch nicht gibt (siehe BookingForm.tsx).
+    // Volle Rückerstattung bei jeder Stornierung, unabhängig vom Storno-
+    // Hinweistext im Buchungsformular (generisch oder Facility.
+    // cancellationPolicyDays, falls die Einrichtung eine Frist hinterlegt
+    // hat - siehe dort) - eine anteilige Stornogebühr bei später Stornierung
+    // durchzusetzen bräuchte eine separate Abbuchung, die es in diesem MVP
+    // noch nicht gibt (siehe BookingForm.tsx).
     await refundBookingPayment(ctx.db, booking);
     return booking;
   }),

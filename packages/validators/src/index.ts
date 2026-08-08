@@ -365,6 +365,10 @@ const UpdatableFacilityFields = FacilityFields.omit({
   wifiInfo: z.string().trim().max(200).optional(),
   parkingInfo: z.string().trim().max(200).optional(),
   petsPolicy: z.string().trim().max(200).optional(),
+  // Stornobedingungen - free cancellation up to N days before the booking's
+  // start. null = "keine Angabe" (see cancellationPolicyDays in
+  // schema.prisma for why this is informational-only).
+  cancellationPolicyDays: z.number().int().min(0).max(365).nullable().optional(),
 });
 
 export const UpdateFacilityInput = UpdatableFacilityFields.partial().refine(pflegegradRangeOk, {
@@ -526,6 +530,13 @@ export type AllowedPhotoContentType = z.infer<typeof AllowedPhotoContentType>;
 export const MAX_FACILITY_PHOTOS = 8;
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
 
+// Kostenübernahmebestätigung/Vollmacht PDF uploads (booking.ts,
+// careApplication.ts) - same presigned-PUT-then-confirm flow and the same
+// server-side headUploadedObjectSize enforcement as facility photos above,
+// just a looser cap since a scanned multi-page document is larger than a
+// single photo.
+export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export const RequestPhotoUploadInput = z.object({
   contentType: AllowedPhotoContentType,
 });
@@ -550,6 +561,12 @@ export const CreateReviewInput = z.object({
   comment: z.string().trim().max(2000).optional(),
 });
 export type CreateReviewInput = z.infer<typeof CreateReviewInput>;
+
+export const ReplyToReviewInput = z.object({
+  reviewId: z.string().min(1),
+  reply: z.string().trim().min(1).max(2000),
+});
+export type ReplyToReviewInput = z.infer<typeof ReplyToReviewInput>;
 
 export const SupportRequestType = z.enum(["KONTAKT", "RUECKRUF", "FEHLERMELDUNG"]);
 export type SupportRequestType = z.infer<typeof SupportRequestType>;

@@ -7,6 +7,7 @@ import { CompareToggle } from "@/components/CompareToggle";
 import { EigenanteilPreview } from "@/components/search/EigenanteilPreview";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { PlaceholderPhoto } from "@/components/PlaceholderPhoto";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { formatDistanceKm, formatPriceEuro } from "@/lib/format";
 import { cheapestCapacityPrice } from "@/lib/price";
 
@@ -29,6 +30,10 @@ type Facility = Omit<FacilityWithCapacities, "operatorPhone" | "operatorEmail"> 
   // would compute. undefined (not null) on call sites without search
   // context (e.g. /favoriten), which fall back to computing it locally.
   displayPriceCents?: number | null;
+  // "Antwortet meist innerhalb von X Std." - null/undefined for
+  // AUTOMATISCH facilities or without enough recent history, see
+  // packages/api/src/responseTime.ts.
+  responseTimeBadge?: string | null;
 };
 
 export function FacilityCard({
@@ -75,7 +80,10 @@ export function FacilityCard({
         </div>
 
         <div className="p-6 pb-0">
-          <h3 className="text-lg font-semibold text-brand-heading">{facility.name}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-lg font-semibold text-brand-heading">{facility.name}</h3>
+            {facility.verifiedAt && <VerifiedBadge />}
+          </div>
           <p className="mt-1 text-sm text-brand-text-muted">
             {facility.city}, {facility.state}
             {facility.distanceKm != null && ` · ${formatDistanceKm(facility.distanceKm)} entfernt`}
@@ -100,6 +108,12 @@ export function FacilityCard({
               <span aria-hidden="true">⭐</span>
               {facility.avgRating!.toLocaleString("de-DE", { maximumFractionDigits: 1 })}
               <span>({facility.reviewCount})</span>
+            </p>
+          )}
+          {facility.responseTimeBadge && (
+            <p className="mt-2 inline-flex items-center gap-1 rounded-brand-full border border-brand-border px-3 py-1 text-xs font-medium text-brand-text-muted">
+              <span aria-hidden="true">⏱</span>
+              {facility.responseTimeBadge}
             </p>
           )}
           <div className="mt-4 flex flex-wrap gap-2">

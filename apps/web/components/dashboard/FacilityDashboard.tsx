@@ -6,6 +6,7 @@ import { BookingApprovals } from "./BookingApprovals";
 import { CategoryPanel } from "./CategoryPanel";
 import { FacilityContactForm } from "./FacilityContactForm";
 import { HouseRulesForm } from "./HouseRulesForm";
+import { OperatorReviews } from "./OperatorReviews";
 import { PaymentApprovals } from "./PaymentApprovals";
 import { PflegegradSuitabilityForm } from "./PflegegradSuitabilityForm";
 import { PhotoManager } from "./PhotoManager";
@@ -81,6 +82,7 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
           wifiInfo: facility.wifiInfo,
           parkingInfo: facility.parkingInfo,
           petsPolicy: facility.petsPolicy,
+          cancellationPolicyDays: facility.cancellationPolicyDays,
         }}
       />
 
@@ -111,6 +113,8 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
       />
 
       <PhotoManager photos={facility.photos} />
+
+      <OperatorReviews reviews={facility.reviews} />
     </div>
   );
 }

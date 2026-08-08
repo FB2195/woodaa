@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -51,15 +52,13 @@ function r2Client(): S3Client {
 const PRESIGNED_PUT_TTL_SECONDS = 5 * 60;
 
 // A presigned PUT URL (unlike a presigned POST policy) can't enforce a
-// server-side max-content-length without pre-declaring an exact
-// ContentLength, which we don't know client-side ahead of compression.
-// The size cap (MAX_PHOTO_BYTES in @woodaa/validators) is therefore
-// enforced client-side only - acceptable for v1 (only reachable by an
-// authenticated facility owner, self-inflicted at worst).
-export async function createPresignedUploadUrl(
-  key: string,
-  contentType: string,
-): Promise<string> {
+// server-side max-content-length up front - the ContentType is pinned by
+// the signature (R2 rejects a PUT whose Content-Type header doesn't match
+// what was signed here), but the byte size isn't known until the object
+// actually exists. The real enforcement point is headUploadedObject below,
+// called from confirmPhotoUpload once the browser's PUT has landed - this
+// URL merely scopes what *can* be uploaded (key + declared type).
+export async function createPresignedUploadUrl(key: string, contentType: string): Promise<string> {
   const command = new PutObjectCommand({
     Bucket: requireEnv("R2_BUCKET_NAME"),
     Key: key,
@@ -68,6 +67,22 @@ export async function createPresignedUploadUrl(
   return getSignedUrl(r2Client(), command, {
     expiresIn: PRESIGNED_PUT_TTL_SECONDS,
   });
+}
+
+// Server-side follow-up check for a presigned-PUT upload - returns the
+// actually-stored object's size, or null if no object exists at that key
+// (upload never happened / client is confirming a fabricated key). Callers
+// use this to enforce a byte-size cap post-hoc (see confirmPhotoUpload)
+// since the presigned PUT itself can't declare one upfront.
+export async function headUploadedObjectSize(key: string): Promise<number | null> {
+  try {
+    const result = await r2Client().send(
+      new HeadObjectCommand({ Bucket: requireEnv("R2_BUCKET_NAME"), Key: key }),
+    );
+    return result.ContentLength ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // Short-lived, generated fresh per view request - unlike facility photos,

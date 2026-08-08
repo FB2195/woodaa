@@ -38,6 +38,8 @@ export type AdminPendingBookingApproval = Booking & {
 
 export type AdminFailedRefundBooking = Booking & { facility: { name: string; slug: string } };
 
+export type AdminEscalatedBooking = Booking & { facility: { name: string; slug: string } };
+
 export const adminRouter = router({
   pendingFacilities: adminProcedure.query(async ({ ctx }) => {
     // Facilities that have only run the quick "get the tool" signup
@@ -85,6 +87,22 @@ export const adminRouter = router({
       return ctx.db.facility.update({
         where: { id: input.id },
         data: { status: "REJECTED" },
+      });
+    }),
+
+  // Rein informatives Vertrauenssignal (siehe VerifiedBadge.tsx) - kein
+  // eigenes Freigabe-Gate, unabhängig vom ACTIVE/PENDING_REVIEW/REJECTED-
+  // Status oben. Admin kann es jederzeit setzen oder zurücknehmen.
+  setFacilityVerified: adminProcedure
+    .input(z.object({ id: z.string().min(1), verified: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await ctx.db.facility.findUnique({ where: { id: input.id } });
+      if (!facility) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return ctx.db.facility.update({
+        where: { id: input.id },
+        data: { verifiedAt: input.verified ? new Date() : null },
       });
     }),
 
@@ -217,6 +235,22 @@ export const adminRouter = router({
         where: { refundFailedAt: { not: null } },
         include: { facility: { select: { name: true, slug: true } } },
         orderBy: { refundFailedAt: "desc" },
+      });
+    },
+  ),
+
+  // Buchungen, die bei einer MANUELL-Freigabe-Einrichtung zu lange auf
+  // facilityApprovalStatus=AUSSTEHEND stehen geblieben sind (siehe
+  // escalateStalePendingApprovals in packages/api/src/approvalEscalation.ts)
+  // - wie bookingsWithFailedRefunds oben nur zur Sichtbarkeit, keine eigene
+  // In-App-Aktion. Ein Mitarbeitender kontaktiert die Einrichtung dann
+  // manuell.
+  escalatedPendingApprovals: adminProcedure.query(
+    async ({ ctx }): Promise<AdminEscalatedBooking[]> => {
+      return ctx.db.booking.findMany({
+        where: { approvalEscalatedAt: { not: null } },
+        include: { facility: { select: { name: true, slug: true } } },
+        orderBy: { approvalEscalatedAt: "desc" },
       });
     },
   ),

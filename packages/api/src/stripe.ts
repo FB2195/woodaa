@@ -43,24 +43,52 @@ export function stripeWebhookSecret(): string {
 }
 
 // Shared by every cancel/reject path that may need to undo a captured
-// payment (operator.rejectBooking, admin.rejectBookingAdmin, booking.cancel/
-// myCancel). The booking is always already STORNIERT by the time this runs
+// payment (operator.cancelBooking/rejectBooking, admin.rejectBookingAdmin,
+// booking.cancel/myCancel, the webhook's cancelled-while-paying fallback).
+// The booking is always already STORNIERT by the time this runs
 // (cancelBooking commits in its own transaction first), so a failed refund
 // here can't be rolled back into "still booked" - instead it's recorded on
 // refundFailedAt for staff to find and rethrown so the caller still sees the
 // mutation fail.
+//
+// Two callers can race on the same booking (double-click, a retried
+// request, or two of the cancel/reject procedures above firing for the same
+// booking in close succession) - both may read paymentStatus "BEZAHLT"
+// before either commits. The updateMany below is the atomic claim: only the
+// caller that actually flips BEZAHLT -> REFUNDIERT proceeds to call Stripe,
+// the other sees count 0 and no-ops. The Stripe idempotencyKey is a second,
+// independent guard against the same booking ever being refunded twice.
 export async function refundBookingPayment(
   db: PrismaClient,
-  booking: { id: string; paymentStatus: PaymentStatus | null; stripePaymentIntentId: string | null },
+  booking: {
+    id: string;
+    paymentStatus: PaymentStatus | null;
+    stripePaymentIntentId: string | null;
+  },
 ): Promise<void> {
   if (booking.paymentStatus !== "BEZAHLT" || !booking.stripePaymentIntentId) {
     return;
   }
+  const claimed = await db.booking.updateMany({
+    where: { id: booking.id, paymentStatus: "BEZAHLT" },
+    data: { paymentStatus: "REFUNDIERT" },
+  });
+  if (claimed.count === 0) return;
   try {
-    await stripeClient().refunds.create({ payment_intent: booking.stripePaymentIntentId });
+    await stripeClient().refunds.create(
+      { payment_intent: booking.stripePaymentIntentId },
+      { idempotencyKey: `refund_${booking.id}` },
+    );
   } catch (err) {
     console.error(`Stripe-Rückerstattung fehlgeschlagen für Buchung ${booking.id}:`, err);
-    await db.booking.update({ where: { id: booking.id }, data: { refundFailedAt: new Date() } });
+    // The refund never went through - revert the claim so paymentStatus
+    // keeps reflecting reality (still BEZAHLT, not REFUNDIERT).
+    // refundFailedAt is the signal staff use to find and resolve these
+    // manually in the Stripe dashboard (see admin.bookingsWithFailedRefunds).
+    await db.booking.update({
+      where: { id: booking.id },
+      data: { paymentStatus: "BEZAHLT", refundFailedAt: new Date() },
+    });
     throw err;
   }
 }

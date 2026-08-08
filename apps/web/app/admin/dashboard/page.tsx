@@ -1,4 +1,5 @@
 import { Header } from "@/components/Header";
+import { ActiveFacilityRow } from "@/components/admin/ActiveFacilityRow";
 import { PendingBookingApprovalRow } from "@/components/admin/PendingBookingApprovalRow";
 import { PendingFacilityChangeRow } from "@/components/admin/PendingFacilityChangeRow";
 import { PendingFacilityRow } from "@/components/admin/PendingFacilityRow";
@@ -21,6 +22,7 @@ export default async function AdminDashboardPage() {
     openSupportRequests,
     pendingFacilityChanges,
     bookingsWithFailedRefunds,
+    escalatedPendingApprovals,
   ] = await Promise.all([
     trpcServer.admin.pendingFacilities(),
     trpcServer.admin.activeFacilities(),
@@ -31,6 +33,7 @@ export default async function AdminDashboardPage() {
     trpcServer.admin.openSupportRequests(),
     trpcServer.admin.pendingFacilityChanges(),
     trpcServer.admin.bookingsWithFailedRefunds(),
+    trpcServer.admin.escalatedPendingApprovals(),
   ]);
 
   return (
@@ -67,12 +70,7 @@ export default async function AdminDashboardPage() {
         </h2>
         <ul className="mt-3 flex flex-col gap-1 text-sm text-brand-text-muted">
           {active.map((facility) => (
-            <li key={facility.id}>
-              {facility.name} — {facility.city} · {facility.operatorName}
-              {facility.operatorPhone ? ` · ${facility.operatorPhone}` : ""}
-              {facility.operatorPhoneDurchwahl ? ` (${facility.operatorPhoneDurchwahl})` : ""} ·{" "}
-              {facility.operatorEmail}
-            </li>
+            <ActiveFacilityRow key={facility.id} facility={facility} />
           ))}
         </ul>
 
@@ -193,6 +191,32 @@ export default async function AdminDashboardPage() {
                   {booking.guestFirstName} {booking.guestLastName} · {booking.facility.name}
                   {booking.stripePaymentIntentId && ` · ${booking.stripePaymentIntentId}`}
                   {booking.refundFailedAt && ` · ${formatDate(booking.refundFailedAt)}`}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {escalatedPendingApprovals.length > 0 && (
+          <>
+            <h2 className="mt-12 text-2xl font-bold text-brand-heading">
+              Freigabe überfällig
+            </h2>
+            <p className="mt-1 text-sm text-brand-text-muted">
+              Diese Buchungen warten schon zu lange auf die Bestätigung/Ablehnung der Einrichtung
+              (bookingApprovalMode „Manuell") - der Betreiber wurde per Erinnerungsmail
+              informiert, bitte bei Bedarf zusätzlich direkt Kontakt aufnehmen.
+            </p>
+            <ul className="mt-6 flex flex-col gap-2 text-sm">
+              {escalatedPendingApprovals.map((booking) => (
+                <li
+                  key={booking.id}
+                  className="rounded-brand-md border border-red-200 bg-red-50 p-4 text-red-700"
+                >
+                  {booking.guestFirstName} {booking.guestLastName} · {booking.facility.name}
+                  {booking.createdAt && ` · gebucht am ${formatDate(booking.createdAt)}`}
+                  {booking.approvalEscalatedAt &&
+                    ` · eskaliert am ${formatDate(booking.approvalEscalatedAt)}`}
                 </li>
               ))}
             </ul>

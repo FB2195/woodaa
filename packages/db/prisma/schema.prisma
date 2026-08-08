@@ -57,6 +57,11 @@ enum PaymentStatus {
   WARTET_AUF_HEIM_FREIGABE
   FREIGEGEBEN
   ABGELEHNT
+  // Nur KARTE/KLARNA/PAYPAL: Stripe-Rückerstattung nach Storno erfolgreich
+  // durchgeführt (siehe refundBookingPayment in stripe.ts). Ersetzt BEZAHLT
+  // statt es stehen zu lassen, damit Dashboards eine stornierte + erstattete
+  // Buchung nicht weiter als "bezahlt" ausweisen.
+  REFUNDIERT
 }
 
 // Ob neue Online-Buchungen für das Heim sofort als bestätigt gelten
@@ -372,9 +377,21 @@ model Facility {
   wifiInfo               String?
   parkingInfo            String?
   petsPolicy             String?
+  // Free cancellation up to N days before the booking's start - null = "keine
+  // Angabe" (BookingForm falls back to generic wording then). Same
+  // non-critical, no-approval-needed pattern as the Unterkunftsrichtlinien
+  // above. Purely informational: cancelBooking always fully refunds
+  // regardless of timing (see the comment there) - a prorated cancellation
+  // fee would need a separate charge mechanism that doesn't exist yet.
+  cancellationPolicyDays Int?
   // Nicht-kritisch (wie die Unterkunftsrichtlinien oben) - wirkt sich nur auf
   // künftige Buchungen aus, kein admin-approval-Gate nötig.
   bookingApprovalMode    BookingApprovalMode     @default(AUTOMATISCH)
+  // Admin-togglable trust badge (see admin.setFacilityVerified) - shown on
+  // search cards/the facility page when set. Independent of `status`
+  // (ACTIVE/PENDING_REVIEW/REJECTED already gates public visibility); this
+  // is an additional, purely informational signal, not another gate.
+  verifiedAt             DateTime?
   operatorUserId         String?                 @unique
   operator               User?                   @relation("FacilityOperator", fields: [operatorUserId], references: [id])
   capacities             FacilityCapacity[]
@@ -609,6 +626,13 @@ model Booking {
   // cancelled (see cancelBooking) - stays null on the happy path, gives
   // staff something to search for instead of the money silently vanishing.
   refundFailedAt               DateTime?
+  // Bound how long a MANUELL-approval booking (facilityApprovalStatus=
+  // AUSSTEHEND) can sit unanswered - see escalateStalePendingApprovals in
+  // packages/api/src/approvalEscalation.ts, run periodically from apps/api.
+  // Both stay null on the happy path (facility confirms/rejects in time) and
+  // whenever facilityApprovalStatus isn't AUSSTEHEND at all.
+  approvalReminderSentAt       DateTime?
+  approvalEscalatedAt          DateTime?
 
   @@index([facilityId, bookingType])
   @@index([unitId, status])
@@ -669,6 +693,15 @@ model Review {
   staffRating       Int?
   comment           String?
   status            ReviewStatus @default(PENDING)
+  // Booking.com-style host response, shown publicly right under the review
+  // once the operator writes one - editable any number of times (one reply
+  // per review, not a thread), so operatorRepliedAt just tracks the most
+  // recent edit. Unlike the review itself, no admin-moderation gate: this
+  // is operator-authored public-facing text, same trust level as
+  // Facility.description/petsPolicy (see the FacilityChangeRequest comment
+  // above for what DOES need approval - replies aren't in that category).
+  operatorReply     String?
+  operatorRepliedAt DateTime?
   createdAt         DateTime     @default(now())
 
   @@unique([facilityId, userId])

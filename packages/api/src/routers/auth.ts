@@ -35,11 +35,20 @@ import {
 import { createFacilityForOperator } from "../lib/facility";
 import { hashToken } from "../tokenHash";
 import { decryptSecret, verifyTotpCode } from "../twoFactor";
-import { protectedProcedure, publicProcedure, router } from "../trpc";
+import { protectedProcedure, publicProcedure, rateLimited, router } from "../trpc";
 import type { Context } from "../trpc";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+// Per-IP, on top of the per-account lockout above - that one alone doesn't
+// stop credential stuffing spread across many different accounts from the
+// same source, and register/forgotPassword have no per-account counterpart
+// at all (register especially is an email-enumeration oracle otherwise).
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const REGISTER_RATE_LIMIT = 5;
+const LOGIN_RATE_LIMIT = 20;
+const VERIFY_TWO_FACTOR_RATE_LIMIT = 10;
+const FORGOT_PASSWORD_RATE_LIMIT = 10;
 const RESEND_COOLDOWN_MS = 2 * 60 * 1000;
 const PASSWORD_RESET_COOLDOWN_MS = 2 * 60 * 1000;
 const PASSWORD_RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
@@ -91,11 +100,7 @@ async function issueTokens(
   };
 }
 
-async function dispatchVerificationEmail(user: {
-  id: string;
-  name: string;
-  email: string;
-}) {
+async function dispatchVerificationEmail(user: { id: string; name: string; email: string }) {
   const token = signEmailVerificationToken({ sub: user.id });
   try {
     await sendVerificationEmail({ to: user.email, name: user.name, token });
@@ -107,146 +112,153 @@ async function dispatchVerificationEmail(user: {
 }
 
 export const authRouter = router({
-  register: publicProcedure.input(RegisterInput).mutation(async ({ ctx, input }) => {
-    const existing = await ctx.db.user.findUnique({ where: { email: input.email } });
-    if (existing) {
-      throw new TRPCError({
-        code: "CONFLICT",
-        message: "Diese E-Mail-Adresse wird bereits verwendet.",
-      });
-    }
+  register: publicProcedure
+    .use(rateLimited("auth.register", REGISTER_RATE_LIMIT, RATE_LIMIT_WINDOW_MS))
+    .input(RegisterInput)
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.user.findUnique({ where: { email: input.email } });
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Diese E-Mail-Adresse wird bereits verwendet.",
+        });
+      }
 
-    const passwordHash = await bcrypt.hash(input.password, 12);
-    const now = new Date();
+      const passwordHash = await bcrypt.hash(input.password, 12);
+      const now = new Date();
 
-    // SUCHENDE: name/address/Pflegegrad/... collected once here so
-    // BookingForm can prefill instead of asking fresh every booking (see
-    // careApplication.myCareProfile). BETREIBER: facility created in the
-    // same transaction as the account - see RegisterBetreiberInput.
-    const user =
-      input.role === "SUCHENDE"
-        ? await ctx.db.user.create({
-            data: {
-              name: `${input.vorname} ${input.nachname}`.trim(),
-              vorname: input.vorname,
-              nachname: input.nachname,
-              email: input.email,
-              passwordHash,
-              role: "SUCHENDE",
-              geburtsdatum: new Date(input.geburtsdatum),
-              street: input.street,
-              postalCode: input.postalCode,
-              city: input.city,
-              phone: input.phone ?? "",
-              pflegegrad: input.pflegegrad,
-              pflegegradAntragLaeuft: input.pflegegradAntragLaeuft,
-              krankenkasse: input.krankenkasse,
-              versicherungsnummerEncrypted: encryptSecret(input.versicherungsnummer),
-              hatBevollmaechtigten: input.hatBevollmaechtigten,
-              bevollmaechtigterVorname: input.hatBevollmaechtigten
-                ? input.bevollmaechtigterVorname
-                : null,
-              bevollmaechtigterNachname: input.hatBevollmaechtigten
-                ? input.bevollmaechtigterNachname
-                : null,
-              bevollmaechtigterAdresse: input.hatBevollmaechtigten
-                ? input.bevollmaechtigterAdresse
-                : null,
-              bevollmaechtigterTelefon: input.hatBevollmaechtigten
-                ? input.bevollmaechtigterTelefon
-                : null,
-              bevollmaechtigterEmail: input.hatBevollmaechtigten
-                ? input.bevollmaechtigterEmail
-                : null,
-              newsletterOptIn: input.newsletterOptIn,
-              agbAcceptedAt: now,
-              datenschutzAcceptedAt: now,
-              verificationEmailSentAt: now,
-            },
-          })
-        : await ctx.db.$transaction(async (tx) => {
-            const betreiberUser = await tx.user.create({
+      // SUCHENDE: name/address/Pflegegrad/... collected once here so
+      // BookingForm can prefill instead of asking fresh every booking (see
+      // careApplication.myCareProfile). BETREIBER: facility created in the
+      // same transaction as the account - see RegisterBetreiberInput.
+      const user =
+        input.role === "SUCHENDE"
+          ? await ctx.db.user.create({
               data: {
-                name: input.name,
+                name: `${input.vorname} ${input.nachname}`.trim(),
+                vorname: input.vorname,
+                nachname: input.nachname,
                 email: input.email,
                 passwordHash,
-                role: "BETREIBER",
+                role: "SUCHENDE",
+                geburtsdatum: new Date(input.geburtsdatum),
+                street: input.street,
+                postalCode: input.postalCode,
+                city: input.city,
+                phone: input.phone ?? "",
+                pflegegrad: input.pflegegrad,
+                pflegegradAntragLaeuft: input.pflegegradAntragLaeuft,
+                krankenkasse: input.krankenkasse,
+                versicherungsnummerEncrypted: encryptSecret(input.versicherungsnummer),
+                hatBevollmaechtigten: input.hatBevollmaechtigten,
+                bevollmaechtigterVorname: input.hatBevollmaechtigten
+                  ? input.bevollmaechtigterVorname
+                  : null,
+                bevollmaechtigterNachname: input.hatBevollmaechtigten
+                  ? input.bevollmaechtigterNachname
+                  : null,
+                bevollmaechtigterAdresse: input.hatBevollmaechtigten
+                  ? input.bevollmaechtigterAdresse
+                  : null,
+                bevollmaechtigterTelefon: input.hatBevollmaechtigten
+                  ? input.bevollmaechtigterTelefon
+                  : null,
+                bevollmaechtigterEmail: input.hatBevollmaechtigten
+                  ? input.bevollmaechtigterEmail
+                  : null,
+                newsletterOptIn: input.newsletterOptIn,
                 agbAcceptedAt: now,
+                datenschutzAcceptedAt: now,
                 verificationEmailSentAt: now,
               },
+            })
+          : await ctx.db.$transaction(async (tx) => {
+              const betreiberUser = await tx.user.create({
+                data: {
+                  name: input.name,
+                  email: input.email,
+                  passwordHash,
+                  role: "BETREIBER",
+                  agbAcceptedAt: now,
+                  verificationEmailSentAt: now,
+                },
+              });
+              await createFacilityForOperator(tx, betreiberUser, {
+                name: input.facilityName,
+                description: "",
+                street: input.street,
+                postalCode: input.postalCode,
+                city: input.city,
+                state: input.state,
+                amenities: [],
+                operatorPhone: input.operatorPhone,
+                operatorPhoneDurchwahl: input.operatorPhoneDurchwahl,
+              });
+              return betreiberUser;
             });
-            await createFacilityForOperator(tx, betreiberUser, {
-              name: input.facilityName,
-              description: "",
-              street: input.street,
-              postalCode: input.postalCode,
-              city: input.city,
-              state: input.state,
-              amenities: [],
-              operatorPhone: input.operatorPhone,
-              operatorPhoneDurchwahl: input.operatorPhoneDurchwahl,
-            });
-            return betreiberUser;
-          });
 
-    await dispatchVerificationEmail(user);
+      await dispatchVerificationEmail(user);
 
-    return {
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
-      ...(await issueTokens(ctx, user)),
-    };
-  }),
+      return {
+        user: { id: user.id, name: user.name, email: user.email, role: user.role },
+        ...(await issueTokens(ctx, user)),
+      };
+    }),
 
-  login: publicProcedure.input(LoginInput).mutation(async ({ ctx, input }) => {
-    const user = await ctx.db.user.findUnique({ where: { email: input.email } });
+  login: publicProcedure
+    .use(rateLimited("auth.login", LOGIN_RATE_LIMIT, RATE_LIMIT_WINDOW_MS))
+    .input(LoginInput)
+    .mutation(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUnique({ where: { email: input.email } });
 
-    if (!user) {
-      await bcrypt.compare(input.password, await getDummyHash());
-      throw new TRPCError({ code: "UNAUTHORIZED", message: GENERIC_LOGIN_ERROR });
-    }
+      if (!user) {
+        await bcrypt.compare(input.password, await getDummyHash());
+        throw new TRPCError({ code: "UNAUTHORIZED", message: GENERIC_LOGIN_ERROR });
+      }
 
-    const isLocked = user.lockedUntil && user.lockedUntil > new Date();
-    if (isLocked) {
-      await bcrypt.compare(input.password, await getDummyHash());
-      throw new TRPCError({ code: "UNAUTHORIZED", message: GENERIC_LOGIN_ERROR });
-    }
+      const isLocked = user.lockedUntil && user.lockedUntil > new Date();
+      if (isLocked) {
+        await bcrypt.compare(input.password, await getDummyHash());
+        throw new TRPCError({ code: "UNAUTHORIZED", message: GENERIC_LOGIN_ERROR });
+      }
 
-    const valid = await bcrypt.compare(input.password, user.passwordHash);
-    if (!valid) {
-      const attempts = user.failedLoginAttempts + 1;
+      const valid = await bcrypt.compare(input.password, user.passwordHash);
+      if (!valid) {
+        const attempts = user.failedLoginAttempts + 1;
+        await ctx.db.user.update({
+          where: { id: user.id },
+          data: {
+            failedLoginAttempts: attempts,
+            lockedUntil:
+              attempts >= MAX_FAILED_ATTEMPTS
+                ? new Date(Date.now() + LOCKOUT_DURATION_MS)
+                : user.lockedUntil,
+          },
+        });
+        throw new TRPCError({ code: "UNAUTHORIZED", message: GENERIC_LOGIN_ERROR });
+      }
+
       await ctx.db.user.update({
         where: { id: user.id },
-        data: {
-          failedLoginAttempts: attempts,
-          lockedUntil:
-            attempts >= MAX_FAILED_ATTEMPTS
-              ? new Date(Date.now() + LOCKOUT_DURATION_MS)
-              : user.lockedUntil,
-        },
+        data: { failedLoginAttempts: 0, lockedUntil: null },
       });
-      throw new TRPCError({ code: "UNAUTHORIZED", message: GENERIC_LOGIN_ERROR });
-    }
 
-    await ctx.db.user.update({
-      where: { id: user.id },
-      data: { failedLoginAttempts: 0, lockedUntil: null },
-    });
+      if (user.twoFactorEnabled) {
+        return {
+          twoFactorRequired: true as const,
+          challengeToken: signTwoFactorChallengeToken({ sub: user.id }),
+        };
+      }
 
-    if (user.twoFactorEnabled) {
       return {
-        twoFactorRequired: true as const,
-        challengeToken: signTwoFactorChallengeToken({ sub: user.id }),
+        twoFactorRequired: false as const,
+        user: { id: user.id, name: user.name, email: user.email, role: user.role },
+        ...(await issueTokens(ctx, user)),
       };
-    }
-
-    return {
-      twoFactorRequired: false as const,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
-      ...(await issueTokens(ctx, user)),
-    };
-  }),
+    }),
 
   verifyTwoFactor: publicProcedure
+    .use(rateLimited("auth.verifyTwoFactor", VERIFY_TWO_FACTOR_RATE_LIMIT, RATE_LIMIT_WINDOW_MS))
     .input(z.object({ challengeToken: z.string().min(1), code: z.string().min(6).max(11) }))
     .mutation(async ({ ctx, input }) => {
       const payload = verifyTwoFactorChallengeToken(input.challengeToken);
@@ -373,41 +385,58 @@ export const authRouter = router({
       return { success: true as const };
     }),
 
-  bootstrapAdmin: publicProcedure
-    .input(BootstrapAdminInput)
-    .mutation(async ({ ctx, input }) => {
-      const adminCount = await ctx.db.user.count({ where: { role: "ADMIN" } });
-      if (adminCount > 0) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Es existiert bereits ein Admin-Konto.",
-        });
-      }
-
-      const existing = await ctx.db.user.findUnique({ where: { email: input.email } });
-      if (existing) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Diese E-Mail-Adresse wird bereits verwendet.",
-        });
-      }
-
-      const passwordHash = await bcrypt.hash(input.password, 12);
-      const user = await ctx.db.user.create({
-        data: {
-          name: input.name,
-          email: input.email,
-          passwordHash,
-          role: "ADMIN",
-          emailVerifiedAt: new Date(),
-        },
+  bootstrapAdmin: publicProcedure.input(BootstrapAdminInput).mutation(async ({ ctx, input }) => {
+    const existing = await ctx.db.user.findUnique({ where: { email: input.email } });
+    if (existing) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "Diese E-Mail-Adresse wird bereits verwendet.",
       });
+    }
 
-      return {
-        user: { id: user.id, name: user.name, email: user.email, role: user.role },
-        ...(await issueTokens(ctx, user)),
-      };
-    }),
+    const passwordHash = await bcrypt.hash(input.password, 12);
+
+    // Serializable so two concurrent bootstrap calls (e.g. an operator
+    // double-submitting the one-time setup form) can't both observe
+    // adminCount === 0 and both create the first admin - Postgres aborts
+    // the loser with a serialization failure instead of silently
+    // committing a second ADMIN row.
+    let user;
+    try {
+      user = await ctx.db.$transaction(
+        async (tx) => {
+          const adminCount = await tx.user.count({ where: { role: "ADMIN" } });
+          if (adminCount > 0) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Es existiert bereits ein Admin-Konto.",
+            });
+          }
+          return tx.user.create({
+            data: {
+              name: input.name,
+              email: input.email,
+              passwordHash,
+              role: "ADMIN",
+              emailVerifiedAt: new Date(),
+            },
+          });
+        },
+        { isolationLevel: "Serializable" },
+      );
+    } catch (err) {
+      if (err instanceof TRPCError) throw err;
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Es existiert bereits ein Admin-Konto.",
+      });
+    }
+
+    return {
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      ...(await issueTokens(ctx, user)),
+    };
+  }),
 
   verifyEmail: publicProcedure
     .input(z.object({ token: z.string().min(1) }))
@@ -451,6 +480,7 @@ export const authRouter = router({
   }),
 
   forgotPassword: publicProcedure
+    .use(rateLimited("auth.forgotPassword", FORGOT_PASSWORD_RATE_LIMIT, RATE_LIMIT_WINDOW_MS))
     .input(ForgotPasswordInput)
     .mutation(async ({ ctx, input }) => {
       const user = await ctx.db.user.findUnique({ where: { email: input.email } });
@@ -482,64 +512,60 @@ export const authRouter = router({
       return { success: true as const };
     }),
 
-  resetPassword: publicProcedure
-    .input(ResetPasswordInput)
-    .mutation(async ({ ctx, input }) => {
-      const payload = verifyPasswordResetToken(input.token);
-      if (!payload) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Der Link ist ungültig oder abgelaufen.",
-        });
-      }
-
-      const resetToken = await ctx.db.passwordResetToken.findUnique({
-        where: { tokenHash: hashToken(input.token) },
+  resetPassword: publicProcedure.input(ResetPasswordInput).mutation(async ({ ctx, input }) => {
+    const payload = verifyPasswordResetToken(input.token);
+    if (!payload) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Der Link ist ungültig oder abgelaufen.",
       });
-      if (
-        !resetToken ||
-        resetToken.usedAt ||
-        resetToken.expiresAt < new Date() ||
-        resetToken.userId !== payload.sub
-      ) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Der Link ist ungültig oder abgelaufen.",
-        });
-      }
+    }
 
-      const passwordHash = await bcrypt.hash(input.password, 12);
-      await ctx.db.$transaction([
-        ctx.db.user.update({
-          where: { id: resetToken.userId },
-          data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
-        }),
-        ctx.db.passwordResetToken.update({
-          where: { id: resetToken.id },
-          data: { usedAt: new Date() },
-        }),
-        // Forces re-login on every device - standard practice for a
-        // password change, in case the old password was compromised.
-        ctx.db.refreshToken.updateMany({
-          where: { userId: resetToken.userId, revokedAt: null },
-          data: { revokedAt: new Date() },
-        }),
-      ]);
-      return { success: true as const };
-    }),
+    const resetToken = await ctx.db.passwordResetToken.findUnique({
+      where: { tokenHash: hashToken(input.token) },
+    });
+    if (
+      !resetToken ||
+      resetToken.usedAt ||
+      resetToken.expiresAt < new Date() ||
+      resetToken.userId !== payload.sub
+    ) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Der Link ist ungültig oder abgelaufen.",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(input.password, 12);
+    await ctx.db.$transaction([
+      ctx.db.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+      }),
+      ctx.db.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { usedAt: new Date() },
+      }),
+      // Forces re-login on every device - standard practice for a
+      // password change, in case the old password was compromised.
+      ctx.db.refreshToken.updateMany({
+        where: { userId: resetToken.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+    return { success: true as const };
+  }),
 
   // Personal display name only - the facility's public "Ansprechpartner"
   // name is a separate, admin-approved field (see
   // operator.requestFacilityChange), deliberately not kept in sync with
   // this one.
-  updateName: protectedProcedure
-    .input(UpdateNameInput)
-    .mutation(async ({ ctx, input }) => {
-      return ctx.db.user.update({
-        where: { id: ctx.user.id },
-        data: { name: input.name },
-      });
-    }),
+  updateName: protectedProcedure.input(UpdateNameInput).mutation(async ({ ctx, input }) => {
+    return ctx.db.user.update({
+      where: { id: ctx.user.id },
+      data: { name: input.name },
+    });
+  }),
 
   // Step 1 of 2: mails a confirmation link to the CURRENT address. Nothing
   // changes yet - see confirmOldEmailChange for step 2, which is what

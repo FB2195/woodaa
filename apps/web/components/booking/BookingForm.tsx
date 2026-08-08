@@ -141,10 +141,15 @@ export function BookingForm({
   facilityId,
   capacities,
   profile,
+  cancellationPolicyDays,
 }: {
   facilityId: string;
   capacities: Capacity[];
   profile: Profile;
+  // null = Einrichtung hat keine Angabe gemacht - dann generischer Text statt
+  // eines konkreten Fristwerts. Rein informativ: cancelBooking erstattet
+  // immer voll, unabhängig von dieser Frist (siehe der Kommentar dort).
+  cancellationPolicyDays: number | null;
 }) {
   const [bookingType, setBookingType] = useState<BookingType | undefined>(
     capacities[0]?.bookingType,
@@ -160,6 +165,14 @@ export function BookingForm({
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
   const createBooking = trpc.booking.create.useMutation();
+
+  // Falls die Einrichtung keine eigene Stornofrist hinterlegt hat (siehe
+  // Facility.cancellationPolicyDays), bleibt der bisherige generische 48h-
+  // Hinweis als Fallback erhalten statt einer falschen konkreten Angabe.
+  const cancellationDaysLabel =
+    cancellationPolicyDays !== null
+      ? `${cancellationPolicyDays} ${cancellationPolicyDays === 1 ? "Tag" : "Tage"}`
+      : "48 Std.";
 
   // Bevollmächtigte/r: prefill with the care recipient's name, not the
   // account holder's own name/address (profile.vorname/street/...) - see
@@ -601,7 +614,7 @@ export function BookingForm({
       )}
 
       <p className="text-xs text-brand-text-muted">
-        Storno: Bis 48 Std. vorher kannst du kostenlos stornieren.
+        Storno: Bis {cancellationDaysLabel} vorher kannst du kostenlos stornieren.
       </p>
 
       {clientError && <p className="text-sm text-red-600">{clientError}</p>}
@@ -617,7 +630,7 @@ export function BookingForm({
         {createBooking.isPending ? "Wird gebucht…" : "Verbindlich und zahlungspflichtig buchen"}
       </button>
       <p className="-mt-2 text-center text-xs text-brand-text-muted">
-        Kein Risiko, bis zu 48 Std. vorher können Sie kostenfrei stornieren.
+        Kein Risiko, bis zu {cancellationDaysLabel} vorher können Sie kostenfrei stornieren.
       </p>
     </form>
   );

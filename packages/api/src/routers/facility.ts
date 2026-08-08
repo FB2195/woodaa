@@ -7,6 +7,7 @@ import { boundingBoxForRadius, haversineDistanceKm } from "../geo";
 import { getNearbyPlaces } from "../nearbyPlaces";
 import { monthlyEquivalentCents } from "../pricing";
 import { withPhotoUrl } from "../r2";
+import { responseTimeBadgesByFacility } from "../responseTime";
 import { checkRequestedAvailability } from "../searchAvailability";
 import { publicProcedure, router } from "../trpc";
 
@@ -30,6 +31,11 @@ export type FacilityListItem = Omit<FacilityWithCapacities, "operatorPhone" | "o
   isAvailableForRequest: boolean | null;
   availabilityNote: string | null;
   displayPriceCents: number | null;
+  // "Antwortet meist innerhalb von X Std." - null for AUTOMATISCH facilities
+  // (nothing to measure, bookings confirm instantly) and for MANUELL
+  // facilities without enough recent decided-booking history yet (see
+  // responseTimeBadgesByFacility's MIN_SAMPLE_SIZE).
+  responseTimeBadge: string | null;
 };
 
 // Powers the Vergleichsliste (compare-up-to-3) view - deliberately leaner
@@ -276,6 +282,13 @@ export const facilityRouter = router({
         ]),
       );
 
+      // Only MANUELL facilities have a facilityDecisionAt spread worth
+      // measuring - see responseTimeBadgesByFacility's doc comment.
+      const responseTimeBadges = await responseTimeBadgesByFacility(
+        ctx.db,
+        facilities.filter((f) => f.bookingApprovalMode === "MANUELL").map((f) => f.id),
+      );
+
       // Skips straight past the availability engine (hasFreeSlotNow=true
       // short-circuits) for every facility that already has capacity right
       // now - the day-by-day lookahead scans only run for facilities the
@@ -311,6 +324,7 @@ export const facilityRouter = router({
           isAvailableForRequest: annotations[i]!.isAvailableForRequest,
           availabilityNote: annotations[i]!.availabilityNote,
           displayPriceCents: facilityDisplayPriceCents(f, input.bookingType, input.pflegegrad),
+          responseTimeBadge: responseTimeBadges.get(f.id) ?? null,
         };
       });
 
@@ -394,10 +408,19 @@ export const facilityRouter = router({
       // booking flow.
       const { operatorPhone, operatorEmail, ...publicFacility } = facility;
 
+      // Single-facility variant of the same MANUELL-only check the search
+      // results list applies - see responseTimeBadgesByFacility's doc
+      // comment.
+      const responseTimeBadge =
+        facility.bookingApprovalMode === "MANUELL"
+          ? ((await responseTimeBadgesByFacility(ctx.db, [facility.id])).get(facility.id) ?? null)
+          : null;
+
       return {
         ...publicFacility,
         photos: facility.photos.map(withPhotoUrl),
         ...reviewStats(facility.reviews),
+        responseTimeBadge,
       };
     }),
 
