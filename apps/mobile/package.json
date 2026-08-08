@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.59.0",
     "@trpc/client": "^11.0.0",
+    "@trpc/react-query": "^11.0.0",
     "@woodaa/api": "workspace:*",
     "@woodaa/ui": "workspace:*",
     "@woodaa/validators": "workspace:*",
@@ -21,6 +23,7 @@
     "expo-constants": "~16.0.2",
     "expo-linking": "~6.3.1",
     "expo-router": "~3.5.23",
+    "expo-secure-store": "~13.0.2",
     "expo-status-bar": "~1.12.1",
     "nativewind": "4.1.23",
     "react": "18.2.0",
@@ -33,6 +36,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@trpc/server": "^11.0.0",
     "@types/react": "^18.3.11",
     "@woodaa/config": "workspace:*",
     "babel-preset-expo": "~11.0.15",

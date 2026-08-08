@@ -7,8 +7,7 @@ const bookingTypes = [
   },
   {
     title: "Kurzzeitpflege",
-    description:
-      "Zeitlich befristeter Aufenthalt, z. B. nach einem Krankenhausaufenthalt.",
+    description: "Zeitlich befristeter Aufenthalt, z. B. nach einem Krankenhausaufenthalt.",
   },
   {
     title: "Tages- & Nachtpflege",
@@ -16,7 +15,7 @@ const bookingTypes = [
   },
 ];
 
-export default function HomeScreen() {
+export default function SearchScreen() {
   return (
     <ScrollView className="flex-1 bg-brand-background">
       <View className="px-6 py-8">
@@ -24,8 +23,7 @@ export default function HomeScreen() {
           Den richtigen Pflegeplatz finden.
         </Text>
         <Text className="mt-2 text-base text-brand-text-muted">
-          woodaa verbindet Familien mit geprüften Pflegeeinrichtungen in ganz
-          Deutschland.
+          woodaa verbindet Familien mit geprüften Pflegeeinrichtungen in ganz Deutschland.
         </Text>
 
         <View className="mt-8 gap-4">
@@ -34,12 +32,8 @@ export default function HomeScreen() {
               key={type.title}
               className="rounded-brand-lg border border-brand-border bg-brand-surface p-4"
             >
-              <Text className="text-base font-semibold text-brand-primary-dark">
-                {type.title}
-              </Text>
-              <Text className="mt-1 text-sm text-brand-text-muted">
-                {type.description}
-              </Text>
+              <Text className="text-base font-semibold text-brand-primary-dark">{type.title}</Text>
+              <Text className="mt-1 text-sm text-brand-text-muted">{type.description}</Text>
             </View>
           ))}
         </View>
