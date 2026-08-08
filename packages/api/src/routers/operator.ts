@@ -9,6 +9,7 @@ import {
   MAX_FACILITY_PHOTOS,
   MAX_PHOTO_BYTES,
   RenameUnitInput,
+  ReplyToReviewInput,
   RequestFacilityChangeInput,
   RequestPhotoUploadInput,
   SetPflegegradPricingInput,
@@ -530,6 +531,23 @@ export const operatorRouter = router({
         data: { facilityId: facility.id, key: input.key },
       });
       return withPhotoUrl(photo);
+    }),
+
+  // Booking.com-style host response - writes or overwrites the one reply
+  // this facility has on a review (see the comment on Review.operatorReply
+  // in schema.prisma for why this needs no separate admin-approval step).
+  replyToReview: operatorProcedure
+    .input(ReplyToReviewInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const review = await ctx.db.review.findUnique({ where: { id: input.reviewId } });
+      if (!review || review.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Bewertung nicht gefunden." });
+      }
+      return ctx.db.review.update({
+        where: { id: review.id },
+        data: { operatorReply: input.reply, operatorRepliedAt: new Date() },
+      });
     }),
 
   removePhoto: operatorProcedure

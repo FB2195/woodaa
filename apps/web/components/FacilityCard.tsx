@@ -28,6 +28,10 @@ type Facility = Omit<FacilityWithCapacities, "operatorPhone" | "operatorEmail"> 
   // would compute. undefined (not null) on call sites without search
   // context (e.g. /favoriten), which fall back to computing it locally.
   displayPriceCents?: number | null;
+  // "Antwortet meist innerhalb von X Std." - null/undefined for
+  // AUTOMATISCH facilities or without enough recent history, see
+  // packages/api/src/responseTime.ts.
+  responseTimeBadge?: string | null;
 };
 
 export function FacilityCard({
@@ -100,6 +104,12 @@ export function FacilityCard({
               <span aria-hidden="true">⭐</span>
               {facility.avgRating!.toLocaleString("de-DE", { maximumFractionDigits: 1 })}
               <span>({facility.reviewCount})</span>
+            </p>
+          )}
+          {facility.responseTimeBadge && (
+            <p className="mt-2 inline-flex items-center gap-1 rounded-brand-full border border-brand-border px-3 py-1 text-xs font-medium text-brand-text-muted">
+              <span aria-hidden="true">⏱</span>
+              {facility.responseTimeBadge}
             </p>
           )}
           <div className="mt-4 flex flex-wrap gap-2">

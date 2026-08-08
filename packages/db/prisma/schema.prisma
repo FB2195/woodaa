@@ -673,6 +673,15 @@ model Review {
   staffRating       Int?
   comment           String?
   status            ReviewStatus @default(PENDING)
+  // Booking.com-style host response, shown publicly right under the review
+  // once the operator writes one - editable any number of times (one reply
+  // per review, not a thread), so operatorRepliedAt just tracks the most
+  // recent edit. Unlike the review itself, no admin-moderation gate: this
+  // is operator-authored public-facing text, same trust level as
+  // Facility.description/petsPolicy (see the FacilityChangeRequest comment
+  // above for what DOES need approval - replies aren't in that category).
+  operatorReply     String?
+  operatorRepliedAt DateTime?
   createdAt         DateTime     @default(now())
 
   @@unique([facilityId, userId])

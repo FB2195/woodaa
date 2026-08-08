@@ -5,11 +5,13 @@ import { formatDate } from "@/lib/format";
 
 export function FacilityReviews({
   facilitySlug,
+  facilityName,
   reviews,
   avgRating,
   reviewCount,
 }: {
   facilitySlug: string;
+  facilityName: string;
   reviews: Review[];
   avgRating: number | null;
   reviewCount: number;
@@ -43,6 +45,14 @@ export function FacilityReviews({
               <StarRating rating={review.rating} size="sm" />
             </div>
             {review.comment && <p className="mt-2 text-sm text-brand-text">{review.comment}</p>}
+            {review.operatorReply && (
+              <div className="mt-3 ml-4 rounded-brand-md border-l-2 border-brand-accent bg-brand-background px-4 py-3">
+                <p className="text-xs font-semibold text-brand-accent">
+                  Antwort von {facilityName}
+                </p>
+                <p className="mt-1 text-sm text-brand-text">{review.operatorReply}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>
