@@ -553,6 +553,12 @@ export const CreateReviewInput = z.object({
 });
 export type CreateReviewInput = z.infer<typeof CreateReviewInput>;
 
+export const ReplyToReviewInput = z.object({
+  reviewId: z.string().min(1),
+  reply: z.string().trim().min(1).max(2000),
+});
+export type ReplyToReviewInput = z.infer<typeof ReplyToReviewInput>;
+
 export const SupportRequestType = z.enum(["KONTAKT", "RUECKRUF", "FEHLERMELDUNG"]);
 export type SupportRequestType = z.infer<typeof SupportRequestType>;
 

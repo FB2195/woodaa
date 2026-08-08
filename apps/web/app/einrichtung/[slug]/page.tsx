@@ -65,6 +65,12 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
                   ]}
             </p>
           )}
+          {facility.responseTimeBadge && (
+            <p className="mt-3 inline-flex items-center gap-1 rounded-brand-full border border-brand-border px-3 py-1 text-xs font-medium text-brand-text-muted">
+              <span aria-hidden="true">⏱</span>
+              {facility.responseTimeBadge}
+            </p>
+          )}
 
           <FacilityGalleryAndMap
             photos={facility.photos}
@@ -192,6 +198,7 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
 
           <FacilityReviews
             facilitySlug={facility.slug}
+            facilityName={facility.name}
             reviews={facility.reviews}
             avgRating={facility.avgRating}
             reviewCount={facility.reviewCount}
