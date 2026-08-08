@@ -38,6 +38,19 @@ function logoHtml(): string {
   return `<p><img src="${appUrl()}/logo.png" alt="woodaa" width="160" style="display:block;height:auto;max-width:160px" /></p>`;
 }
 
+// Escapes user-supplied strings (facility/guest names etc.) before they go
+// into an html email body - used by newer functions in this file. The
+// existing functions above predate this and interpolate raw strings; not
+// retrofitted here to keep this change scoped to what actually needs it.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 async function sendEmail({
   to,
   subject,
@@ -483,6 +496,56 @@ ${dateRangeLine ? dateRangeLine + "\n" : ""}
 ${actionLine}
 
 Details findest du in deinem woodaa-Dashboard: ${dashboardUrl}`,
+  });
+}
+
+// Nachfass-Mail, falls eine MANUELL-Freigabe-Buchung nach
+// REMINDER_AFTER_HOURS (siehe approvalEscalation.ts) immer noch auf
+// facilityApprovalStatus=AUSSTEHEND steht - die ursprüngliche
+// sendOperatorNewBookingEmail ging zum Buchungszeitpunkt schon einmal raus,
+// das hier ist der Reminder, falls seither nichts passiert ist.
+export async function sendOperatorApprovalReminderEmail({
+  to,
+  operatorName,
+  guestName,
+  facilityName,
+  bookingType,
+}: {
+  to: string;
+  operatorName: string;
+  guestName: string;
+  facilityName: string;
+  bookingType: string;
+}) {
+  const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
+  const dashboardUrl = `${appUrl()}/betreiber/dashboard`;
+  const safeOperatorName = escapeHtml(operatorName);
+  const safeGuestName = escapeHtml(guestName);
+  const safeFacilityName = escapeHtml(facilityName);
+
+  await sendEmail({
+    to,
+    subject: `Erinnerung: Buchung bei ${facilityName} wartet noch auf deine Bestätigung`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${safeOperatorName},</p>
+      <p>eine Buchung bei <strong>${safeFacilityName}</strong> wartet weiterhin auf deine
+      Bestätigung oder Ablehnung:</p>
+      <ul>
+        <li>Leistung: ${bookingTypeLabel}</li>
+        <li>Versicherte Person: ${safeGuestName}</li>
+      </ul>
+      <p>Bitte entscheide zeitnah in deinem woodaa-Dashboard:
+      <a href="${dashboardUrl}">${dashboardUrl}</a></p>
+    `,
+    text: `Hallo ${operatorName},
+
+eine Buchung bei ${facilityName} wartet weiterhin auf deine Bestätigung oder Ablehnung:
+
+Leistung: ${bookingTypeLabel}
+Versicherte Person: ${guestName}
+
+Bitte entscheide zeitnah in deinem woodaa-Dashboard: ${dashboardUrl}`,
   });
 }
 

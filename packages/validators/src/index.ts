@@ -350,6 +350,10 @@ const UpdatableFacilityFields = FacilityFields.omit({
   wifiInfo: z.string().trim().max(200).optional(),
   parkingInfo: z.string().trim().max(200).optional(),
   petsPolicy: z.string().trim().max(200).optional(),
+  // Stornobedingungen - free cancellation up to N days before the booking's
+  // start. null = "keine Angabe" (see cancellationPolicyDays in
+  // schema.prisma for why this is informational-only).
+  cancellationPolicyDays: z.number().int().min(0).max(365).nullable().optional(),
 });
 
 export const UpdateFacilityInput = UpdatableFacilityFields.partial().refine(pflegegradRangeOk, {

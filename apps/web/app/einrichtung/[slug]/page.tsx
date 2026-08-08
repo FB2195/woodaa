@@ -6,6 +6,7 @@ import { FacilityNeighborhood } from "@/components/FacilityNeighborhood";
 import { FacilityReviews } from "@/components/FacilityReviews";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { Header } from "@/components/Header";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { formatDate, formatPriceEuro } from "@/lib/format";
 import { pflegegradLabels } from "@/lib/pflegegradLabels";
@@ -46,9 +47,12 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
       <section className="mx-auto grid max-w-6xl gap-10 px-6 py-12 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
-            <h1 className="text-3xl font-bold text-brand-heading">
-              {facility.name}
-            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold text-brand-heading">
+                {facility.name}
+              </h1>
+              {facility.verifiedAt && <VerifiedBadge />}
+            </div>
             <FavoriteButton facilityId={facility.id} initialFavorited={isFavorited} />
           </div>
           <p className="mt-1 text-brand-text-muted">
@@ -150,7 +154,8 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
             facility.visitingHours ||
             facility.wifiInfo ||
             facility.parkingInfo ||
-            facility.petsPolicy) && (
+            facility.petsPolicy ||
+            facility.cancellationPolicyDays !== null) && (
             <>
               <h2 className="mt-10 text-lg font-semibold text-brand-text">
                 Unterkunftsrichtlinien
@@ -190,6 +195,16 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
                   <div>
                     <dt className="text-sm text-brand-text-muted">Haustiere</dt>
                     <dd className="text-brand-text">{facility.petsPolicy}</dd>
+                  </div>
+                )}
+                {facility.cancellationPolicyDays !== null && (
+                  <div>
+                    <dt className="text-sm text-brand-text-muted">Stornierung</dt>
+                    <dd className="text-brand-text">
+                      Bis {facility.cancellationPolicyDays}{" "}
+                      {facility.cancellationPolicyDays === 1 ? "Tag" : "Tage"} vorher kostenlos
+                      stornierbar
+                    </dd>
                   </div>
                 )}
               </dl>

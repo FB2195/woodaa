@@ -1,7 +1,12 @@
 import cors from "@fastify/cors";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import type { CreateFastifyContextOptions } from "@trpc/server/adapters/fastify";
-import { appRouter, createContext, recomputeAllCapacityCaches } from "@woodaa/api";
+import {
+  appRouter,
+  createContext,
+  escalateStalePendingApprovals,
+  recomputeAllCapacityCaches,
+} from "@woodaa/api";
 import { db } from "@woodaa/db";
 import Fastify from "fastify";
 
@@ -29,6 +34,21 @@ function scheduleCapacityRollover() {
   setInterval(run, CAPACITY_ROLLOVER_INTERVAL_MS);
 }
 
+// Same hourly-safety-net cadence as scheduleCapacityRollover above - checking
+// once an hour is more than enough given the 48h/96h thresholds involved
+// (see approvalEscalation.ts).
+const APPROVAL_ESCALATION_INTERVAL_MS = 60 * 60 * 1000;
+
+function scheduleApprovalEscalation() {
+  const run = () => {
+    escalateStalePendingApprovals(db).catch((err) => {
+      server.log.error(err, "approval escalation check failed");
+    });
+  };
+  run();
+  setInterval(run, APPROVAL_ESCALATION_INTERVAL_MS);
+}
+
 async function main() {
   await server.register(cors, { origin: true });
 
@@ -47,6 +67,7 @@ async function main() {
   server.get("/health", async () => ({ status: "ok" }));
 
   scheduleCapacityRollover();
+  scheduleApprovalEscalation();
 
   const port = Number(process.env.PORT ?? 4000);
   await server.listen({ port, host: "0.0.0.0" });

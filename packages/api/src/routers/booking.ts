@@ -348,10 +348,12 @@ export const bookingRouter = router({
     const booking = await cancelBooking(ctx.db, input.bookingId, {
       requireGuestEmail: input.guestEmail,
     });
-    // Volle Rückerstattung bei jeder Stornierung, unabhängig vom 48h-
-    // Hinweistext im Buchungsformular - eine anteilige Stornogebühr bei
-    // später Stornierung durchzusetzen bräuchte eine separate Abbuchung,
-    // die es in diesem MVP noch nicht gibt (siehe BookingForm.tsx).
+    // Volle Rückerstattung bei jeder Stornierung, unabhängig vom Storno-
+    // Hinweistext im Buchungsformular (generisch oder Facility.
+    // cancellationPolicyDays, falls die Einrichtung eine Frist hinterlegt
+    // hat - siehe dort) - eine anteilige Stornogebühr bei später Stornierung
+    // durchzusetzen bräuchte eine separate Abbuchung, die es in diesem MVP
+    // noch nicht gibt (siehe BookingForm.tsx).
     await refundBookingPayment(ctx.db, booking);
     return booking;
   }),
