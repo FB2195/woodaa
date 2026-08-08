@@ -94,6 +94,19 @@ export const operatorRouter = router({
     };
   }),
 
+  // Staff-visibility list, same "no UI action yet, just surface it" spirit
+  // as the reviews include above - lets an operator see who's waiting for a
+  // spot to free up. notifyWaitlist (availability.ts) is the only writer of
+  // notifiedAt; there's no manual "mark contacted" action here yet (MVP
+  // scope, see the comment on WaitlistEntry in schema.prisma).
+  waitlistEntries: operatorProcedure.query(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.waitlistEntry.findMany({
+      where: { facilityId: facility.id },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
   createFacility: operatorProcedure.input(CreateFacilityInput).mutation(async ({ ctx, input }) => {
     // No email-verification gate here on purpose - the free availability
     // tool should be usable immediately after signup. Verification is
@@ -536,19 +549,17 @@ export const operatorRouter = router({
   // Booking.com-style host response - writes or overwrites the one reply
   // this facility has on a review (see the comment on Review.operatorReply
   // in schema.prisma for why this needs no separate admin-approval step).
-  replyToReview: operatorProcedure
-    .input(ReplyToReviewInput)
-    .mutation(async ({ ctx, input }) => {
-      const facility = await requireOwnFacility(ctx);
-      const review = await ctx.db.review.findUnique({ where: { id: input.reviewId } });
-      if (!review || review.facilityId !== facility.id) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Bewertung nicht gefunden." });
-      }
-      return ctx.db.review.update({
-        where: { id: review.id },
-        data: { operatorReply: input.reply, operatorRepliedAt: new Date() },
-      });
-    }),
+  replyToReview: operatorProcedure.input(ReplyToReviewInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    const review = await ctx.db.review.findUnique({ where: { id: input.reviewId } });
+    if (!review || review.facilityId !== facility.id) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Bewertung nicht gefunden." });
+    }
+    return ctx.db.review.update({
+      where: { id: review.id },
+      data: { operatorReply: input.reply, operatorRepliedAt: new Date() },
+    });
+  }),
 
   removePhoto: operatorProcedure
     .input(z.object({ id: z.string().min(1) }))

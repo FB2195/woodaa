@@ -4,16 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { BookingRequestForm } from "./BookingRequestForm";
+import { WaitlistForm } from "./WaitlistForm";
 import type { BookingType } from "@woodaa/validators";
 
 export function BookingSidebar({
   facilityId,
   slug,
   availableBookingTypes,
+  allBookingTypes,
 }: {
   facilityId: string;
   slug: string;
   availableBookingTypes: BookingType[];
+  // Every bookingType the facility offers at all (available or not) - only
+  // needed for the fully-booked case below, to offer a waitlist spot for
+  // each one instead of the dead end this used to be.
+  allBookingTypes: BookingType[];
 }) {
   const [mode, setMode] = useState<"book" | "inquire">("book");
 
@@ -34,9 +40,12 @@ export function BookingSidebar({
 
   if (availableBookingTypes.length === 0) {
     return (
-      <p className="rounded-brand-lg border border-brand-border bg-brand-surface p-6 text-sm text-brand-text-muted">
-        Diese Einrichtung hat aktuell keine freien Plätze.
-      </p>
+      <div className="flex flex-col gap-3">
+        <p className="rounded-brand-lg border border-brand-border bg-brand-surface p-6 text-sm text-brand-text-muted">
+          Diese Einrichtung hat aktuell keine freien Plätze.
+        </p>
+        <WaitlistForm facilityId={facilityId} bookingTypes={allBookingTypes} />
+      </div>
     );
   }
 
@@ -44,9 +53,8 @@ export function BookingSidebar({
     <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
       <h3 className="text-lg font-semibold text-brand-heading">Jetzt buchen</h3>
       <p className="text-sm text-brand-text-muted">
-        Verfügbar für{" "}
-        {availableBookingTypes.map((type) => bookingTypeLabels[type]).join(", ")}. Deine
-        Buchung ist sofort verbindlich - ein Platz wird direkt für dich reserviert.
+        Verfügbar für {availableBookingTypes.map((type) => bookingTypeLabels[type]).join(", ")}.
+        Deine Buchung ist sofort verbindlich - ein Platz wird direkt für dich reserviert.
       </p>
 
       <Link

@@ -6,7 +6,12 @@ import {
   type PrismaClient,
 } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import { paymentMethodsRequiringStripe, type BookingType, type PaymentMethod } from "@woodaa/validators";
+import {
+  paymentMethodsRequiringStripe,
+  type BookingType,
+  type PaymentMethod,
+} from "@woodaa/validators";
+import { sendWaitlistSpotAvailableEmail } from "./email";
 import { stripeClient } from "./stripe";
 
 type Tx = Prisma.TransactionClient;
@@ -34,10 +39,7 @@ async function occupiedUnitIds(
       facilityId,
       bookingType,
       status: "BESTAETIGT",
-      OR: [
-        { startDate: null },
-        { AND: [{ startDate: { lte: d } }, { endDate: { gte: d } }] },
-      ],
+      OR: [{ startDate: null }, { AND: [{ startDate: { lte: d } }, { endDate: { gte: d } }] }],
     },
     select: { unitId: true },
   });
@@ -191,7 +193,13 @@ export async function hasFreeUnitForRange(
   startDate: Date,
   endDate: Date,
 ): Promise<boolean> {
-  const candidates = await freeUnitCandidates(db as Tx, facilityId, bookingType, startDate, endDate);
+  const candidates = await freeUnitCandidates(
+    db as Tx,
+    facilityId,
+    bookingType,
+    startDate,
+    endDate,
+  );
   return candidates.length > 0;
 }
 
@@ -426,6 +434,55 @@ export async function createBooking(db: PrismaClient, input: CreateBookingInput)
   });
 }
 
+// Best-effort notification for WaitlistEntry rows once a spot actually
+// frees up. Called after cancelBooking's transaction commits (see below) -
+// deliberately outside any transaction since it does network I/O (email)
+// and must never hold a DB transaction open or roll back the cancellation
+// if it fails. v1/MVP scope: only wired up on explicit cancellation, not on
+// the hourly capacity-rollover job in apps/api/index.ts (a KURZZEITPFLEGE
+// stay ending naturally overnight also frees a slot, but doesn't trigger
+// this yet) - a fine gap for now since most vacancies come from
+// cancellations, not natural expiry. Notifies up to `availableSlots` many
+// of the oldest un-notified entries - doesn't reserve anything for them,
+// so it's fine if more get notified than end up booking (unlike double-
+// booking a physical unit, over-notifying here is harmless).
+export async function notifyWaitlist(
+  db: PrismaClient,
+  facilityId: string,
+  bookingType: BookingType,
+): Promise<void> {
+  try {
+    const capacity = await db.facilityCapacity.findUnique({
+      where: { facilityId_bookingType: { facilityId, bookingType } },
+      select: { availableSlots: true },
+    });
+    if (!capacity || capacity.availableSlots <= 0) return;
+
+    const entries = await db.waitlistEntry.findMany({
+      where: { facilityId, bookingType, notifiedAt: null },
+      orderBy: { createdAt: "asc" },
+      take: capacity.availableSlots,
+      include: { facility: { select: { name: true, slug: true } } },
+    });
+
+    for (const entry of entries) {
+      await sendWaitlistSpotAvailableEmail({
+        to: entry.email,
+        name: entry.name,
+        facilityName: entry.facility.name,
+        facilitySlug: entry.facility.slug,
+        bookingType,
+      });
+      await db.waitlistEntry.update({
+        where: { id: entry.id },
+        data: { notifiedAt: new Date() },
+      });
+    }
+  } catch (err) {
+    console.error("notifyWaitlist failed", facilityId, bookingType, err);
+  }
+}
+
 export async function cancelBooking(
   db: PrismaClient,
   bookingId: string,
@@ -485,6 +542,13 @@ export async function cancelBooking(
     } catch (err) {
       console.error("Failed to cancel Stripe PaymentIntent on booking cancel", err);
     }
+  }
+
+  // Same "outside the transaction, after commit, best-effort" treatment as
+  // the Stripe cancel above - notifyWaitlist already swallows its own
+  // errors, this is never allowed to affect the cancellation's success.
+  if (justCancelled) {
+    await notifyWaitlist(db, updated.facilityId, updated.bookingType);
   }
 
   return updated;

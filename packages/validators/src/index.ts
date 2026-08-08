@@ -151,6 +151,21 @@ export const CreateBookingRequestInput = z.object({
 });
 export type CreateBookingRequestInput = z.infer<typeof CreateBookingRequestInput>;
 
+// Same public/no-login shape as CreateBookingRequestInput above - see
+// WaitlistEntry in schema.prisma. No desiredStart/desiredEnd: joining a
+// waitlist is about "let me know when *any* spot opens", not a specific
+// date range.
+export const CreateWaitlistEntryInput = z.object({
+  facilityId: z.string().min(1),
+  bookingType: BookingType,
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().email(),
+  phone: z.string().trim().max(50).optional(),
+  pflegegrad: Pflegegrad.optional(),
+  message: z.string().trim().max(2000).optional(),
+});
+export type CreateWaitlistEntryInput = z.infer<typeof CreateWaitlistEntryInput>;
+
 // A registering SUCHENDE is the account holder themselves (or someone
 // registering on their own behalf) - name/address/Pflegegrad/Krankenkasse
 // collected once here so BookingForm can prefill instead of asking fresh

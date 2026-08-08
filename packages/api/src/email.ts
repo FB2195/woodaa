@@ -38,19 +38,6 @@ function logoHtml(): string {
   return `<p><img src="${appUrl()}/logo.png" alt="woodaa" width="160" style="display:block;height:auto;max-width:160px" /></p>`;
 }
 
-// Escapes user-supplied strings (facility/guest names etc.) before they go
-// into an html email body - used by newer functions in this file. The
-// existing functions above predate this and interpolate raw strings; not
-// retrofitted here to keep this change scoped to what actually needs it.
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 async function sendEmail({
   to,
   subject,
@@ -639,5 +626,47 @@ Versicherungsnummer: ${versicherungsnummer}
 
 Digital eingereicht über woodaa (woodaa.de). Siehe angehängtes PDF für die vollständigen Angaben und die digitale Signatur.`,
     attachments: [{ filename: `antrag-${fileSlug}.pdf`, content }],
+  });
+}
+
+// Sent by notifyWaitlist (availability.ts) once a spot opens up for a
+// facility/bookingType a WaitlistEntry is waiting on - first-come-first-
+// served, no reservation is held, so the wording is deliberately clear that
+// this is a "go book now" nudge, not a confirmed place.
+export async function sendWaitlistSpotAvailableEmail({
+  to,
+  name,
+  facilityName,
+  facilitySlug,
+  bookingType,
+}: {
+  to: string;
+  name: string;
+  facilityName: string;
+  facilitySlug: string;
+  bookingType: string;
+}) {
+  const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
+  const facilityUrl = `${appUrl()}/einrichtung/${facilitySlug}`;
+
+  await sendEmail({
+    to,
+    subject: `Ein Platz ist frei geworden bei ${facilityName}`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${name},</p>
+      <p>gute Nachrichten: bei <a href="${facilityUrl}">${facilityName}</a> ist gerade ein Platz für
+      ${bookingTypeLabel} frei geworden - du standest dafür auf der Warteliste.</p>
+      <p>Der Platz ist nicht für dich reserviert und kann jederzeit anderweitig vergeben werden -
+      am besten buchst oder fragst du zeitnah direkt an.</p>
+      <p><a href="${facilityUrl}">${facilityUrl}</a></p>
+    `,
+    text: `Hallo ${name},
+
+gute Nachrichten: bei ${facilityName} (${facilityUrl}) ist gerade ein Platz für ${bookingTypeLabel} frei geworden - du standest dafür auf der Warteliste.
+
+Der Platz ist nicht für dich reserviert und kann jederzeit anderweitig vergeben werden - am besten buchst oder fragst du zeitnah direkt an.
+
+${facilityUrl}`,
   });
 }

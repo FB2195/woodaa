@@ -6,7 +6,7 @@ export { recomputeAllCapacityCaches } from "./availability";
 export { escalateStalePendingApprovals } from "./approvalEscalation";
 export { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from "./auth";
 export { handleStripeWebhook } from "./webhooks";
-export type { FacilityListItem } from "./routers/facility";
+export type { FacilityCompareItem, FacilityListItem } from "./routers/facility";
 export type { NearbyPlace, NearbyPlacesResult } from "./nearbyPlaces";
 export type {
   AdminPendingBookingApproval,

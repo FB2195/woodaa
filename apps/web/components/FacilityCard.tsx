@@ -3,6 +3,7 @@ import type { Pflegegrad } from "@woodaa/validators";
 import Image from "next/image";
 import Link from "next/link";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
+import { CompareToggle } from "@/components/CompareToggle";
 import { EigenanteilPreview } from "@/components/search/EigenanteilPreview";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { PlaceholderPhoto } from "@/components/PlaceholderPhoto";
@@ -73,22 +74,21 @@ export function FacilityCard({
             initialFavorited={initialFavorited}
             className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-brand-full border border-brand-border bg-brand-surface text-lg shadow-sm transition hover:bg-brand-background"
           />
+          <div className="absolute left-4 top-4">
+            <CompareToggle facilityId={facility.id} />
+          </div>
         </div>
 
         <div className="p-6 pb-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-semibold text-brand-heading">
-              {facility.name}
-            </h3>
+            <h3 className="text-lg font-semibold text-brand-heading">{facility.name}</h3>
             {facility.verifiedAt && <VerifiedBadge />}
           </div>
           <p className="mt-1 text-sm text-brand-text-muted">
             {facility.city}, {facility.state}
             {facility.distanceKm != null && ` · ${formatDistanceKm(facility.distanceKm)} entfernt`}
           </p>
-          <p className="mt-3 line-clamp-2 text-sm text-brand-text">
-            {facility.description}
-          </p>
+          <p className="mt-3 line-clamp-2 text-sm text-brand-text">{facility.description}</p>
           <p className="mt-2 text-sm font-medium text-brand-text">
             {(() => {
               const price =
@@ -127,9 +127,7 @@ export function FacilityCard({
                 }`}
               >
                 {bookingTypeLabels[capacity.bookingType]}
-                {capacity.availableSlots > 0
-                  ? ` · ${capacity.availableSlots} frei`
-                  : " · belegt"}
+                {capacity.availableSlots > 0 ? ` · ${capacity.availableSlots} frei` : " · belegt"}
               </span>
             ))}
           </div>

@@ -7,6 +7,7 @@ import { FacilityReviews } from "@/components/FacilityReviews";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { Header } from "@/components/Header";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
+import { WaitlistRowCTA } from "@/components/WaitlistRowCTA";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { formatDate, formatPriceEuro } from "@/lib/format";
 import { pflegegradLabels } from "@/lib/pflegegradLabels";
@@ -31,14 +32,13 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
 
   // Logged-out visitors get UNAUTHORIZED here - the favorite button just
   // starts unfilled for them (clicking it sends them to /login).
-  const favoriteIds = await trpcServer.favorite
-    .myFacilityIds()
-    .catch((): string[] => []);
+  const favoriteIds = await trpcServer.favorite.myFacilityIds().catch((): string[] => []);
   const isFavorited = favoriteIds.includes(facility.id);
 
   const availableBookingTypes = facility.capacities
     .filter((capacity) => capacity.availableSlots > 0)
     .map((capacity) => capacity.bookingType);
+  const allBookingTypes = facility.capacities.map((capacity) => capacity.bookingType);
 
   return (
     <main className="min-h-screen">
@@ -48,16 +48,13 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
         <div className="min-w-0 lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-bold text-brand-heading">
-                {facility.name}
-              </h1>
+              <h1 className="text-3xl font-bold text-brand-heading">{facility.name}</h1>
               {facility.verifiedAt && <VerifiedBadge />}
             </div>
             <FavoriteButton facilityId={facility.id} initialFavorited={isFavorited} />
           </div>
           <p className="mt-1 text-brand-text-muted">
-            {facility.street}, {facility.postalCode} {facility.city},{" "}
-            {facility.state}
+            {facility.street}, {facility.postalCode} {facility.city}, {facility.state}
           </p>
           {(facility.minPflegegrad !== null || facility.maxPflegegrad !== null) && (
             <p className="mt-2 text-sm text-brand-text-muted">
@@ -98,9 +95,7 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
 
           <FacilityNeighborhood latitude={facility.latitude} longitude={facility.longitude} />
 
-          <h2 className="mt-10 text-lg font-semibold text-brand-text">
-            Verfügbarkeit
-          </h2>
+          <h2 className="mt-10 text-lg font-semibold text-brand-text">Verfügbarkeit</h2>
           <div className="mt-3 flex flex-col gap-3">
             {facility.capacities.map((capacity) => (
               <div
@@ -108,9 +103,7 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
                 className="rounded-brand-md border border-brand-border px-4 py-3"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-brand-text">
-                    {bookingTypeLabels[capacity.bookingType]}
-                  </span>
+                  <span className="text-brand-text">{bookingTypeLabels[capacity.bookingType]}</span>
                   <span
                     className={
                       capacity.availableSlots > 0
@@ -140,11 +133,13 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
                   capacity.availableSlots === 0 &&
                   capacity.availableFrom && (
                     <p className="mt-1 text-sm text-brand-text-muted">
-                      Nächster freier Platz voraussichtlich ab{" "}
-                      {formatDate(capacity.availableFrom)}
+                      Nächster freier Platz voraussichtlich ab {formatDate(capacity.availableFrom)}
                     </p>
                   )}
 
+                {capacity.availableSlots === 0 && (
+                  <WaitlistRowCTA facilityId={facility.id} bookingType={capacity.bookingType} />
+                )}
               </div>
             ))}
           </div>
@@ -229,6 +224,7 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
             facilityId={facility.id}
             slug={slug}
             availableBookingTypes={availableBookingTypes}
+            allBookingTypes={allBookingTypes}
           />
         </div>
       </section>

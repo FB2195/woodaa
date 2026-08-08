@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { useState } from "react";
+import { CompareBar } from "@/components/CompareBar";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { Footer } from "@/components/Footer";
 import { SessionRefresher } from "@/components/SessionRefresher";
@@ -46,6 +47,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             {children}
             <Footer />
             <CookieConsentBanner />
+            <CompareBar />
           </LocaleProvider>
         </ThemeProvider>
       </QueryClientProvider>

@@ -10,6 +10,7 @@ import { operatorRouter } from "./routers/operator";
 import { reviewRouter } from "./routers/review";
 import { supportRouter } from "./routers/support";
 import { twoFactorRouter } from "./routers/twoFactor";
+import { waitlistRouter } from "./routers/waitlist";
 import { publicProcedure, router } from "./trpc";
 
 /**
@@ -33,6 +34,7 @@ export const appRouter = router({
   review: reviewRouter,
   careApplication: careApplicationRouter,
   support: supportRouter,
+  waitlist: waitlistRouter,
 });
 
 export type AppRouter = typeof appRouter;
