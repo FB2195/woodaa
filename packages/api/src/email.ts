@@ -544,3 +544,45 @@ Digital eingereicht über woodaa (woodaa.de). Siehe angehängtes PDF für die vo
     attachments: [{ filename: `antrag-${fileSlug}.pdf`, content }],
   });
 }
+
+// Sent by notifyWaitlist (availability.ts) once a spot opens up for a
+// facility/bookingType a WaitlistEntry is waiting on - first-come-first-
+// served, no reservation is held, so the wording is deliberately clear that
+// this is a "go book now" nudge, not a confirmed place.
+export async function sendWaitlistSpotAvailableEmail({
+  to,
+  name,
+  facilityName,
+  facilitySlug,
+  bookingType,
+}: {
+  to: string;
+  name: string;
+  facilityName: string;
+  facilitySlug: string;
+  bookingType: string;
+}) {
+  const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
+  const facilityUrl = `${appUrl()}/einrichtung/${facilitySlug}`;
+
+  await sendEmail({
+    to,
+    subject: `Ein Platz ist frei geworden bei ${facilityName}`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${name},</p>
+      <p>gute Nachrichten: bei <a href="${facilityUrl}">${facilityName}</a> ist gerade ein Platz für
+      ${bookingTypeLabel} frei geworden - du standest dafür auf der Warteliste.</p>
+      <p>Der Platz ist nicht für dich reserviert und kann jederzeit anderweitig vergeben werden -
+      am besten buchst oder fragst du zeitnah direkt an.</p>
+      <p><a href="${facilityUrl}">${facilityUrl}</a></p>
+    `,
+    text: `Hallo ${name},
+
+gute Nachrichten: bei ${facilityName} (${facilityUrl}) ist gerade ein Platz für ${bookingTypeLabel} frei geworden - du standest dafür auf der Warteliste.
+
+Der Platz ist nicht für dich reserviert und kann jederzeit anderweitig vergeben werden - am besten buchst oder fragst du zeitnah direkt an.
+
+${facilityUrl}`,
+  });
+}

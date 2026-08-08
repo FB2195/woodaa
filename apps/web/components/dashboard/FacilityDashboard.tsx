@@ -10,6 +10,7 @@ import { PaymentApprovals } from "./PaymentApprovals";
 import { PflegegradSuitabilityForm } from "./PflegegradSuitabilityForm";
 import { PhotoManager } from "./PhotoManager";
 import { PublicListingPrompt } from "./PublicListingPrompt";
+import { WaitlistEntries } from "./WaitlistEntries";
 
 type Facility = FacilityWithOperatorDetails;
 
@@ -27,25 +28,17 @@ function statusLabel(facility: Facility): string {
 }
 
 export function FacilityDashboard({ facility }: { facility: Facility }) {
-  const capacityByType = Object.fromEntries(
-    facility.capacities.map((c) => [c.bookingType, c]),
-  );
+  const capacityByType = Object.fromEntries(facility.capacities.map((c) => [c.bookingType, c]));
   const unitsByType = Object.fromEntries(
-    allBookingTypes.map((type) => [
-      type,
-      facility.units.filter((u) => u.bookingType === type),
-    ]),
+    allBookingTypes.map((type) => [type, facility.units.filter((u) => u.bookingType === type)]),
   );
-  const awaitingReview =
-    facility.status === "PENDING_REVIEW" && facility.description !== "";
+  const awaitingReview = facility.status === "PENDING_REVIEW" && facility.description !== "";
 
   return (
     <div className="flex flex-col gap-8">
       <div className="rounded-brand-lg border border-brand-border bg-brand-surface p-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-brand-heading">
-            {facility.name}
-          </h1>
+          <h1 className="text-2xl font-bold text-brand-heading">{facility.name}</h1>
           <span
             className={`rounded-brand-full px-3 py-1 text-xs font-medium ${
               facility.status === "ACTIVE"
@@ -61,21 +54,19 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
         </p>
         {awaitingReview && (
           <p className="mt-3 text-sm text-brand-text-muted">
-            Deine Einrichtung wird gerade von unserem Team geprüft und ist
-            noch nicht öffentlich sichtbar.
+            Deine Einrichtung wird gerade von unserem Team geprüft und ist noch nicht öffentlich
+            sichtbar.
           </p>
         )}
         {facility.status === "REJECTED" && (
           <p className="mt-3 text-sm text-red-600">
-            Deine Einrichtung wurde nicht freigeschaltet. Melde dich gerne bei
-            uns, falls das ein Irrtum war.
+            Deine Einrichtung wurde nicht freigeschaltet. Melde dich gerne bei uns, falls das ein
+            Irrtum war.
           </p>
         )}
       </div>
 
-      {facility.status === "PENDING_REVIEW" && !facility.description && (
-        <PublicListingPrompt />
-      )}
+      {facility.status === "PENDING_REVIEW" && !facility.description && <PublicListingPrompt />}
 
       <FacilityContactForm
         facility={facility}
@@ -98,6 +89,8 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
       <BookingApprovals bookings={facility.units.flatMap((u) => u.bookings)} />
 
       <PaymentApprovals bookings={facility.units.flatMap((u) => u.bookings)} />
+
+      <WaitlistEntries />
 
       <BookingApprovalModeForm mode={facility.bookingApprovalMode} />
 

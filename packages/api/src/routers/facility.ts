@@ -32,6 +32,20 @@ export type FacilityListItem = Omit<FacilityWithCapacities, "operatorPhone" | "o
   displayPriceCents: number | null;
 };
 
+// Powers the Vergleichsliste (compare-up-to-3) view - deliberately leaner
+// than FacilityListItem: no distanceKm/isAvailableForRequest/
+// availabilityNote/displayPriceCents, since byIds below has no search
+// context (no origin to compute distance from, no bookingType/date filter
+// to check availability against) - the compare view derives its own
+// per-bookingType price/availability straight from `capacities` instead.
+export type FacilityCompareItem = Omit<
+  FacilityWithCapacities,
+  "operatorPhone" | "operatorEmail"
+> & {
+  avgRating: number | null;
+  reviewCount: number;
+};
+
 // Powers the search results toolbar's filter chips (Pflegeart + Ausstattung)
 // with live counts, Booking.com-style - each count reflects every OTHER
 // active filter except the chip's own dimension, computed against the same
@@ -124,9 +138,7 @@ function cheapestPrice(
   const relevant = bookingType
     ? facility.capacities.filter((c) => c.bookingType === bookingType)
     : facility.capacities;
-  const priced = relevant
-    .map((c) => c.monthlyPriceCents)
-    .filter((p): p is number => p !== null);
+  const priced = relevant.map((c) => c.monthlyPriceCents).filter((p): p is number => p !== null);
   return priced.length ? Math.min(...priced) : null;
 }
 
@@ -238,7 +250,11 @@ export const facilityRouter = router({
       // pagination regression introduced here. origin may already be
       // resolved from the fallback-radius pool query above - only re-geocode
       // if it isn't (avoids a second, redundant lookup for the same query).
-      if (!origin && input.city && (input.radiusKm !== undefined || input.sort === "distance_asc")) {
+      if (
+        !origin &&
+        input.city &&
+        (input.radiusKm !== undefined || input.sort === "distance_asc")
+      ) {
         origin = await geocodeSearchOrigin(input.city);
       }
 
@@ -254,7 +270,10 @@ export const facilityRouter = router({
           })
         : [];
       const ratingByFacility = new Map(
-        ratingRows.map((r) => [r.facilityId, { avgRating: r._avg.rating, reviewCount: r._count._all }]),
+        ratingRows.map((r) => [
+          r.facilityId,
+          { avgRating: r._avg.rating, reviewCount: r._count._all },
+        ]),
       );
 
       // Skips straight past the availability engine (hasFreeSlotNow=true
@@ -297,11 +316,10 @@ export const facilityRouter = router({
 
       // usedFallbackRadius: the bounding box above is a loose rectangle, so
       // this Haversine cut is what actually enforces FALLBACK_SEARCH_RADIUS_KM.
-      const effectiveRadiusKm = input.radiusKm ?? (usedFallbackRadius ? FALLBACK_SEARCH_RADIUS_KM : undefined);
+      const effectiveRadiusKm =
+        input.radiusKm ?? (usedFallbackRadius ? FALLBACK_SEARCH_RADIUS_KM : undefined);
       if (effectiveRadiusKm !== undefined && origin) {
-        results = results.filter(
-          (f) => f.distanceKm !== null && f.distanceKm <= effectiveRadiusKm,
-        );
+        results = results.filter((f) => f.distanceKm !== null && f.distanceKm <= effectiveRadiusKm);
       }
 
       // No exact city/PLZ match, showing nearby results instead - closest
@@ -374,14 +392,62 @@ export const facilityRouter = router({
       // Customers get operatorName ("Verwaltet von ...") so they know who
       // runs the place, but not a direct line that would let them skip the
       // booking flow.
-      const { operatorPhone, operatorEmail, ...publicFacility } =
-        facility;
+      const { operatorPhone, operatorEmail, ...publicFacility } = facility;
 
       return {
         ...publicFacility,
         photos: facility.photos.map(withPhotoUrl),
         ...reviewStats(facility.reviews),
       };
+    }),
+
+  // Backs the Vergleichsliste (compare) view - the search results page and
+  // /favoriten already have full facility objects in hand, but the compare
+  // view is reached via a shareable /vergleichen?ids=... URL, so it needs
+  // its own fetch-by-id-list. Capped at 3 to match the compare UI, ACTIVE
+  // only (same public-listing rule as list/bySlug). Order of the returned
+  // array follows `input.ids`, not DB order, so the compare columns match
+  // whatever order the caller selected them in.
+  byIds: publicProcedure
+    .input(z.object({ ids: z.array(z.string().min(1)).min(1).max(3) }))
+    .query(async ({ ctx, input }): Promise<FacilityCompareItem[]> => {
+      const facilities = await ctx.db.facility.findMany({
+        where: { id: { in: input.ids }, status: "ACTIVE" },
+        include: {
+          capacities: { include: { pflegegradPricing: true } },
+          photos: { take: 1, orderBy: { createdAt: "asc" } },
+        },
+      });
+
+      const ratingRows = facilities.length
+        ? await ctx.db.review.groupBy({
+            by: ["facilityId"],
+            where: { facilityId: { in: facilities.map((f) => f.id) }, status: "APPROVED" },
+            _avg: { rating: true },
+            _count: { _all: true },
+          })
+        : [];
+      const ratingByFacility = new Map(
+        ratingRows.map((r) => [
+          r.facilityId,
+          { avgRating: r._avg.rating, reviewCount: r._count._all },
+        ]),
+      );
+
+      const byId = new Map(facilities.map((f) => [f.id, f]));
+      return input.ids.flatMap((id) => {
+        const f = byId.get(id);
+        if (!f) return [];
+        const { operatorPhone, operatorEmail, ...publicFacility } = f;
+        return [
+          {
+            ...publicFacility,
+            photos: f.photos.map(withPhotoUrl),
+            avgRating: ratingByFacility.get(f.id)?.avgRating ?? null,
+            reviewCount: ratingByFacility.get(f.id)?.reviewCount ?? 0,
+          },
+        ];
+      });
     }),
 
   searchLocations: publicProcedure

@@ -381,6 +381,7 @@ model Facility {
   units                  FacilityUnit[]
   bookings               Booking[]
   bookingRequests        BookingRequest[]
+  waitlistEntries        WaitlistEntry[]
   favoritedBy            Favorite[]
   photos                 FacilityPhoto[]
   reviews                Review[]
@@ -688,6 +689,32 @@ model BookingRequest {
   desiredEnd     DateTime?
   status         BookingRequestStatus @default(OFFEN)
   createdAt      DateTime             @default(now())
+}
+
+// A lead-capture form, same public/no-login shape as BookingRequest above -
+// used when a family wants to be notified once a facility/bookingType that
+// is currently fully booked (FacilityCapacity.availableSlots = 0) frees up a
+// spot. notifiedAt is set once a best-effort notification email has gone out
+// for this entry (see notifyWaitlist in availability.ts) - null means still
+// waiting. No status/lifecycle field like BookingRequestStatus: this is
+// intentionally simpler, entries are effectively one-shot (notify once, done).
+model WaitlistEntry {
+  id          String      @id @default(cuid())
+  facility    Facility    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId  String
+  bookingType BookingType
+  name        String
+  email       String
+  phone       String?
+  pflegegrad  Int?
+  message     String?
+  createdAt   DateTime    @default(now())
+  notifiedAt  DateTime?
+
+  // Powers both the operator-facing list (all entries for a facility) and
+  // notifyWaitlist's "oldest un-notified entries for this facility+bookingType"
+  // lookup when a spot frees up.
+  @@index([facilityId, bookingType, notifiedAt])
 }
 
 // Backs three entry points in the Hilfe & Support menu: the individual

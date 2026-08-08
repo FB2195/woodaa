@@ -66,12 +66,7 @@ export const GESETZLICHE_VERSICHERUNGSNUMMER_MESSAGE =
 export const Versicherungsnummer = z.string().trim().min(1).max(50);
 export type Versicherungsnummer = z.infer<typeof Versicherungsnummer>;
 
-export const SortOption = z.enum([
-  "newest",
-  "price_asc",
-  "distance_asc",
-  "availability_first",
-]);
+export const SortOption = z.enum(["newest", "price_asc", "distance_asc", "availability_first"]);
 export type SortOption = z.infer<typeof SortOption>;
 
 // ISO weekday numbering (1 = Montag ... 7 = Sonntag) - used for the
@@ -154,9 +149,22 @@ export const CreateBookingRequestInput = z.object({
   desiredStart: z.string().datetime().optional(),
   desiredEnd: z.string().datetime().optional(),
 });
-export type CreateBookingRequestInput = z.infer<
-  typeof CreateBookingRequestInput
->;
+export type CreateBookingRequestInput = z.infer<typeof CreateBookingRequestInput>;
+
+// Same public/no-login shape as CreateBookingRequestInput above - see
+// WaitlistEntry in schema.prisma. No desiredStart/desiredEnd: joining a
+// waitlist is about "let me know when *any* spot opens", not a specific
+// date range.
+export const CreateWaitlistEntryInput = z.object({
+  facilityId: z.string().min(1),
+  bookingType: BookingType,
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().email(),
+  phone: z.string().trim().max(50).optional(),
+  pflegegrad: Pflegegrad.optional(),
+  message: z.string().trim().max(2000).optional(),
+});
+export type CreateWaitlistEntryInput = z.infer<typeof CreateWaitlistEntryInput>;
 
 // A registering SUCHENDE is the account holder themselves (or someone
 // registering on their own behalf) - name/address/Pflegegrad/Krankenkasse
@@ -176,10 +184,10 @@ const bevollmaechtigterFieldsOk = (data: {
   !data.hatBevollmaechtigten ||
   Boolean(
     data.bevollmaechtigterVorname &&
-      data.bevollmaechtigterNachname &&
-      data.bevollmaechtigterAdresse &&
-      data.bevollmaechtigterTelefon &&
-      data.bevollmaechtigterEmail,
+    data.bevollmaechtigterNachname &&
+    data.bevollmaechtigterAdresse &&
+    data.bevollmaechtigterTelefon &&
+    data.bevollmaechtigterEmail,
   );
 
 // Plain object (no .refine()) so it stays usable as a discriminatedUnion
@@ -326,10 +334,7 @@ const FacilityFields = z.object({
 // .partial() must run before .refine() - ZodEffects (what .refine() returns)
 // has no .partial(), so UpdateFacilityInput derives from the plain object,
 // not from CreateFacilityInput.
-const pflegegradRangeOk = (data: {
-  minPflegegrad?: number;
-  maxPflegegrad?: number;
-}) =>
+const pflegegradRangeOk = (data: { minPflegegrad?: number; maxPflegegrad?: number }) =>
   data.minPflegegrad == null ||
   data.maxPflegegrad == null ||
   data.minPflegegrad <= data.maxPflegegrad;
@@ -362,13 +367,10 @@ const UpdatableFacilityFields = FacilityFields.omit({
   petsPolicy: z.string().trim().max(200).optional(),
 });
 
-export const UpdateFacilityInput = UpdatableFacilityFields.partial().refine(
-  pflegegradRangeOk,
-  {
-    message: "Pflegegrad von darf nicht größer als Pflegegrad bis sein.",
-    path: ["maxPflegegrad"],
-  },
-);
+export const UpdateFacilityInput = UpdatableFacilityFields.partial().refine(pflegegradRangeOk, {
+  message: "Pflegegrad von darf nicht größer als Pflegegrad bis sein.",
+  path: ["maxPflegegrad"],
+});
 export type UpdateFacilityInput = z.infer<typeof UpdateFacilityInput>;
 
 // The critical, trust-sensitive fields - submitting this creates/overwrites
@@ -516,11 +518,7 @@ export const CancelBookingInput = z.object({
 });
 export type CancelBookingInput = z.infer<typeof CancelBookingInput>;
 
-export const AllowedPhotoContentType = z.enum([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
+export const AllowedPhotoContentType = z.enum(["image/jpeg", "image/png", "image/webp"]);
 export type AllowedPhotoContentType = z.infer<typeof AllowedPhotoContentType>;
 
 // Shared by operator.ts (server-side cap enforcement) and PhotoManager.tsx
@@ -603,10 +601,7 @@ export type ConfirmVollmachtUploadInput = z.infer<typeof ConfirmVollmachtUploadI
 
 // Client-settable states only - EINGEREICHT_UEBER_WOODAA is set by the
 // server itself once submitCareApplication actually sends the PDF.
-export const SettableCareApplicationStatus = z.enum([
-  "BEREITS_BEANTRAGT",
-  "MUSS_BEANTRAGT_WERDEN",
-]);
+export const SettableCareApplicationStatus = z.enum(["BEREITS_BEANTRAGT", "MUSS_BEANTRAGT_WERDEN"]);
 export type SettableCareApplicationStatus = z.infer<typeof SettableCareApplicationStatus>;
 
 export const SetCareApplicationStatusInput = z.object({
@@ -631,17 +626,13 @@ export type SubmitCareApplicationInput = z.infer<typeof SubmitCareApplicationInp
 export const RequestKostenuebernahmeUploadInput = z.object({
   bookingId: z.string().min(1),
 });
-export type RequestKostenuebernahmeUploadInput = z.infer<
-  typeof RequestKostenuebernahmeUploadInput
->;
+export type RequestKostenuebernahmeUploadInput = z.infer<typeof RequestKostenuebernahmeUploadInput>;
 
 export const ConfirmKostenuebernahmeUploadInput = z.object({
   bookingId: z.string().min(1),
   key: z.string().min(1).max(500),
 });
-export type ConfirmKostenuebernahmeUploadInput = z.infer<
-  typeof ConfirmKostenuebernahmeUploadInput
->;
+export type ConfirmKostenuebernahmeUploadInput = z.infer<typeof ConfirmKostenuebernahmeUploadInput>;
 
 // RECHNUNG/KOSTENUEBERNAHME_KASSE bookings sit in WARTET_AUF_HEIM_FREIGABE
 // until the facility approves or rejects them on their dashboard.

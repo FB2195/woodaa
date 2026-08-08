@@ -35,7 +35,7 @@ async function main() {
       createContext: ({ req }: CreateFastifyContextOptions) => {
         const header = req.headers.authorization;
         const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
-        return createContext({ token });
+        return createContext({ token, ip: req.ip });
       },
     },
   });
