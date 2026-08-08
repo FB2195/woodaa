@@ -404,6 +404,9 @@ model Facility {
   photos                 FacilityPhoto[]
   reviews                Review[]
   changeRequests         FacilityChangeRequest[]
+  tasks                  FacilityTask[]
+  handoverNotes          HandoverNote[]
+  employees              Employee[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -662,11 +665,104 @@ model Booking {
   // whenever facilityApprovalStatus isn't AUSSTEHEND at all.
   approvalReminderSentAt       DateTime?
   approvalEscalatedAt          DateTime?
+  residentNotes                ResidentNote[]
 
   @@index([facilityId, bookingType])
   @@index([unitId, status])
   @@index([userId])
   @@index([stripePaymentIntentId])
+}
+
+// Internal, non-clinical notes a facility keeps about a current guest/
+// resident during their stay (see apps/desktop's "Bewohner:innen" area) -
+// explicitly NOT a Pflegedokumentation replacement (no vitals, incidents,
+// or care-plan data model here), just free-text operational context
+// ("Angehörige informiert", "mag keinen Kaffee", ...). Tied to the Booking
+// rather than the User/guest identity directly, since that's how "current
+// resident" is already modeled everywhere else in this schema, and it
+// keeps notes scoped to a single stay - cascades away with the booking on
+// purpose (data minimisation: no reason to retain staff notes about
+// someone no longer at the facility). No author field: today there is
+// exactly one login per facility (Facility.operatorUserId), so there is
+// no individual staff identity yet to attribute a note to - see the
+// (currently unbuilt) Personalverwaltung area.
+model ResidentNote {
+  id        String   @id @default(cuid())
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingId String
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
+}
+
+// Team-Kommunikation (apps/desktop): a plain per-facility to-do list, not
+// tied to a specific shift/person - same "no individual staff identity
+// yet" reasoning as ResidentNote above (one login per facility today).
+model FacilityTask {
+  id          String    @id @default(cuid())
+  facility    Facility  @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId  String
+  title       String
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([facilityId])
+}
+
+// Team-Kommunikation (apps/desktop): a chronological Übergabe/handover feed
+// ("Frau Meier hat heute wenig gegessen", ...) - append-only, no
+// completion state (unlike FacilityTask), no edit/delete by design so the
+// shift log stays a reliable record of what was actually written when.
+model HandoverNote {
+  id         String   @id @default(cuid())
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId String
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([facilityId])
+}
+
+// Personalverwaltung (apps/desktop) - deliberately scoped down from a full
+// staff-scheduling product: no individual staff login (there is exactly
+// one account per facility today, same as ResidentNote/FacilityTask
+// above - giving each employee their own woodaa login is a real product
+// decision, not something to assume here), and no fixed shift-type
+// catalog (Frühdienst/Spätdienst/Nachtdienst vary per Heim) - `shifts`
+// below is just "which weekdays, with a free-text label" rather than a
+// modeled shift system.
+model Employee {
+  id         String         @id @default(cuid())
+  facility   Facility       @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId String
+  name       String
+  role       String
+  phone      String?
+  email      String?
+  active     Boolean        @default(true)
+  shifts     EmployeeShift[]
+  createdAt  DateTime       @default(now())
+
+  @@index([facilityId])
+}
+
+// One row per (employee, weekday) they regularly work - see the comment on
+// Employee above for why this stays a free-text label instead of a fixed
+// shift-type enum.
+model EmployeeShift {
+  id         String   @id @default(cuid())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  // ISO weekday numbering (1 = Montag ... 7 = Sonntag), same convention as
+  // the Tages-/Nachtpflege search filter - see Weekday in
+  // packages/validators.
+  weekday    Int
+  label      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([employeeId, weekday])
+  @@index([employeeId])
 }
 
 // Object storage lives in Cloudflare R2 - only the bucket object `key` is

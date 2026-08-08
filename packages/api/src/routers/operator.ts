@@ -5,15 +5,21 @@ import {
   CancelBookingInput,
   ConfirmPhotoUploadInput,
   CreateFacilityInput,
+  CreateEmployeeInput,
+  CreateFacilityTaskInput,
+  CreateHandoverNoteInput,
   CreateManualBookingInput,
+  CreateResidentNoteInput,
   MAX_FACILITY_PHOTOS,
   MAX_PHOTO_BYTES,
   RenameUnitInput,
   ReplyToReviewInput,
   RequestFacilityChangeInput,
   RequestPhotoUploadInput,
+  SetEmployeeShiftInput,
   SetPflegegradPricingInput,
   SetUnitCountInput,
+  UpdateEmployeeInput,
   UpdateFacilityInput,
   UpdatePricingInput,
 } from "@woodaa/validators";
@@ -577,6 +583,194 @@ export const operatorRouter = router({
         await deleteObject(photo.key);
       }
       await ctx.db.facilityPhoto.delete({ where: { id: input.id } });
+      return { success: true };
+    }),
+
+  // "Bewohner:innen" area (apps/desktop) - all notes across the facility's
+  // bookings in one call rather than one query per resident, since the UI
+  // renders a note count/list per unit alongside the same units/bookings
+  // myFacility already returns.
+  residentNotes: operatorProcedure.query(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.residentNote.findMany({
+      where: { booking: { facilityId: facility.id } },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
+  addResidentNote: operatorProcedure
+    .input(CreateResidentNoteInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Buchung nicht gefunden." });
+      }
+      return ctx.db.residentNote.create({
+        data: { bookingId: input.bookingId, body: input.body },
+      });
+    }),
+
+  removeResidentNote: operatorProcedure
+    .input(z.object({ noteId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const note = await ctx.db.residentNote.findUnique({
+        where: { id: input.noteId },
+        include: { booking: { select: { facilityId: true } } },
+      });
+      if (!note || note.booking.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.residentNote.delete({ where: { id: input.noteId } });
+      return { success: true };
+    }),
+
+  // "Team" area (apps/desktop) - a plain per-facility to-do list.
+  tasks: operatorProcedure.query(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.facilityTask.findMany({
+      where: { facilityId: facility.id },
+      orderBy: [{ completedAt: "asc" }, { createdAt: "desc" }],
+    });
+  }),
+
+  addTask: operatorProcedure.input(CreateFacilityTaskInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.facilityTask.create({
+      data: { facilityId: facility.id, title: input.title },
+    });
+  }),
+
+  toggleTask: operatorProcedure
+    .input(z.object({ taskId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const task = await ctx.db.facilityTask.findUnique({ where: { id: input.taskId } });
+      if (!task || task.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return ctx.db.facilityTask.update({
+        where: { id: input.taskId },
+        data: { completedAt: task.completedAt ? null : new Date() },
+      });
+    }),
+
+  removeTask: operatorProcedure
+    .input(z.object({ taskId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const task = await ctx.db.facilityTask.findUnique({ where: { id: input.taskId } });
+      if (!task || task.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.facilityTask.delete({ where: { id: input.taskId } });
+      return { success: true };
+    }),
+
+  // "Team" area (apps/desktop) - an append-only Übergabe/handover feed, see
+  // HandoverNote in schema.prisma for why there's no edit/delete here.
+  handoverNotes: operatorProcedure.query(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.handoverNote.findMany({
+      where: { facilityId: facility.id },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+  }),
+
+  addHandoverNote: operatorProcedure
+    .input(CreateHandoverNoteInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      return ctx.db.handoverNote.create({
+        data: { facilityId: facility.id, body: input.body },
+      });
+    }),
+
+  // "Personal" area (apps/desktop) - see the comment on Employee in
+  // schema.prisma for why this stays a roster the one facility login
+  // manages, not individual staff accounts.
+  employees: operatorProcedure.query(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.employee.findMany({
+      where: { facilityId: facility.id },
+      include: { shifts: true },
+      orderBy: { createdAt: "asc" },
+    });
+  }),
+
+  addEmployee: operatorProcedure.input(CreateEmployeeInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.employee.create({
+      data: {
+        facilityId: facility.id,
+        name: input.name,
+        role: input.role,
+        phone: input.phone,
+        email: input.email,
+      },
+    });
+  }),
+
+  updateEmployee: operatorProcedure.input(UpdateEmployeeInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    const employee = await ctx.db.employee.findUnique({ where: { id: input.employeeId } });
+    if (!employee || employee.facilityId !== facility.id) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+    return ctx.db.employee.update({
+      where: { id: input.employeeId },
+      data: {
+        name: input.name,
+        role: input.role,
+        phone: input.phone ?? null,
+        email: input.email ?? null,
+        active: input.active,
+      },
+    });
+  }),
+
+  removeEmployee: operatorProcedure
+    .input(z.object({ employeeId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const employee = await ctx.db.employee.findUnique({ where: { id: input.employeeId } });
+      if (!employee || employee.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.employee.delete({ where: { id: input.employeeId } });
+      return { success: true };
+    }),
+
+  // Upsert by design (@@unique([employeeId, weekday])) - setting a day that
+  // already has a label just overwrites it, rather than needing a separate
+  // "edit" mutation.
+  setShift: operatorProcedure.input(SetEmployeeShiftInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    const employee = await ctx.db.employee.findUnique({ where: { id: input.employeeId } });
+    if (!employee || employee.facilityId !== facility.id) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+    return ctx.db.employeeShift.upsert({
+      where: { employeeId_weekday: { employeeId: input.employeeId, weekday: input.weekday } },
+      create: { employeeId: input.employeeId, weekday: input.weekday, label: input.label },
+      update: { label: input.label },
+    });
+  }),
+
+  removeShift: operatorProcedure
+    .input(z.object({ shiftId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const shift = await ctx.db.employeeShift.findUnique({
+        where: { id: input.shiftId },
+        include: { employee: { select: { facilityId: true } } },
+      });
+      if (!shift || shift.employee.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.employeeShift.delete({ where: { id: input.shiftId } });
       return { success: true };
     }),
 });

@@ -3,7 +3,10 @@ import { AppShell } from "./components/AppShell";
 import { FullScreenSpinner } from "./components/FullScreenSpinner";
 import { useAuth } from "./lib/AuthContext";
 import { BelegungPage } from "./pages/BelegungPage";
+import { BewohnerPage } from "./pages/BewohnerPage";
 import { LoginPage } from "./pages/LoginPage";
+import { PersonalPage } from "./pages/PersonalPage";
+import { TeamPage } from "./pages/TeamPage";
 import { UnsupportedRolePage } from "./pages/UnsupportedRolePage";
 
 export function App() {
@@ -29,6 +32,9 @@ export function App() {
     <AppShell>
       <Routes>
         <Route path="/" element={<BelegungPage />} />
+        <Route path="/personal" element={<PersonalPage />} />
+        <Route path="/bewohner" element={<BewohnerPage />} />
+        <Route path="/team" element={<TeamPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>
