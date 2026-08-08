@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/lib/AuthContext";
 import { trpc } from "@/lib/trpc";
@@ -9,6 +9,11 @@ const roleLabels = {
   BETREIBER: "Betreiber:in",
   ADMIN: "Admin",
 } as const;
+
+const menuItems = [
+  { href: "/konto/favoriten", label: "Favoriten" },
+  { href: "/konto/daten", label: "Meine Daten (DSGVO)" },
+] as const;
 
 export default function AccountScreen() {
   const { user, isLoading, logout } = useAuth();
@@ -51,6 +56,18 @@ export default function AccountScreen() {
         {me.data && !me.data.emailVerifiedAt && (
           <Text className="mt-2 text-xs text-red-600">E-Mail-Adresse noch nicht bestätigt.</Text>
         )}
+      </View>
+
+      <View className="overflow-hidden rounded-brand-lg border border-brand-border bg-brand-surface">
+        {menuItems.map((item, index) => (
+          <Pressable
+            key={item.href}
+            onPress={() => router.push(item.href)}
+            className={`px-4 py-3.5 ${index > 0 ? "border-t border-brand-border" : ""}`}
+          >
+            <Text className="text-sm font-medium text-brand-text">{item.label}</Text>
+          </Pressable>
+        ))}
       </View>
 
       <PrimaryButton label="Abmelden" variant="secondary" onPress={() => logout()} />

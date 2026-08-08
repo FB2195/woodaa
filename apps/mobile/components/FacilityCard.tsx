@@ -1,8 +1,25 @@
+import type { BookingType } from "@woodaa/validators";
 import { Image, Pressable, Text, View } from "react-native";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
-import type { RouterOutputs } from "@/lib/trpc";
 
-type FacilityListItem = RouterOutputs["facility"]["list"]["results"][number];
+// Structural rather than aliased straight from RouterOutputs["facility"]["list"] -
+// favorite.list returns the same facility shape minus the search-only
+// derived fields (distanceKm, avgRating, displayPriceCents, ...), so this
+// card needs to render both without duplicating itself.
+type FacilityCardData = {
+  id: string;
+  slug: string;
+  name: string;
+  city: string;
+  postalCode: string;
+  photos: { url: string | null }[];
+  capacities: { bookingType: BookingType }[];
+  distanceKm?: number | null;
+  avgRating?: number | null;
+  reviewCount?: number;
+  displayPriceCents?: number | null;
+  responseTimeBadge?: string | null;
+};
 
 function formatPriceEuro(cents: number): string {
   return new Intl.NumberFormat("de-DE", {
@@ -16,7 +33,7 @@ export function FacilityCard({
   facility,
   onPress,
 }: {
-  facility: FacilityListItem;
+  facility: FacilityCardData;
   onPress: () => void;
 }) {
   const coverPhoto = facility.photos[0]?.url ?? null;
