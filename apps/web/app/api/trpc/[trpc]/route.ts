@@ -13,8 +13,18 @@ function clientIp(req: Request): string | null {
   return req.headers.get("x-real-ip");
 }
 
+// Bearer header first: the mobile app (no cookie jar, see apps/mobile) sends
+// its access token this way. Falls back to the httpOnly cookie for the
+// browser, which never sends an Authorization header of its own.
+function resolveToken(req: Request, cookieToken: string | null): string | null {
+  const header = req.headers.get("authorization");
+  if (header?.startsWith("Bearer ")) return header.slice(7);
+  return cookieToken;
+}
+
 const handler = async (req: Request) => {
-  const token = (await cookies()).get(ACCESS_COOKIE)?.value ?? null;
+  const cookieToken = (await cookies()).get(ACCESS_COOKIE)?.value ?? null;
+  const token = resolveToken(req, cookieToken);
   return fetchRequestHandler({
     endpoint: "/api/trpc",
     req,

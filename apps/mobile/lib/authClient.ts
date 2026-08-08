@@ -1,6 +1,6 @@
 import type { AppRouter } from "@woodaa/api";
 import { createTRPCClient, httpLink } from "@trpc/client";
-import { apiUrl } from "./apiConfig";
+import { apiBaseUrl } from "./apiConfig";
 import { clearTokens, getRefreshToken, setTokens } from "./tokenStore";
 
 // A hook-free tRPC client, used only for the token refresh call inside
@@ -8,7 +8,7 @@ import { clearTokens, getRefreshToken, setTokens } from "./tokenStore";
 // plain function created once outside the React tree, so it can't call
 // `trpc.auth.refresh.useMutation()`.
 const authClient = createTRPCClient<AppRouter>({
-  links: [httpLink({ url: `${apiUrl()}/trpc` })],
+  links: [httpLink({ url: `${apiBaseUrl()}/api/trpc` })],
 });
 
 // Returns true if the access token was refreshed and a retry is worth it.

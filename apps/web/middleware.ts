@@ -56,5 +56,11 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // /api is exempt from the site-wide gate: /api/trpc now accepts Bearer
+  // tokens for the mobile app (see route.ts), which has no Basic-Auth
+  // credential to send, and /api/webhooks/stripe must stay reachable by
+  // Stripe regardless - Stripe never sends the site password either.
+  // Data access itself stays protected by protectedProcedure's JWT check,
+  // same as it always was for a logged-in browser session.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };

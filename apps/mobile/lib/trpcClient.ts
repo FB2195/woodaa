@@ -1,5 +1,5 @@
 import { httpBatchLink } from "@trpc/client";
-import { apiUrl } from "./apiConfig";
+import { apiBaseUrl } from "./apiConfig";
 import { refreshAccessToken } from "./authClient";
 import { getAccessToken } from "./tokenStore";
 
@@ -27,5 +27,5 @@ async function fetchWithAuth(input: RequestInfo | URL, init?: RequestInit) {
 }
 
 export function createMobileTrpcLinks() {
-  return [httpBatchLink({ url: `${apiUrl()}/trpc`, fetch: fetchWithAuth })];
+  return [httpBatchLink({ url: `${apiBaseUrl()}/api/trpc`, fetch: fetchWithAuth })];
 }
