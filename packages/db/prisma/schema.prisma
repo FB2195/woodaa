@@ -406,6 +406,7 @@ model Facility {
   changeRequests         FacilityChangeRequest[]
   tasks                  FacilityTask[]
   handoverNotes          HandoverNote[]
+  employees              Employee[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -721,6 +722,47 @@ model HandoverNote {
   createdAt  DateTime @default(now())
 
   @@index([facilityId])
+}
+
+// Personalverwaltung (apps/desktop) - deliberately scoped down from a full
+// staff-scheduling product: no individual staff login (there is exactly
+// one account per facility today, same as ResidentNote/FacilityTask
+// above - giving each employee their own woodaa login is a real product
+// decision, not something to assume here), and no fixed shift-type
+// catalog (Frühdienst/Spätdienst/Nachtdienst vary per Heim) - `shifts`
+// below is just "which weekdays, with a free-text label" rather than a
+// modeled shift system.
+model Employee {
+  id         String         @id @default(cuid())
+  facility   Facility       @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId String
+  name       String
+  role       String
+  phone      String?
+  email      String?
+  active     Boolean        @default(true)
+  shifts     EmployeeShift[]
+  createdAt  DateTime       @default(now())
+
+  @@index([facilityId])
+}
+
+// One row per (employee, weekday) they regularly work - see the comment on
+// Employee above for why this stays a free-text label instead of a fixed
+// shift-type enum.
+model EmployeeShift {
+  id         String   @id @default(cuid())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  // ISO weekday numbering (1 = Montag ... 7 = Sonntag), same convention as
+  // the Tages-/Nachtpflege search filter - see Weekday in
+  // packages/validators.
+  weekday    Int
+  label      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([employeeId, weekday])
+  @@index([employeeId])
 }
 
 // Object storage lives in Cloudflare R2 - only the bucket object `key` is

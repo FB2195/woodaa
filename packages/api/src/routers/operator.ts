@@ -5,6 +5,7 @@ import {
   CancelBookingInput,
   ConfirmPhotoUploadInput,
   CreateFacilityInput,
+  CreateEmployeeInput,
   CreateFacilityTaskInput,
   CreateHandoverNoteInput,
   CreateManualBookingInput,
@@ -15,8 +16,10 @@ import {
   ReplyToReviewInput,
   RequestFacilityChangeInput,
   RequestPhotoUploadInput,
+  SetEmployeeShiftInput,
   SetPflegegradPricingInput,
   SetUnitCountInput,
+  UpdateEmployeeInput,
   UpdateFacilityInput,
   UpdatePricingInput,
 } from "@woodaa/validators";
@@ -683,5 +686,91 @@ export const operatorRouter = router({
       return ctx.db.handoverNote.create({
         data: { facilityId: facility.id, body: input.body },
       });
+    }),
+
+  // "Personal" area (apps/desktop) - see the comment on Employee in
+  // schema.prisma for why this stays a roster the one facility login
+  // manages, not individual staff accounts.
+  employees: operatorProcedure.query(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.employee.findMany({
+      where: { facilityId: facility.id },
+      include: { shifts: true },
+      orderBy: { createdAt: "asc" },
+    });
+  }),
+
+  addEmployee: operatorProcedure.input(CreateEmployeeInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.employee.create({
+      data: {
+        facilityId: facility.id,
+        name: input.name,
+        role: input.role,
+        phone: input.phone,
+        email: input.email,
+      },
+    });
+  }),
+
+  updateEmployee: operatorProcedure.input(UpdateEmployeeInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    const employee = await ctx.db.employee.findUnique({ where: { id: input.employeeId } });
+    if (!employee || employee.facilityId !== facility.id) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+    return ctx.db.employee.update({
+      where: { id: input.employeeId },
+      data: {
+        name: input.name,
+        role: input.role,
+        phone: input.phone ?? null,
+        email: input.email ?? null,
+        active: input.active,
+      },
+    });
+  }),
+
+  removeEmployee: operatorProcedure
+    .input(z.object({ employeeId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const employee = await ctx.db.employee.findUnique({ where: { id: input.employeeId } });
+      if (!employee || employee.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.employee.delete({ where: { id: input.employeeId } });
+      return { success: true };
+    }),
+
+  // Upsert by design (@@unique([employeeId, weekday])) - setting a day that
+  // already has a label just overwrites it, rather than needing a separate
+  // "edit" mutation.
+  setShift: operatorProcedure.input(SetEmployeeShiftInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    const employee = await ctx.db.employee.findUnique({ where: { id: input.employeeId } });
+    if (!employee || employee.facilityId !== facility.id) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+    return ctx.db.employeeShift.upsert({
+      where: { employeeId_weekday: { employeeId: input.employeeId, weekday: input.weekday } },
+      create: { employeeId: input.employeeId, weekday: input.weekday, label: input.label },
+      update: { label: input.label },
+    });
+  }),
+
+  removeShift: operatorProcedure
+    .input(z.object({ shiftId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const shift = await ctx.db.employeeShift.findUnique({
+        where: { id: input.shiftId },
+        include: { employee: { select: { facilityId: true } } },
+      });
+      if (!shift || shift.employee.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.employeeShift.delete({ where: { id: input.shiftId } });
+      return { success: true };
     }),
 });

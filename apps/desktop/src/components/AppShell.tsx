@@ -5,7 +5,7 @@ import { trpc } from "../lib/trpc";
 
 const navItems = [
   { to: "/", label: "Belegung", icon: "◧", enabled: true },
-  { to: "/personal", label: "Personal", icon: "◈", enabled: false },
+  { to: "/personal", label: "Personal", icon: "◈", enabled: true },
   { to: "/bewohner", label: "Bewohner:innen", icon: "◌", enabled: true },
   { to: "/team", label: "Team", icon: "◐", enabled: true },
 ] as const;

@@ -542,6 +542,35 @@ export const CreateHandoverNoteInput = z.object({
 });
 export type CreateHandoverNoteInput = z.infer<typeof CreateHandoverNoteInput>;
 
+export const CreateEmployeeInput = z.object({
+  name: z.string().trim().min(1).max(200),
+  role: z.string().trim().min(1).max(200),
+  phone: z.string().trim().max(50).optional(),
+  email: z.string().trim().email().optional(),
+});
+export type CreateEmployeeInput = z.infer<typeof CreateEmployeeInput>;
+
+export const UpdateEmployeeInput = z.object({
+  employeeId: z.string().min(1),
+  name: z.string().trim().min(1).max(200),
+  role: z.string().trim().min(1).max(200),
+  phone: z.string().trim().max(50).optional(),
+  email: z.string().trim().email().optional(),
+  active: z.boolean(),
+});
+export type UpdateEmployeeInput = z.infer<typeof UpdateEmployeeInput>;
+
+// One label per (employee, weekday) - see EmployeeShift in schema.prisma.
+// An empty/omitted label just clears the day back to "not scheduled" via
+// operator.removeShift instead, so there's no separate "unset" input shape
+// needed here.
+export const SetEmployeeShiftInput = z.object({
+  employeeId: z.string().min(1),
+  weekday: Weekday,
+  label: z.string().trim().max(200).optional(),
+});
+export type SetEmployeeShiftInput = z.infer<typeof SetEmployeeShiftInput>;
+
 export const CancelBookingInput = z.object({
   bookingId: z.string().min(1),
   // Nur für die öffentliche Stornierung durch Suchende - muss mit der

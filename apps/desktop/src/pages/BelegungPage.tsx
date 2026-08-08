@@ -129,10 +129,7 @@ export function BelegungPage() {
       </div>
 
       {showManualBooking && (
-        <ManualBookingDialog
-          bookingType={activeType}
-          onClose={() => setShowManualBooking(false)}
-        />
+        <ManualBookingDialog bookingType={activeType} onClose={() => setShowManualBooking(false)} />
       )}
     </div>
   );
