@@ -1,0 +1,46 @@
+name: Desktop Release
+
+# Manual for now (internal test builds, unsigned - no Apple Developer ID or
+# Windows code-signing cert configured yet). Runs on the native OS for each
+# target since electron-builder's dmg/nsis packaging isn't reliably
+# cross-buildable from Linux.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            script: build:mac
+            artifact: release/*.dmg
+          - os: windows-latest
+            script: build:win
+            artifact: release/*.exe
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      VITE_API_URL: https://www.woodaa.de
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build installer
+        run: pnpm --filter desktop run ${{ matrix.script }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: woodaa-desktop-${{ matrix.os }}
+          path: apps/desktop/${{ matrix.artifact }}

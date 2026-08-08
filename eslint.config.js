@@ -11,6 +11,9 @@ module.exports = tseslint.config(
   {
     ignores: [
       "**/dist/**",
+      "**/dist-electron/**",
+      "**/out/**",
+      "**/release/**",
       "**/.next/**",
       "**/.expo/**",
       "**/node_modules/**",
