@@ -95,6 +95,16 @@ export function DownloadIcon() {
   );
 }
 
+export function BellIcon() {
+  return base(
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+    />,
+  );
+}
+
 export function HelpCircleIcon() {
   return base(
     <>
@@ -106,14 +116,24 @@ export function HelpCircleIcon() {
 }
 
 export function ShieldIcon() {
-  return base(<path strokeLinecap="round" strokeLinejoin="round" d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z" />);
+  return base(
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z"
+    />,
+  );
 }
 
 export function HomeIcon() {
   return base(
     <>
       <path strokeLinecap="round" strokeLinejoin="round" d="M4 11l8-7 8 7" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"
+      />
     </>,
   );
 }

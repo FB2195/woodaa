@@ -166,6 +166,17 @@ export const CreateWaitlistEntryInput = z.object({
 });
 export type CreateWaitlistEntryInput = z.infer<typeof CreateWaitlistEntryInput>;
 
+// "Benachrichtige mich, wenn ein Platz frei wird" - see SavedSearch in
+// schema.prisma for why this is intentionally leaner than the full
+// FacilitySearchInput (no maxPrice/amenities/sort/date filters). city is
+// required: an alert with no location filter would match too broadly.
+export const CreateSavedSearchInput = z.object({
+  city: z.string().trim().min(1).max(200),
+  bookingType: BookingType.optional(),
+  pflegegrad: Pflegegrad.optional(),
+});
+export type CreateSavedSearchInput = z.infer<typeof CreateSavedSearchInput>;
+
 // A registering SUCHENDE is the account holder themselves (or someone
 // registering on their own behalf) - name/address/Pflegegrad/Krankenkasse
 // collected once here so BookingForm can prefill instead of asking fresh

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
+  BellIcon,
   CalendarIcon,
   ChevronRightIcon,
   DownloadIcon,
@@ -66,6 +67,11 @@ export function AccountMenu({ role }: { role: "SUCHENDE" | "BETREIBER" | "ADMIN"
             href: "/konto/bevollmaechtigung",
             label: "Bevollmächtigte/r Angehörige/r",
             icon: <UsersIcon />,
+          },
+          {
+            href: "/konto/gespeicherte-suchen",
+            label: "Gespeicherte Suchen",
+            icon: <BellIcon />,
           },
         ]
       : [];

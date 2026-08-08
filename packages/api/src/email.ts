@@ -648,14 +648,16 @@ export async function sendWaitlistSpotAvailableEmail({
 }) {
   const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
   const facilityUrl = `${appUrl()}/einrichtung/${facilitySlug}`;
+  const safeName = escapeHtml(name);
+  const safeFacilityName = escapeHtml(facilityName);
 
   await sendEmail({
     to,
     subject: `Ein Platz ist frei geworden bei ${facilityName}`,
     html: `
       ${logoHtml()}
-      <p>Hallo ${name},</p>
-      <p>gute Nachrichten: bei <a href="${facilityUrl}">${facilityName}</a> ist gerade ein Platz für
+      <p>Hallo ${safeName},</p>
+      <p>gute Nachrichten: bei <a href="${facilityUrl}">${safeFacilityName}</a> ist gerade ein Platz für
       ${bookingTypeLabel} frei geworden - du standest dafür auf der Warteliste.</p>
       <p>Der Platz ist nicht für dich reserviert und kann jederzeit anderweitig vergeben werden -
       am besten buchst oder fragst du zeitnah direkt an.</p>
@@ -668,5 +670,63 @@ gute Nachrichten: bei ${facilityName} (${facilityUrl}) ist gerade ein Platz für
 Der Platz ist nicht für dich reserviert und kann jederzeit anderweitig vergeben werden - am besten buchst oder fragst du zeitnah direkt an.
 
 ${facilityUrl}`,
+  });
+}
+
+// Sent by checkSavedSearchAlerts (savedSearchAlerts.ts) when a SavedSearch
+// has one or more facilities that newly match since the last hourly check -
+// see the comment on SavedSearch in schema.prisma for why only *new*
+// matches (not the full current result set) trigger this each run.
+export async function sendSavedSearchMatchEmail({
+  to,
+  recipientName,
+  city,
+  facilities,
+}: {
+  to: string;
+  recipientName: string;
+  city: string;
+  facilities: { name: string; slug: string }[];
+}) {
+  const safeRecipientName = escapeHtml(recipientName);
+  const safeCity = escapeHtml(city);
+  const searchUrl = `${appUrl()}/suche?city=${encodeURIComponent(city)}`;
+
+  const itemsHtml = facilities
+    .map((f) => {
+      const url = `${appUrl()}/einrichtung/${f.slug}`;
+      return `<li><a href="${url}">${escapeHtml(f.name)}</a></li>`;
+    })
+    .join("\n");
+  const itemsText = facilities
+    .map((f) => `- ${f.name}: ${appUrl()}/einrichtung/${f.slug}`)
+    .join("\n");
+
+  const subject =
+    facilities.length === 1
+      ? `Neuer freier Platz in ${city}: ${facilities[0]!.name}`
+      : `${facilities.length} neue Einrichtungen mit freiem Platz in ${city}`;
+
+  await sendEmail({
+    to,
+    subject,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${safeRecipientName},</p>
+      <p>für deine gespeicherte Suche in <strong>${safeCity}</strong> gibt es Neuigkeiten - diese
+      Einrichtung${facilities.length > 1 ? "en haben" : " hat"} jetzt einen freien Platz:</p>
+      <ul>${itemsHtml}</ul>
+      <p>Alle Treffer für diese Suche: <a href="${searchUrl}">${searchUrl}</a></p>
+      <p>Gespeicherte Suchen verwaltest du in deinem woodaa-Konto.</p>
+    `,
+    text: `Hallo ${recipientName},
+
+für deine gespeicherte Suche in ${city} gibt es Neuigkeiten - diese Einrichtung${facilities.length > 1 ? "en haben" : " hat"} jetzt einen freien Platz:
+
+${itemsText}
+
+Alle Treffer für diese Suche: ${searchUrl}
+
+Gespeicherte Suchen verwaltest du in deinem woodaa-Konto.`,
   });
 }

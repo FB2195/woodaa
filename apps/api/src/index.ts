@@ -3,6 +3,7 @@ import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import type { CreateFastifyContextOptions } from "@trpc/server/adapters/fastify";
 import {
   appRouter,
+  checkSavedSearchAlerts,
   createContext,
   escalateStalePendingApprovals,
   recomputeAllCapacityCaches,
@@ -49,6 +50,20 @@ function scheduleApprovalEscalation() {
   setInterval(run, APPROVAL_ESCALATION_INTERVAL_MS);
 }
 
+// Same hourly-safety-net cadence as the jobs above - a saved search is a
+// "let me know eventually" signal, not something needing sub-hour latency.
+const SAVED_SEARCH_ALERT_INTERVAL_MS = 60 * 60 * 1000;
+
+function scheduleSavedSearchAlerts() {
+  const run = () => {
+    checkSavedSearchAlerts(db).catch((err) => {
+      server.log.error(err, "saved search alert check failed");
+    });
+  };
+  run();
+  setInterval(run, SAVED_SEARCH_ALERT_INTERVAL_MS);
+}
+
 async function main() {
   await server.register(cors, { origin: true });
 
@@ -68,6 +83,7 @@ async function main() {
 
   scheduleCapacityRollover();
   scheduleApprovalEscalation();
+  scheduleSavedSearchAlerts();
 
   const port = Number(process.env.PORT ?? 4000);
   await server.listen({ port, host: "0.0.0.0" });
