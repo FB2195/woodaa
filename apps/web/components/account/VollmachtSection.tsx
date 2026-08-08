@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { MAX_DOCUMENT_BYTES } from "@woodaa/validators";
 import { trpc } from "@/lib/trpc";
 
 const reviewStatusLabels: Record<"AUSSTEHEND" | "GEPRUEFT" | "ABGELEHNT", string> = {
@@ -36,6 +37,12 @@ export function VollmachtSection() {
       setError("Bitte lade die Vollmacht als PDF hoch.");
       return;
     }
+    if (file.size > MAX_DOCUMENT_BYTES) {
+      setError(
+        `Die Datei darf maximal ${Math.round(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB groß sein.`,
+      );
+      return;
+    }
     setUploading(true);
     try {
       const { uploadUrl, key } = await requestUpload.mutateAsync();
@@ -59,9 +66,9 @@ export function VollmachtSection() {
   return (
     <div>
       <p className="text-sm text-brand-text-muted">
-        Buchst du für eine andere Person (z. B. deine Eltern)? Lade eine Vollmacht hoch -
-        wir prüfen sie, danach kannst du in ihrem Namen buchen. Jede Buchung von diesem
-        Konto wird zusätzlich von unserem Team geprüft, bevor sie endgültig bestätigt wird.
+        Buchst du für eine andere Person (z. B. deine Eltern)? Lade eine Vollmacht hoch - wir prüfen
+        sie, danach kannst du in ihrem Namen buchen. Jede Buchung von diesem Konto wird zusätzlich
+        von unserem Team geprüft, bevor sie endgültig bestätigt wird.
       </p>
 
       {data.isBevollmaechtigt && data.vollmachtReviewStatus && (

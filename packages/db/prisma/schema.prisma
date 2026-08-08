@@ -57,6 +57,11 @@ enum PaymentStatus {
   WARTET_AUF_HEIM_FREIGABE
   FREIGEGEBEN
   ABGELEHNT
+  // Nur KARTE/KLARNA/PAYPAL: Stripe-Rückerstattung nach Storno erfolgreich
+  // durchgeführt (siehe refundBookingPayment in stripe.ts). Ersetzt BEZAHLT
+  // statt es stehen zu lassen, damit Dashboards eine stornierte + erstattete
+  // Buchung nicht weiter als "bezahlt" ausweisen.
+  REFUNDIERT
 }
 
 // Ob neue Online-Buchungen für das Heim sofort als bestätigt gelten

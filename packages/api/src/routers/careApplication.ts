@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import {
   ConfirmVollmachtUploadInput,
+  MAX_DOCUMENT_BYTES,
   SetCareApplicationStatusInput,
   SubmitCareApplicationInput,
   UpdateCareProfileInput,
@@ -8,7 +9,12 @@ import {
 import { generateCareApplicationPdf } from "../carePdf";
 import { decryptSecret, encryptSecret } from "../crypto";
 import { sendCareApplicationEmail } from "../email";
-import { createPresignedUploadUrl, newUserDocumentKey } from "../r2";
+import {
+  createPresignedUploadUrl,
+  deleteObject,
+  headUploadedObjectSize,
+  newUserDocumentKey,
+} from "../r2";
 import { protectedProcedure, router } from "../trpc";
 
 // Single pilot Krankenkasse for now (see conversation - "erst eine Kasse
@@ -95,6 +101,17 @@ export const careApplicationRouter = router({
   confirmVollmachtUpload: protectedProcedure
     .input(ConfirmVollmachtUploadInput)
     .mutation(async ({ ctx, input }) => {
+      const size = await headUploadedObjectSize(input.key);
+      if (size === null || size > MAX_DOCUMENT_BYTES) {
+        await deleteObject(input.key);
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            size === null
+              ? "Upload nicht gefunden."
+              : `Datei überschreitet die maximale Größe von ${Math.round(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB.`,
+        });
+      }
       await ctx.db.user.update({
         where: { id: ctx.user.id },
         data: {
@@ -124,8 +141,7 @@ export const careApplicationRouter = router({
       if (!kasse) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
-          message:
-            "Die digitale Antragstellung ist noch nicht für eine Krankenkasse eingerichtet.",
+          message: "Die digitale Antragstellung ist noch nicht für eine Krankenkasse eingerichtet.",
         });
       }
 

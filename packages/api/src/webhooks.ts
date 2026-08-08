@@ -6,18 +6,14 @@ import {
   sendBookingConfirmationEmail,
   sendBookingFacilityDecisionEmail,
 } from "./email";
-import { stripeClient, stripeWebhookSecret } from "./stripe";
+import { refundBookingPayment, stripeClient, stripeWebhookSecret } from "./stripe";
 
 // Thin on purpose - the Next.js route (apps/web/app/api/webhooks/stripe)
 // only reads the raw body/signature header and forwards them here, so all
 // Stripe-specific logic (and its one dependency on @woodaa/db) lives in this
 // package rather than in the web app.
 export async function handleStripeWebhook(rawBody: string, signature: string): Promise<void> {
-  const event = stripeClient().webhooks.constructEvent(
-    rawBody,
-    signature,
-    stripeWebhookSecret(),
-  );
+  const event = stripeClient().webhooks.constructEvent(rawBody, signature, stripeWebhookSecret());
 
   if (event.type === "payment_intent.succeeded") {
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
@@ -48,7 +44,7 @@ export async function handleStripeWebhook(rawBody: string, signature: string): P
     // won't be reclaimed here - refund instead of confirming a booking
     // that no longer holds a place.
     if (booking.status === "STORNIERT") {
-      await stripeClient().refunds.create({ payment_intent: paymentIntent.id });
+      await refundBookingPayment(db, booking);
       return;
     }
 

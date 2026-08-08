@@ -21,6 +21,7 @@ const paymentStatusLabels: Record<string, string> = {
   WARTET_AUF_HEIM_FREIGABE: "Wartet auf Freigabe der Einrichtung",
   FREIGEGEBEN: "Freigegeben",
   ABGELEHNT: "Zahlung abgelehnt",
+  REFUNDIERT: "Erstattet",
 };
 
 const facilityApprovalLabels: Record<string, { text: string; className: string }> = {

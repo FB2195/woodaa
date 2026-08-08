@@ -1,9 +1,13 @@
 import { TRPCError } from "@trpc/server";
 import { CreateBookingRequestInput } from "@woodaa/validators";
-import { publicProcedure, router } from "../trpc";
+import { publicProcedure, rateLimited, router } from "../trpc";
+
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const CREATE_RATE_LIMIT = 10;
 
 export const bookingRequestRouter = router({
   create: publicProcedure
+    .use(rateLimited("bookingRequest.create", CREATE_RATE_LIMIT, RATE_LIMIT_WINDOW_MS))
     .input(CreateBookingRequestInput)
     .mutation(async ({ ctx, input }) => {
       const facility = await ctx.db.facility.findUnique({
