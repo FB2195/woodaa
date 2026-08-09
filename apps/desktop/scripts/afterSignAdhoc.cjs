@@ -22,9 +22,29 @@ exports.default = async function afterSign(context) {
   const appPath = path.join(appOutDir, appName);
   const entitlements = path.join(__dirname, "..", "resources", "entitlements.mac.plist");
 
+  // --options runtime is what actually turns on the Hardened Runtime for
+  // the signature - without it, --entitlements is embedded as inert data
+  // and the com.apple.security.cs.* keys have no effect at all, which is
+  // why an earlier version of this hook (ad-hoc sign without this flag)
+  // still crashed identically despite "signing" successfully.
   execFileSync(
     "codesign",
-    ["--force", "--deep", "--sign", "-", "--entitlements", entitlements, appPath],
+    [
+      "--force",
+      "--deep",
+      "--options",
+      "runtime",
+      "--sign",
+      "-",
+      "--entitlements",
+      entitlements,
+      appPath,
+    ],
     { stdio: "inherit" },
   );
+
+  // Print the resulting signature to the CI log so a broken entitlements/
+  // runtime-flag regression shows up here instead of only surfacing as a
+  // crash report from a real Mac days later.
+  execFileSync("codesign", ["-dvvv", "--entitlements", "-", appPath], { stdio: "inherit" });
 };
