@@ -7,9 +7,35 @@
 // This hook force-signs the packaged .app ad-hoc ("-") with our
 // entitlements so V8 can actually run, independent of whether a real
 // certificate is ever configured.
+//
+// Signing has to happen inside-out (every nested .framework/.app signed
+// individually, deepest first, then the outer bundle last) rather than via
+// `codesign --deep`, which re-signs everything in one pass with the same
+// flat entitlements and turned out to corrupt something Electron/V8 needs -
+// the packaged app crashed on startup every time despite a seemingly valid
+// signature, and only stopped once --deep was replaced with this explicit
+// inside-out signing.
 const { execFileSync } = require("node:child_process");
 const path = require("node:path");
 const fs = require("node:fs");
+
+function findNestedCodeTargets(appPath) {
+  const targets = [];
+  function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.name.endsWith(".framework") || entry.name.endsWith(".app")) {
+        targets.push(full);
+      }
+      walk(full);
+    }
+  }
+  walk(path.join(appPath, "Contents"));
+  // Deepest paths (most path separators) first, so nested helper apps and
+  // frameworks are signed before the bundles that contain them.
+  return targets.sort((a, b) => b.split(path.sep).length - a.split(path.sep).length);
+}
 
 exports.default = async function afterSign(context) {
   if (context.electronPlatformName !== "darwin") return;
@@ -22,26 +48,18 @@ exports.default = async function afterSign(context) {
   const appPath = path.join(appOutDir, appName);
   const entitlements = path.join(__dirname, "..", "resources", "entitlements.mac.plist");
 
-  // --options runtime is what actually turns on the Hardened Runtime for
-  // the signature - without it, --entitlements is embedded as inert data
-  // and the com.apple.security.cs.* keys have no effect at all, which is
-  // why an earlier version of this hook (ad-hoc sign without this flag)
-  // still crashed identically despite "signing" successfully.
-  execFileSync(
-    "codesign",
-    [
-      "--force",
-      "--deep",
-      "--options",
-      "runtime",
-      "--sign",
-      "-",
-      "--entitlements",
-      entitlements,
-      appPath,
-    ],
-    { stdio: "inherit" },
-  );
+  const sign = (target) => {
+    execFileSync(
+      "codesign",
+      ["--force", "--options", "runtime", "--sign", "-", "--entitlements", entitlements, target],
+      { stdio: "inherit" },
+    );
+  };
+
+  for (const target of findNestedCodeTargets(appPath)) {
+    sign(target);
+  }
+  sign(appPath);
 
   // Print the resulting signature to the CI log so a broken entitlements/
   // runtime-flag regression shows up here instead of only surfacing as a

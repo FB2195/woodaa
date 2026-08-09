@@ -5,7 +5,7 @@ directories:
 files:
   - out/**/*
   - package.json
-# afterSign: scripts/afterSignAdhoc.cjs  # temporarily disabled - isolation test for the startup crash, see PR discussion
+afterSign: scripts/afterSignAdhoc.cjs
 mac:
   category: public.app-category.business
   hardenedRuntime: true
