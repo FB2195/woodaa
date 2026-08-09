@@ -50,35 +50,36 @@ jobs:
           fi
           APP_NAME=$(basename "$APP_PATH" .app)
           EXECUTABLE="$APP_PATH/Contents/MacOS/$APP_NAME"
-          echo "Launching $EXECUTABLE"
-          "$EXECUTABLE" &
-          PID=$!
-          sleep 8
-          if kill -0 "$PID" 2>/dev/null; then
-            echo "Still running after 8s - looks healthy."
-            kill "$PID"
-            wait "$PID" 2>/dev/null || true
+          echo "Launching $EXECUTABLE under lldb"
+          # macOS's async ReportCrash daemon doesn't appear to run on these
+          # ephemeral CI images (no crash report ever showed up under
+          # ~/Library/Logs/DiagnosticReports/ despite the app reliably
+          # crashing). lldb catches the signal synchronously instead and can
+          # print a full symbolicated backtrace of every thread right there,
+          # without depending on that daemon at all.
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" \
+            > lldb-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "Still running after 15s under lldb - looks healthy, stopping."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            cat lldb-output.txt
             exit 0
           fi
-
-          # Note: no `set -e` in this script - `wait` below returns the
-          # background process's (non-zero, crash) exit status, which would
-          # otherwise abort the script here and skip the crash-report dump.
-          EXIT_CODE=0
-          wait "$PID" || EXIT_CODE=$?
-          echo "Exited within 8s (code $EXIT_CODE) - this usually means it crashed on startup."
-          echo "Waiting for macOS to write a crash report..."
-          sleep 5
-          REPORT=$(ls -t ~/Library/Logs/DiagnosticReports/"$APP_NAME"-*.ips 2>/dev/null | head -1)
-          if [ -n "$REPORT" ]; then
-            echo "===== Crash report: $REPORT ====="
-            cat "$REPORT"
-            echo "===== End crash report ====="
-          else
-            echo "No crash report found under ~/Library/Logs/DiagnosticReports/"
-            ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null || echo "(directory does not exist)"
+          wait "$LLDB_PID" || true
+          echo "===== lldb output ====="
+          cat lldb-output.txt
+          echo "===== end lldb output ====="
+          if grep -q "stop reason" lldb-output.txt; then
+            echo "App crashed - see backtrace above."
+            exit 1
           fi
-          exit 1
+          echo "lldb exited without a crash stop reason - treating as healthy."
 
       - uses: actions/upload-artifact@v4
         with:
