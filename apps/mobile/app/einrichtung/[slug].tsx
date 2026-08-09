@@ -1,17 +1,13 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, Alert, Image, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, Text, View } from "react-native";
+import { FacilityReviews } from "@/components/FacilityReviews";
+import { PflegekassenZuschussRechner } from "@/components/PflegekassenZuschussRechner";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/lib/AuthContext";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
+import { formatPriceEuro } from "@/lib/format";
+import { resolvePhotoUrl } from "@/lib/photoUrl";
 import { trpc } from "@/lib/trpc";
-
-function formatPriceEuro(cents: number): string {
-  return new Intl.NumberFormat("de-DE", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
-}
 
 export default function FacilityDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -20,7 +16,7 @@ export default function FacilityDetailScreen() {
 
   if (facilityQuery.isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-brand-background">
+      <View className="flex-1 items-center justify-center bg-brand-background dark:bg-brand-background-dark">
         <ActivityIndicator color="#2F7D4F" />
       </View>
     );
@@ -29,8 +25,8 @@ export default function FacilityDetailScreen() {
   const facility = facilityQuery.data;
   if (!facility) {
     return (
-      <View className="flex-1 items-center justify-center bg-brand-background px-6">
-        <Text className="text-center text-base text-brand-text">
+      <View className="flex-1 items-center justify-center bg-brand-background px-6 dark:bg-brand-background-dark">
+        <Text className="text-center text-base text-brand-text dark:text-brand-text-dark">
           Diese Einrichtung wurde nicht gefunden.
         </Text>
       </View>
@@ -40,41 +36,41 @@ export default function FacilityDetailScreen() {
   return (
     <>
       <Stack.Screen options={{ title: facility.name }} />
-      <ScrollView className="flex-1 bg-brand-background">
+      <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark">
         {facility.photos.length > 0 && (
           <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
-            {facility.photos.map((photo) =>
-              photo.url ? (
-                <Image
-                  key={photo.id}
-                  source={{ uri: photo.url }}
-                  className="h-56 w-screen"
-                  resizeMode="cover"
-                />
-              ) : null,
-            )}
+            {facility.photos.map((photo) => {
+              const uri = resolvePhotoUrl(photo.url);
+              return uri ? (
+                <Image key={photo.id} source={{ uri }} className="h-56 w-screen" resizeMode="cover" />
+              ) : null;
+            })}
           </ScrollView>
         )}
 
         <View className="gap-4 p-6">
           <View>
-            <Text className="text-2xl font-bold text-brand-primary-dark">{facility.name}</Text>
-            <Text className="mt-1 text-sm text-brand-text-muted">
+            <Text className="text-2xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">
+              {facility.name}
+            </Text>
+            <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
               {facility.street}, {facility.postalCode} {facility.city}
             </Text>
             {facility.avgRating != null && (
-              <Text className="mt-1 text-sm text-brand-text-muted">
+              <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
                 ★ {facility.avgRating.toFixed(1)} ({facility.reviewCount} Bewertungen)
               </Text>
             )}
           </View>
 
           {facility.description && (
-            <Text className="text-sm leading-5 text-brand-text">{facility.description}</Text>
+            <Text className="text-sm leading-5 text-brand-text dark:text-brand-text-dark">
+              {facility.description}
+            </Text>
           )}
 
           <View className="gap-3">
-            <Text className="text-base font-semibold text-brand-primary-dark">
+            <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
               Verfügbare Plätze
             </Text>
             {facility.capacities
@@ -82,26 +78,33 @@ export default function FacilityDetailScreen() {
               .map((capacity) => (
                 <View
                   key={capacity.bookingType}
-                  className="rounded-brand-lg border border-brand-border bg-brand-surface p-4"
+                  className="rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark"
                 >
                   <View className="flex-row items-center justify-between">
-                    <Text className="font-semibold text-brand-text">
+                    <Text className="font-semibold text-brand-text dark:text-brand-text-dark">
                       {bookingTypeLabels[capacity.bookingType]}
                     </Text>
                     <Text
                       className={
                         capacity.availableSlots > 0
                           ? "text-sm font-medium text-brand-accent"
-                          : "text-sm font-medium text-brand-text-muted"
+                          : "text-sm font-medium text-brand-text-muted dark:text-brand-text-muted-dark"
                       }
                     >
                       {capacity.availableSlots > 0 ? `${capacity.availableSlots} frei` : "belegt"}
                     </Text>
                   </View>
                   {capacity.monthlyPriceCents != null && (
-                    <Text className="mt-1 text-sm text-brand-text-muted">
-                      ab {formatPriceEuro(capacity.monthlyPriceCents)} / Monat
+                    <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
+                      ab {formatPriceEuro(capacity.monthlyPriceCents)} / Monat (Heimpreis vor
+                      Pflegekassen-Zuschuss)
                     </Text>
+                  )}
+                  {capacity.pflegegradPricing.length > 0 && (
+                    <PflegekassenZuschussRechner
+                      bookingType={capacity.bookingType}
+                      pflegegradPricing={capacity.pflegegradPricing}
+                    />
                   )}
                 </View>
               ))}
@@ -109,14 +112,18 @@ export default function FacilityDetailScreen() {
 
           {facility.amenities.length > 0 && (
             <View className="gap-2">
-              <Text className="text-base font-semibold text-brand-primary-dark">Ausstattung</Text>
+              <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
+                Ausstattung
+              </Text>
               <View className="flex-row flex-wrap gap-2">
                 {facility.amenities.map((amenity) => (
                   <View
                     key={amenity}
-                    className="rounded-brand-full border border-brand-border px-3 py-1"
+                    className="rounded-brand-full border border-brand-border px-3 py-1 dark:border-brand-border-dark"
                   >
-                    <Text className="text-xs text-brand-text">{amenity}</Text>
+                    <Text className="text-xs text-brand-text dark:text-brand-text-dark">
+                      {amenity}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -124,17 +131,22 @@ export default function FacilityDetailScreen() {
           )}
 
           <PrimaryButton
-            label="Jetzt anfragen"
+            label="Pflegeplatz buchen"
             onPress={() => {
               if (!user) {
                 router.push("/login");
                 return;
               }
-              Alert.alert(
-                "In Kürze verfügbar",
-                "Der Buchungsablauf folgt in einem der nächsten Schritte.",
-              );
+              router.push(`/einrichtung/${facility.slug}/buchen`);
             }}
+          />
+
+          <FacilityReviews
+            facilitySlug={facility.slug}
+            facilityName={facility.name}
+            reviews={facility.reviews}
+            avgRating={facility.avgRating}
+            reviewCount={facility.reviewCount}
           />
         </View>
       </ScrollView>

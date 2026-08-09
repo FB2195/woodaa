@@ -164,8 +164,9 @@ export default function RegisterScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-brand-background" contentContainerClassName="p-6 gap-4">
-      <Text className="text-lg font-semibold text-brand-primary-dark">Konto erstellen</Text>
+    <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+      contentContainerClassName="p-6 gap-4">
+      <Text className="text-lg font-semibold text-brand-primary-dark dark:text-brand-heading-dark">Konto erstellen</Text>
 
       <FormField
         label="Vorname"
@@ -181,7 +182,7 @@ export default function RegisterScreen() {
       />
 
       <View className="gap-1">
-        <Text className="text-sm text-brand-text">Geburtsdatum</Text>
+        <Text className="text-sm text-brand-text dark:text-brand-text-dark">Geburtsdatum</Text>
         <View className="flex-row gap-2">
           <View className="flex-1">
             <FormField
@@ -259,7 +260,7 @@ export default function RegisterScreen() {
         autoComplete="new-password"
       />
 
-      <View className="border-t border-brand-border pt-4">
+      <View className="border-t border-brand-border pt-4 dark:border-brand-border-dark">
         <SelectField
           label="Pflegegrad"
           value={pflegegrad}
@@ -275,7 +276,7 @@ export default function RegisterScreen() {
       </Checkbox>
 
       <View className="gap-2">
-        <Text className="text-sm text-brand-text">Krankenversicherung</Text>
+        <Text className="text-sm text-brand-text dark:text-brand-text-dark">Krankenversicherung</Text>
         {krankenkasseArtOptions.map((option) => (
           <Checkbox
             key={option.value}
@@ -319,7 +320,7 @@ export default function RegisterScreen() {
         hint="Du findest sie auf der Vorderseite deiner Versichertenkarte."
       />
 
-      <View className="border-t border-brand-border pt-4">
+      <View className="border-t border-brand-border pt-4 dark:border-brand-border-dark">
         <Checkbox
           checked={hatBevollmaechtigten}
           onToggle={() => setHatBevollmaechtigten((v) => !v)}
@@ -329,7 +330,7 @@ export default function RegisterScreen() {
       </View>
 
       {hatBevollmaechtigten && (
-        <View className="gap-3 rounded-brand-md border border-brand-border bg-brand-surface p-4">
+        <View className="gap-3 rounded-brand-md border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
           <FormField
             label="Vorname"
             value={bevollmaechtigterVorname}
@@ -362,7 +363,7 @@ export default function RegisterScreen() {
         </View>
       )}
 
-      <View className="gap-2 border-t border-brand-border pt-4">
+      <View className="gap-2 border-t border-brand-border pt-4 dark:border-brand-border-dark">
         <Checkbox checked={newsletterOptIn} onToggle={() => setNewsletterOptIn((v) => !v)}>
           Ich möchte News und Angebote von woodaa per E-Mail erhalten
         </Checkbox>
@@ -378,7 +379,7 @@ export default function RegisterScreen() {
 
       <PrimaryButton label="Konto erstellen" loading={submitting} onPress={onSubmit} />
 
-      <Text className="text-center text-xs text-brand-text-muted">
+      <Text className="text-center text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
         Bereits ein Konto?{" "}
         <Link href="/login" className="text-brand-accent underline">
           Jetzt anmelden

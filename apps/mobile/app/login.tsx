@@ -24,9 +24,10 @@ export default function LoginScreen() {
 
   if (challengeToken) {
     return (
-      <ScrollView className="flex-1 bg-brand-background" contentContainerClassName="p-6 gap-4">
-        <Text className="text-lg font-semibold text-brand-primary-dark">Bestätigungscode</Text>
-        <Text className="text-sm text-brand-text-muted">
+      <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+      contentContainerClassName="p-6 gap-4">
+        <Text className="text-lg font-semibold text-brand-primary-dark dark:text-brand-heading-dark">Bestätigungscode</Text>
+        <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           Gib den 6-stelligen Code aus deiner Authenticator-App ein, oder verwende einen deiner
           Wiederherstellungscodes.
         </Text>
@@ -59,8 +60,9 @@ export default function LoginScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-brand-background" contentContainerClassName="p-6 gap-4">
-      <Text className="text-lg font-semibold text-brand-primary-dark">Anmelden</Text>
+    <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+      contentContainerClassName="p-6 gap-4">
+      <Text className="text-lg font-semibold text-brand-primary-dark dark:text-brand-heading-dark">Anmelden</Text>
 
       <FormField
         label="E-Mail"
@@ -104,7 +106,10 @@ export default function LoginScreen() {
       />
 
       <View className="items-center gap-2 pt-2">
-        <Text className="text-xs text-brand-text-muted">
+        <Link href="/passwort-vergessen" className="text-xs text-brand-accent underline">
+          Passwort vergessen?
+        </Link>
+        <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
           Noch kein Konto?{" "}
           <Link href="/registrieren" className="text-brand-accent underline">
             Jetzt registrieren

@@ -42,23 +42,23 @@ function BookingCard({ booking }: { booking: MyBooking }) {
   }
 
   return (
-    <View className="mb-4 rounded-brand-lg border border-brand-border bg-brand-surface p-4">
+    <View className="mb-4 rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
       <Pressable onPress={() => router.push(`/einrichtung/${booking.facility.slug}`)}>
-        <Text className="text-base font-semibold text-brand-primary-dark">
+        <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
           {booking.facility.name}
         </Text>
       </Pressable>
-      <Text className="mt-0.5 text-sm text-brand-text-muted">
+      <Text className="mt-0.5 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
         {booking.facility.street}, {booking.facility.postalCode} {booking.facility.city}
       </Text>
-      <Text className="mt-1 text-sm text-brand-text-muted">
+      <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
         {bookingTypeLabels[booking.bookingType]}
         {booking.guestFirstName
           ? ` · ${booking.guestFirstName} ${booking.guestLastName ?? ""}`.trimEnd()
           : ""}
       </Text>
       {booking.startDate && (
-        <Text className="text-sm text-brand-text-muted">
+        <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           {formatDate(booking.startDate)}
           {booking.endDate
             ? ` bis ${formatDate(booking.endDate)}`
@@ -68,12 +68,12 @@ function BookingCard({ booking }: { booking: MyBooking }) {
         </Text>
       )}
       {booking.desiredStartDate && (
-        <Text className="text-sm text-brand-text-muted">
+        <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           Gewünschter Einzug: {formatDate(booking.desiredStartDate)}
         </Text>
       )}
       {booking.paymentMethod && (
-        <Text className="text-sm text-brand-text-muted">
+        <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           {paymentMethodLabels[booking.paymentMethod]}
           {booking.paymentStatus
             ? ` · ${paymentStatusLabels[booking.paymentStatus] ?? booking.paymentStatus}`
@@ -83,8 +83,10 @@ function BookingCard({ booking }: { booking: MyBooking }) {
 
       <View className="mt-3 flex-row items-center justify-between">
         {isCancelled ? (
-          <View className="rounded-brand-full bg-brand-border px-2 py-0.5">
-            <Text className="text-xs font-medium text-brand-text-muted">Storniert</Text>
+          <View className="rounded-brand-full bg-brand-border px-2 py-0.5 dark:bg-brand-border-dark">
+            <Text className="text-xs font-medium text-brand-text-muted dark:text-brand-text-muted-dark">
+              Storniert
+            </Text>
           </View>
         ) : approval ? (
           <View className={`rounded-brand-full px-2 py-0.5 ${toneClasses[approval.tone]}`}>
@@ -108,14 +110,18 @@ function BookingCard({ booking }: { booking: MyBooking }) {
               </Pressable>
               <Pressable
                 onPress={() => setConfirming(false)}
-                className="rounded-brand-md border border-brand-border px-3 py-1.5"
+                className="rounded-brand-md border border-brand-border px-3 py-1.5 dark:border-brand-border-dark"
               >
-                <Text className="text-xs font-semibold text-brand-text-muted">Zurück</Text>
+                <Text className="text-xs font-semibold text-brand-text-muted dark:text-brand-text-muted-dark">
+                  Zurück
+                </Text>
               </Pressable>
             </View>
           ) : (
             <Pressable onPress={() => setConfirming(true)}>
-              <Text className="text-xs font-semibold text-brand-text-muted">Stornieren</Text>
+              <Text className="text-xs font-semibold text-brand-text-muted dark:text-brand-text-muted-dark">
+                Stornieren
+              </Text>
             </Pressable>
           ))}
       </View>
@@ -131,7 +137,7 @@ export default function BookingsScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-brand-background">
+      <View className="flex-1 items-center justify-center bg-brand-background dark:bg-brand-background-dark">
         <ActivityIndicator color="#2F7D4F" />
       </View>
     );
@@ -139,8 +145,8 @@ export default function BookingsScreen() {
 
   if (!user) {
     return (
-      <View className="flex-1 items-center justify-center gap-4 bg-brand-background px-6">
-        <Text className="text-center text-base text-brand-text">
+      <View className="flex-1 items-center justify-center gap-4 bg-brand-background px-6 dark:bg-brand-background-dark">
+        <Text className="text-center text-base text-brand-text dark:text-brand-text-dark">
           Melde dich an, um deine Buchungen zu sehen.
         </Text>
         <PrimaryButton label="Anmelden" onPress={() => router.push("/login")} />
@@ -150,7 +156,7 @@ export default function BookingsScreen() {
 
   return (
     <FlatList
-      className="flex-1 bg-brand-background"
+      className="flex-1 bg-brand-background dark:bg-brand-background-dark"
       contentContainerClassName="p-6"
       data={bookingsQuery.data ?? []}
       keyExtractor={(item) => item.id}
@@ -158,7 +164,7 @@ export default function BookingsScreen() {
         bookingsQuery.isLoading ? (
           <ActivityIndicator color="#2F7D4F" />
         ) : (
-          <Text className="pt-10 text-center text-sm text-brand-text-muted">
+          <Text className="pt-10 text-center text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
             Noch keine Buchungen vorhanden.
           </Text>
         )

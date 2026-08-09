@@ -54,12 +54,15 @@ export default function MeineDatenScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-brand-background" contentContainerClassName="gap-6 p-6">
-      <View className="gap-2 rounded-brand-lg border border-brand-border bg-brand-surface p-4">
-        <Text className="text-base font-semibold text-brand-primary-dark">
+    <ScrollView
+      className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+      contentContainerClassName="gap-6 p-6"
+    >
+      <View className="gap-2 rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
+        <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
           Meine Daten exportieren
         </Text>
-        <Text className="text-sm text-brand-text-muted">
+        <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           Lädt alle über dich gespeicherten Daten (Art. 15/20 DSGVO) und öffnet das Teilen-Menü, z.
           B. um sie per E-Mail an dich selbst zu schicken.
         </Text>
@@ -71,9 +74,9 @@ export default function MeineDatenScreen() {
         />
       </View>
 
-      <View className="gap-2 rounded-brand-lg border border-red-200 bg-brand-surface p-4">
+      <View className="gap-2 rounded-brand-lg border border-red-200 bg-brand-surface p-4 dark:border-red-900 dark:bg-brand-surface-dark">
         <Text className="text-base font-semibold text-red-600">Konto löschen</Text>
-        <Text className="text-sm text-brand-text-muted">
+        <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           Löscht dein Konto und alle zugehörigen Daten unwiderruflich.
         </Text>
         <FormField

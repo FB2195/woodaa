@@ -5,7 +5,7 @@
     "scheme": "woodaa",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "backgroundColor": "#FAF9F5",
     "splash": {
       "backgroundColor": "#FAF9F5"
@@ -24,7 +24,14 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "woodaa nutzt deinen Standort, um Pflegeplätze in deiner Nähe zu finden."
+        }
+      ],
+      ["@stripe/stripe-react-native", {}]
     ],
     "extra": {
       "router": {

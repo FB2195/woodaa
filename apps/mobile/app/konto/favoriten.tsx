@@ -12,7 +12,7 @@ export default function FavoritenScreen() {
 
   if (favoritesQuery.isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-brand-background">
+      <View className="flex-1 items-center justify-center bg-brand-background dark:bg-brand-background-dark">
         <ActivityIndicator color="#2F7D4F" />
       </View>
     );
@@ -20,12 +20,12 @@ export default function FavoritenScreen() {
 
   return (
     <FlatList
-      className="flex-1 bg-brand-background"
+      className="flex-1 bg-brand-background dark:bg-brand-background-dark"
       contentContainerClassName="p-6"
       data={favoritesQuery.data ?? []}
       keyExtractor={(item) => item.id}
       ListEmptyComponent={
-        <Text className="pt-10 text-center text-sm text-brand-text-muted">
+        <Text className="pt-10 text-center text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           Noch keine Favoriten gespeichert.
         </Text>
       }
@@ -36,7 +36,9 @@ export default function FavoritenScreen() {
             onPress={() => toggle.mutate({ facilityId: item.id })}
             className="-mt-3 mb-4 self-end px-1"
           >
-            <Text className="text-xs font-medium text-brand-text-muted">Entfernen</Text>
+            <Text className="text-xs font-medium text-brand-text-muted dark:text-brand-text-muted-dark">
+              Entfernen
+            </Text>
           </Pressable>
         </View>
       )}
