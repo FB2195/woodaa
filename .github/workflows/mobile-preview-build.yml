@@ -1,0 +1,49 @@
+name: Mobile Preview Build
+
+# Manual for now. Builds an installable Android APK via EAS (Expo's cloud
+# build service) so it can be downloaded and installed directly on a real
+# phone - no Android Studio / emulator needed, no manual token pasting.
+# Requires an EXPO_TOKEN repository secret (an Expo access token, created at
+# https://expo.dev/settings/access-tokens).
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install EAS CLI
+        run: npm install --global eas-cli
+
+      - name: Build Android preview APK
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --platform android --profile preview --non-interactive --wait --json > build-result.json
+          cat build-result.json
+          ARTIFACT_URL=$(node -e "
+            const runs = JSON.parse(require('fs').readFileSync('build-result.json', 'utf8'));
+            const build = Array.isArray(runs) ? runs[0] : runs;
+            console.log(build.artifacts.buildUrl);
+          ")
+          echo "Downloading $ARTIFACT_URL"
+          curl -sSL -o woodaa-preview.apk "$ARTIFACT_URL"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: woodaa-mobile-preview-apk
+          path: apps/mobile/woodaa-preview.apk
