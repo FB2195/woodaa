@@ -7,9 +7,6 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#FAF9F5",
-    "splash": {
-      "backgroundColor": "#FAF9F5"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "de.woodaa.app"
@@ -31,7 +28,16 @@
           "locationWhenInUsePermission": "woodaa nutzt deinen Standort, um Pflegeplätze in deiner Nähe zu finden."
         }
       ],
-      ["@stripe/stripe-react-native", {}]
+      ["@stripe/stripe-react-native", {}],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#FAF9F5"
+        }
+      ]
     ],
     "extra": {
       "router": {
