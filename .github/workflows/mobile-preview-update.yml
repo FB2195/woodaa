@@ -1,0 +1,36 @@
+name: Mobile Preview Update
+
+# Publishes the current JS bundle to Expo's servers so it can be opened
+# directly in the Expo Go app - no local dev server / tunnel needed (this
+# environment can't reach ngrok), and no APK install/signing involved either.
+# Requires the EXPO_TOKEN repository secret (same one mobile-preview-build.yml
+# uses).
+on:
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install EAS CLI
+        run: npm install --global eas-cli
+
+      - name: Publish preview update
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_API_URL: https://www.woodaa.de
+        run: eas update --branch preview --message "Preview update" --non-interactive
