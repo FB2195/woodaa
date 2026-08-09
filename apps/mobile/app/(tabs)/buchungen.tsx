@@ -1,12 +1,11 @@
 import { router } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, Pressable, Text, View } from "react-native";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/lib/AuthContext";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
-import { facilityApprovalLabels, paymentStatusLabels } from "@/lib/bookingStatusLabels";
+import { facilityApprovalLabels } from "@/lib/bookingStatusLabels";
 import { formatDate } from "@/lib/format";
-import { paymentMethodLabels } from "@/lib/paymentMethodLabels";
+import { resolvePhotoUrl } from "@/lib/photoUrl";
 import { trpc } from "@/lib/trpc";
 import type { RouterOutputs } from "@/lib/trpc";
 
@@ -19,115 +18,63 @@ const toneClasses = {
 } as const;
 
 function BookingCard({ booking }: { booking: MyBooking }) {
-  const utils = trpc.useUtils();
-  const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const cancel = trpc.booking.myCancel.useMutation();
-
   const isCancelled = booking.status === "STORNIERT";
   const approval =
     booking.facilityApprovalStatus !== "NICHT_ERFORDERLICH"
       ? facilityApprovalLabels[booking.facilityApprovalStatus]
       : null;
-
-  async function handleCancel() {
-    setError(null);
-    try {
-      await cancel.mutateAsync({ bookingId: booking.id });
-      await utils.booking.myBookings.invalidate();
-      setConfirming(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.");
-    }
-  }
+  const coverPhoto = resolvePhotoUrl(booking.facility.photos[0]?.url);
 
   return (
-    <View className="mb-4 rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
-      <Pressable onPress={() => router.push(`/einrichtung/${booking.facility.slug}`)}>
-        <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
-          {booking.facility.name}
-        </Text>
-      </Pressable>
-      <Text className="mt-0.5 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-        {booking.facility.street}, {booking.facility.postalCode} {booking.facility.city}
-      </Text>
-      <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-        {bookingTypeLabels[booking.bookingType]}
-        {booking.guestFirstName
-          ? ` · ${booking.guestFirstName} ${booking.guestLastName ?? ""}`.trimEnd()
-          : ""}
-      </Text>
-      {booking.startDate && (
-        <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-          {formatDate(booking.startDate)}
-          {booking.endDate
-            ? ` bis ${formatDate(booking.endDate)}`
-            : booking.bookingType !== "STATIONAERE_AUFNAHME"
-              ? " (ohne Enddatum)"
-              : ""}
-        </Text>
-      )}
-      {booking.desiredStartDate && (
-        <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-          Gewünschter Einzug: {formatDate(booking.desiredStartDate)}
-        </Text>
-      )}
-      {booking.paymentMethod && (
-        <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-          {paymentMethodLabels[booking.paymentMethod]}
-          {booking.paymentStatus
-            ? ` · ${paymentStatusLabels[booking.paymentStatus] ?? booking.paymentStatus}`
-            : ""}
-        </Text>
+    <Pressable
+      onPress={() => router.push(`/buchungen/${booking.id}`)}
+      className="mb-4 flex-row gap-3 rounded-brand-lg border border-brand-border bg-brand-surface p-3 dark:border-brand-border-dark dark:bg-brand-surface-dark"
+    >
+      {coverPhoto ? (
+        <Image source={{ uri: coverPhoto }} className="h-24 w-28 rounded-brand-md" resizeMode="cover" />
+      ) : (
+        <View className="h-24 w-28 items-center justify-center rounded-brand-md bg-brand-background dark:bg-brand-background-dark">
+          <Text className="text-2xl">🏡</Text>
+        </View>
       )}
 
-      <View className="mt-3 flex-row items-center justify-between">
+      <View className="flex-1 justify-between py-0.5">
+        <View>
+          <Text
+            numberOfLines={1}
+            className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark"
+          >
+            {booking.facility.name}
+          </Text>
+          <Text
+            numberOfLines={1}
+            className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark"
+          >
+            {booking.facility.postalCode} {booking.facility.city}
+          </Text>
+          <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
+            {bookingTypeLabels[booking.bookingType]}
+            {booking.startDate
+              ? ` · ${formatDate(booking.startDate)}${booking.endDate ? ` – ${formatDate(booking.endDate)}` : ""}`
+              : ""}
+          </Text>
+        </View>
+
         {isCancelled ? (
-          <View className="rounded-brand-full bg-brand-border px-2 py-0.5 dark:bg-brand-border-dark">
+          <View className="self-start rounded-brand-full bg-brand-border px-2 py-0.5 dark:bg-brand-border-dark">
             <Text className="text-xs font-medium text-brand-text-muted dark:text-brand-text-muted-dark">
               Storniert
             </Text>
           </View>
-        ) : approval ? (
-          <View className={`rounded-brand-full px-2 py-0.5 ${toneClasses[approval.tone]}`}>
-            <Text className="text-xs font-medium">{approval.text}</Text>
-          </View>
         ) : (
-          <View />
-        )}
-
-        {!isCancelled &&
-          (confirming ? (
-            <View className="flex-row gap-2">
-              <Pressable
-                disabled={cancel.isPending}
-                onPress={handleCancel}
-                className="rounded-brand-md bg-red-600 px-3 py-1.5"
-              >
-                <Text className="text-xs font-semibold text-white">
-                  {cancel.isPending ? "Storniere…" : "Wirklich stornieren"}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setConfirming(false)}
-                className="rounded-brand-md border border-brand-border px-3 py-1.5 dark:border-brand-border-dark"
-              >
-                <Text className="text-xs font-semibold text-brand-text-muted dark:text-brand-text-muted-dark">
-                  Zurück
-                </Text>
-              </Pressable>
+          approval && (
+            <View className={`self-start rounded-brand-full px-2 py-0.5 ${toneClasses[approval.tone]}`}>
+              <Text className="text-xs font-medium">{approval.text}</Text>
             </View>
-          ) : (
-            <Pressable onPress={() => setConfirming(true)}>
-              <Text className="text-xs font-semibold text-brand-text-muted dark:text-brand-text-muted-dark">
-                Stornieren
-              </Text>
-            </Pressable>
-          ))}
+          )
+        )}
       </View>
-
-      {error && <Text className="mt-2 text-xs text-red-600">{error}</Text>}
-    </View>
+    </Pressable>
   );
 }
 
