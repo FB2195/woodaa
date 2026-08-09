@@ -41,12 +41,14 @@ module.exports = tseslint.config(
       "**/*.config.js",
       "**/*.config.ts",
       "**/*.config.mjs",
+      "**/*.cjs",
       "babel.config.js",
       "metro.config.js",
     ],
     languageOptions: {
       globals: {
         module: "readonly",
+        exports: "writable",
         require: "readonly",
         __dirname: "readonly",
         process: "readonly",

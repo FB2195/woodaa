@@ -11,6 +11,7 @@ mac:
   gatekeeperAssess: false
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
+  afterSign: scripts/afterSignAdhoc.cjs
   target:
     - target: dmg
       arch: [universal]
