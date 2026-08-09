@@ -1,5 +1,6 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, Image, ScrollView, Text, View } from "react-native";
+import { FacilityReviews } from "@/components/FacilityReviews";
 import { PflegekassenZuschussRechner } from "@/components/PflegekassenZuschussRechner";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/lib/AuthContext";
@@ -138,6 +139,14 @@ export default function FacilityDetailScreen() {
               }
               router.push(`/einrichtung/${facility.slug}/buchen`);
             }}
+          />
+
+          <FacilityReviews
+            facilitySlug={facility.slug}
+            facilityName={facility.name}
+            reviews={facility.reviews}
+            avgRating={facility.avgRating}
+            reviewCount={facility.reviewCount}
           />
         </View>
       </ScrollView>
