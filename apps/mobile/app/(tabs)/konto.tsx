@@ -15,6 +15,8 @@ const roleLabels = {
 const menuItems = [
   { href: "/konto/favoriten", label: "Favoriten" },
   { href: "/konto/persoenliche-angaben", label: "Persönliche Angaben" },
+  { href: "/konto/pflegeleistungen", label: "Meine Pflegeleistungen" },
+  { href: "/konto/bevollmaechtigung", label: "Bevollmächtigte/r Angehörige/r" },
   { href: "/konto/sicherheit", label: "Sicherheit (2FA)" },
   { href: "/konto/daten", label: "Meine Daten (DSGVO)" },
 ] as const;
