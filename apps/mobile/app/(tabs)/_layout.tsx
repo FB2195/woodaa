@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { useColorScheme } from "nativewind";
 import { Text } from "react-native";
 
 function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
@@ -6,13 +7,20 @@ function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
 }
 
 export default function TabsLayout() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   return (
     <Tabs
       screenOptions={{
         headerStyle: { backgroundColor: "#3E4A2B" },
         headerTintColor: "#FFFFFF",
         tabBarActiveTintColor: "#2F7D4F",
-        tabBarInactiveTintColor: "#6B6F62",
+        tabBarInactiveTintColor: isDark ? "#B7C2A8" : "#6B6F62",
+        tabBarStyle: {
+          backgroundColor: isDark ? "#223018" : "#FFFFFF",
+          borderTopColor: isDark ? "#37472A" : "#E4E2D8",
+        },
       }}
     >
       <Tabs.Screen

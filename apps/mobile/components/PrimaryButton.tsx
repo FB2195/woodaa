@@ -22,7 +22,7 @@ export function PrimaryButton({
       className={
         variant === "primary"
           ? `items-center rounded-brand-md bg-brand-accent px-6 py-3 ${isDisabled ? "opacity-50" : ""}`
-          : `items-center rounded-brand-md border border-brand-border bg-brand-surface px-6 py-3 ${isDisabled ? "opacity-50" : ""}`
+          : `items-center rounded-brand-md border border-brand-border bg-brand-surface px-6 py-3 dark:border-brand-border-dark dark:bg-brand-surface-dark ${isDisabled ? "opacity-50" : ""}`
       }
     >
       {loading ? (
@@ -32,7 +32,7 @@ export function PrimaryButton({
           className={
             variant === "primary"
               ? "text-base font-semibold text-white"
-              : "text-base font-semibold text-brand-primary-dark"
+              : "text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark"
           }
         >
           {label}

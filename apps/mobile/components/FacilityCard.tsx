@@ -1,6 +1,7 @@
 import type { BookingType } from "@woodaa/validators";
 import { Image, Pressable, Text, View } from "react-native";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
+import { resolvePhotoUrl } from "@/lib/photoUrl";
 
 // Structural rather than aliased straight from RouterOutputs["facility"]["list"] -
 // favorite.list returns the same facility shape minus the search-only
@@ -36,24 +37,26 @@ export function FacilityCard({
   facility: FacilityCardData;
   onPress: () => void;
 }) {
-  const coverPhoto = facility.photos[0]?.url ?? null;
+  const coverPhoto = resolvePhotoUrl(facility.photos[0]?.url);
 
   return (
     <Pressable
       onPress={onPress}
-      className="mb-4 overflow-hidden rounded-brand-lg border border-brand-border bg-brand-surface"
+      className="mb-4 overflow-hidden rounded-brand-lg border border-brand-border bg-brand-surface dark:border-brand-border-dark dark:bg-brand-surface-dark"
     >
       {coverPhoto ? (
         <Image source={{ uri: coverPhoto }} className="h-36 w-full" resizeMode="cover" />
       ) : (
-        <View className="h-36 w-full items-center justify-center bg-brand-background">
-          <Text className="text-brand-text-muted">Kein Foto</Text>
+        <View className="h-36 w-full items-center justify-center bg-brand-background dark:bg-brand-background-dark">
+          <Text className="text-brand-text-muted dark:text-brand-text-muted-dark">Kein Foto</Text>
         </View>
       )}
 
       <View className="p-4">
-        <Text className="text-base font-semibold text-brand-primary-dark">{facility.name}</Text>
-        <Text className="mt-0.5 text-sm text-brand-text-muted">
+        <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
+          {facility.name}
+        </Text>
+        <Text className="mt-0.5 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           {facility.postalCode} {facility.city}
           {facility.distanceKm != null ? ` · ${facility.distanceKm.toFixed(1)} km` : ""}
         </Text>
@@ -62,9 +65,9 @@ export function FacilityCard({
           {facility.capacities.map((capacity) => (
             <View
               key={capacity.bookingType}
-              className="rounded-brand-full border border-brand-border px-2 py-0.5"
+              className="rounded-brand-full border border-brand-border px-2 py-0.5 dark:border-brand-border-dark"
             >
-              <Text className="text-xs text-brand-text">
+              <Text className="text-xs text-brand-text dark:text-brand-text-dark">
                 {bookingTypeLabels[capacity.bookingType]}
               </Text>
             </View>
@@ -78,14 +81,16 @@ export function FacilityCard({
               : "Preis auf Anfrage"}
           </Text>
           {facility.avgRating != null && (
-            <Text className="text-xs text-brand-text-muted">
+            <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
               ★ {facility.avgRating.toFixed(1)} ({facility.reviewCount})
             </Text>
           )}
         </View>
 
         {facility.responseTimeBadge && (
-          <Text className="mt-1 text-xs text-brand-text-muted">{facility.responseTimeBadge}</Text>
+          <Text className="mt-1 text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+            {facility.responseTimeBadge}
+          </Text>
         )}
       </View>
     </Pressable>

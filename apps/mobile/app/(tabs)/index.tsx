@@ -21,9 +21,11 @@ export default function SearchScreen() {
   });
 
   return (
-    <View className="flex-1 bg-brand-background">
-      <View className="gap-3 border-b border-brand-border bg-brand-surface px-6 pb-4 pt-4">
-        <Text className="text-xl font-bold text-brand-primary-dark">Pflegeplatz finden</Text>
+    <View className="flex-1 bg-brand-background dark:bg-brand-background-dark">
+      <View className="gap-3 border-b border-brand-border bg-brand-surface px-6 pb-4 pt-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
+        <Text className="text-xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">
+          Pflegeplatz finden
+        </Text>
 
         <View className="flex-row gap-2">
           <TextInput
@@ -33,7 +35,7 @@ export default function SearchScreen() {
             placeholder="Ort oder PLZ"
             placeholderTextColor="#6B6F62"
             returnKeyType="search"
-            className="flex-1 rounded-brand-md border border-brand-border bg-brand-background px-3 py-2.5 text-base text-brand-text"
+            className="flex-1 rounded-brand-md border border-brand-border bg-brand-background px-3 py-2.5 text-base text-brand-text dark:border-brand-border-dark dark:bg-brand-background-dark dark:text-brand-text-dark"
           />
           <Pressable
             onPress={() => setCity(cityInput.trim())}
@@ -49,11 +51,11 @@ export default function SearchScreen() {
             className={`rounded-brand-full border px-3 py-1.5 ${
               bookingType === null
                 ? "border-brand-accent bg-brand-accent"
-                : "border-brand-border bg-brand-background"
+                : "border-brand-border bg-brand-background dark:border-brand-border-dark dark:bg-brand-background-dark"
             }`}
           >
             <Text
-              className={`text-xs font-medium ${bookingType === null ? "text-white" : "text-brand-text"}`}
+              className={`text-xs font-medium ${bookingType === null ? "text-white" : "text-brand-text dark:text-brand-text-dark"}`}
             >
               Alle
             </Text>
@@ -65,12 +67,14 @@ export default function SearchScreen() {
               className={`rounded-brand-full border px-3 py-1.5 ${
                 bookingType === option.value
                   ? "border-brand-accent bg-brand-accent"
-                  : "border-brand-border bg-brand-background"
+                  : "border-brand-border bg-brand-background dark:border-brand-border-dark dark:bg-brand-background-dark"
               }`}
             >
               <Text
                 className={`text-xs font-medium ${
-                  bookingType === option.value ? "text-white" : "text-brand-text"
+                  bookingType === option.value
+                    ? "text-white"
+                    : "text-brand-text dark:text-brand-text-dark"
                 }`}
               >
                 {option.label}
@@ -93,14 +97,14 @@ export default function SearchScreen() {
           contentContainerClassName="p-6"
           ListHeaderComponent={
             search.data ? (
-              <Text className="mb-3 text-sm text-brand-text-muted">
+              <Text className="mb-3 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
                 {search.data.totalCount} Treffer
                 {search.data.usedFallbackRadius ? " in der Umgebung" : ""}
               </Text>
             ) : null
           }
           ListEmptyComponent={
-            <Text className="pt-10 text-center text-sm text-brand-text-muted">
+            <Text className="pt-10 text-center text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
               Keine Einrichtungen gefunden.
             </Text>
           }

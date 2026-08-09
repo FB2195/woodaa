@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AuthProvider } from "@/lib/AuthContext";
+import { loadInitialTheme } from "@/lib/themeStore";
 import { trpc } from "@/lib/trpc";
 import { createMobileTrpcLinks } from "@/lib/trpcClient";
 import "../global.css";
@@ -9,6 +10,10 @@ import "../global.css";
 export default function RootLayout() {
   const [queryClient] = useState(() => new QueryClient());
   const [trpcClient] = useState(() => trpc.createClient({ links: createMobileTrpcLinks() }));
+
+  useEffect(() => {
+    loadInitialTheme();
+  }, []);
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
