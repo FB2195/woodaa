@@ -1,12 +1,29 @@
-// electron-builder skips macOS code signing entirely when no "Developer ID
-// Application" certificate is installed (no paid Apple Developer account
-// here yet) - it never touches mac.entitlements/entitlementsInherit in that
-// case. Without any signature, Apple Silicon Macs still ad-hoc-sign the
-// arm64 binary at first launch, but with no entitlements at all, which
-// makes V8 crash immediately (no JIT / no unsigned executable memory).
-// This hook force-signs the packaged .app ad-hoc ("-") with our
-// entitlements so V8 can actually run, independent of whether a real
-// certificate is ever configured.
+// Ad-hoc signing ("-", no real Apple identity) turns out to be insufficient
+// on real Apple-Silicon hardware: AMFI/Hardened Runtime won't actually grant
+// entitlements like allow-jit/allow-unsigned-executable-memory to ad-hoc
+// signed code, so V8 crashes on startup on a real Mac even though the
+// signature and entitlements look completely valid via `codesign -dvvv`
+// (confirmed - GitHub's macOS CI runners are Apple-hosted VMs that don't
+// enforce this the same way real hardware does, which is why CI never
+// caught it). The durable fix is a real "Developer ID Application"
+// certificate + notarization, not another ad-hoc workaround.
+//
+// Once CSC_LINK is set (see desktop-release.yml), electron-builder detects
+// the imported real certificate itself, signs with it, applies
+// mac.entitlements/entitlementsInherit, and auto-notarizes via the
+// APPLE_API_KEY/APPLE_API_KEY_ID/APPLE_API_ISSUER env vars - all before this
+// hook even runs. In that case this hook must NOT touch the bundle at all,
+// or it would clobber that real signature with an ad-hoc one again.
+//
+// Without CSC_LINK (e.g. no Apple Developer account configured yet, or a
+// local unsigned dev build), electron-builder skips signing entirely (no
+// "Developer ID Application" identity found in the keychain) - it never
+// touches mac.entitlements/entitlementsInherit in that case either. This
+// hook then falls back to force-signing the packaged .app ad-hoc so it's at
+// least launchable in environments that don't enforce the real-hardware
+// entitlement restriction (e.g. our own CI smoke test). This ad-hoc
+// fallback is known to NOT be sufficient on real Apple-Silicon Macs - see
+// above.
 //
 // Signing has to happen inside-out (every nested .framework/.app signed
 // individually, deepest first, then the outer bundle last) rather than via
@@ -39,6 +56,14 @@ function findNestedCodeTargets(appPath) {
 
 exports.default = async function afterSign(context) {
   if (context.electronPlatformName !== "darwin") return;
+
+  if (process.env.CSC_LINK) {
+    console.log(
+      "afterSignAdhoc: CSC_LINK is set - electron-builder already signed with a real " +
+        "Developer ID certificate (and will notarize), skipping the ad-hoc fallback.",
+    );
+    return;
+  }
 
   const appOutDir = context.appOutDir;
   const appName = fs.readdirSync(appOutDir).find((f) => f.endsWith(".app"));
