@@ -37,6 +37,34 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Isolation test (macOS) - does a bare, unmodified Electron demo crash here too?
+        if: matrix.os == 'macos-latest'
+        run: |
+          # Diagnostic only, never fails the job. Launches Electron's own
+          # official prebuilt binary straight from node_modules - no woodaa
+          # code, no electron-builder packaging, no custom signing/
+          # entitlements from our afterSign hook. If this crashes the same
+          # way, the cause is Electron/V8 vs. this specific runner/macOS/
+          # chip combination, not anything in our build config.
+          ELECTRON_APP=$(find apps/desktop/node_modules/electron/dist -maxdepth 1 -name "*.app" -print -quit)
+          if [ -z "$ELECTRON_APP" ]; then
+            echo "No bundled Electron.app found under node_modules/electron/dist - skipping isolation test."
+            exit 0
+          fi
+          EXECUTABLE="$ELECTRON_APP/Contents/MacOS/$(basename "$ELECTRON_APP" .app)"
+          echo "Launching bare $EXECUTABLE (Electron's own default demo app)"
+          "$EXECUTABLE" &
+          PID=$!
+          sleep 10
+          if kill -0 "$PID" 2>/dev/null; then
+            echo "ISOLATION RESULT: bare Electron demo is still running after 10s - did NOT crash."
+            kill "$PID" 2>/dev/null || true
+            wait "$PID" 2>/dev/null || true
+          else
+            wait "$PID" 2>/dev/null
+            echo "ISOLATION RESULT: bare Electron demo exited within 10s (code $?) - CRASHED, same as our app."
+          fi
+
       - name: Build installer
         run: pnpm --filter desktop run ${{ matrix.script }}
 
