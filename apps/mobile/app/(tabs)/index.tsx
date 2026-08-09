@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { DateField } from "@/components/DateField";
 import { FacilityCard } from "@/components/FacilityCard";
+import { buildPopularCities, HomeContent } from "@/components/home/HomeContent";
 import { LocationAutocomplete } from "@/components/LocationAutocomplete";
 import { SelectField } from "@/components/SelectField";
 import { bookingTypeOptions } from "@/lib/bookingTypeLabels";
@@ -90,6 +91,17 @@ export default function SearchScreen() {
         : undefined,
     onlyAvailable,
   });
+
+  // Mirrors apps/web's separate "/" vs "/suche" split: before any filter is
+  // engaged, this tab shows the landing content (see HomeContent) built
+  // from the same unfiltered facility.list results instead of an empty
+  // results list - the app only has room for Suche/Buchungen/Konto in the
+  // bottom nav, so "land on a homepage" means the Suche tab starts here
+  // rather than adding a 4th tab.
+  const hasInteracted = city !== "" || bookingType !== null;
+  const allResults = search.data?.results ?? [];
+  const popularCities = buildPopularCities(allResults);
+  const cityCount = new Set(allResults.map((f) => f.city)).size;
 
   return (
     <View className="flex-1 bg-brand-background dark:bg-brand-background-dark">
@@ -263,7 +275,18 @@ export default function SearchScreen() {
         )}
       </View>
 
-      {search.isLoading ? (
+      {!hasInteracted ? (
+        <HomeContent
+          facilityCount={search.data?.totalCount ?? 0}
+          cityCount={cityCount}
+          popularCities={popularCities}
+          onSelectCity={(selected) => {
+            setCityInput(selected);
+            setCity(selected);
+          }}
+          onSelectBookingType={setBookingType}
+        />
+      ) : search.isLoading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#2F7D4F" />
         </View>
