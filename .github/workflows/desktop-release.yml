@@ -43,7 +43,6 @@ jobs:
       - name: Smoke test (macOS) - launch the packaged app, fail if it crashes on startup
         if: matrix.os == 'macos-latest'
         run: |
-          set -e
           APP_PATH=$(find apps/desktop/release -maxdepth 2 -name "*.app" -print -quit)
           if [ -z "$APP_PATH" ]; then
             echo "No .app bundle found under apps/desktop/release"
@@ -59,23 +58,27 @@ jobs:
             echo "Still running after 8s - looks healthy."
             kill "$PID"
             wait "$PID" 2>/dev/null || true
-          else
-            wait "$PID"
-            EXIT_CODE=$?
-            echo "Exited within 8s (code $EXIT_CODE) - this usually means it crashed on startup."
-            echo "Waiting for macOS to write a crash report..."
-            sleep 5
-            REPORT=$(ls -t ~/Library/Logs/DiagnosticReports/"$APP_NAME"-*.ips 2>/dev/null | head -1)
-            if [ -n "$REPORT" ]; then
-              echo "===== Crash report: $REPORT ====="
-              cat "$REPORT"
-              echo "===== End crash report ====="
-            else
-              echo "No crash report found under ~/Library/Logs/DiagnosticReports/"
-              ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null || echo "(directory does not exist)"
-            fi
-            exit 1
+            exit 0
           fi
+
+          # Note: no `set -e` in this script - `wait` below returns the
+          # background process's (non-zero, crash) exit status, which would
+          # otherwise abort the script here and skip the crash-report dump.
+          EXIT_CODE=0
+          wait "$PID" || EXIT_CODE=$?
+          echo "Exited within 8s (code $EXIT_CODE) - this usually means it crashed on startup."
+          echo "Waiting for macOS to write a crash report..."
+          sleep 5
+          REPORT=$(ls -t ~/Library/Logs/DiagnosticReports/"$APP_NAME"-*.ips 2>/dev/null | head -1)
+          if [ -n "$REPORT" ]; then
+            echo "===== Crash report: $REPORT ====="
+            cat "$REPORT"
+            echo "===== End crash report ====="
+          else
+            echo "No crash report found under ~/Library/Logs/DiagnosticReports/"
+            ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null || echo "(directory does not exist)"
+          fi
+          exit 1
 
       - uses: actions/upload-artifact@v4
         with:
