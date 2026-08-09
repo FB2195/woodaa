@@ -62,5 +62,15 @@ export const config = {
   // Stripe regardless - Stripe never sends the site password either.
   // Data access itself stays protected by protectedProcedure's JWT check,
   // same as it always was for a logged-in browser session.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  //
+  // /facility-photos is exempt for the same "mobile has no Basic-Auth
+  // credential" reason as /api: withPhotoUrl (packages/api/src/r2.ts)
+  // returns these as root-relative URLs that the mobile app resolves
+  // against this origin (see apps/mobile/lib/photoUrl.ts) with a plain,
+  // unauthenticated fetch - a browser session gets away with it because
+  // it already cached Basic-Auth credentials from loading the page itself,
+  // but the app has none to send. Not a data exposure: these are seed/demo
+  // building photos, not Sozialdaten, and real operator-uploaded photos
+  // already bypass this gate entirely by living on R2's separate domain.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|facility-photos).*)"],
 };
