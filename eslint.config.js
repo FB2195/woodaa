@@ -52,6 +52,7 @@ module.exports = tseslint.config(
         require: "readonly",
         __dirname: "readonly",
         process: "readonly",
+        console: "readonly",
       },
     },
     rules: {
