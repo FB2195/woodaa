@@ -14,6 +14,8 @@ const roleLabels = {
 
 const menuItems = [
   { href: "/konto/favoriten", label: "Favoriten" },
+  { href: "/konto/persoenliche-angaben", label: "Persönliche Angaben" },
+  { href: "/konto/sicherheit", label: "Sicherheit (2FA)" },
   { href: "/konto/daten", label: "Meine Daten (DSGVO)" },
 ] as const;
 

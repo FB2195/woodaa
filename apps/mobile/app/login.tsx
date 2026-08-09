@@ -106,6 +106,9 @@ export default function LoginScreen() {
       />
 
       <View className="items-center gap-2 pt-2">
+        <Link href="/passwort-vergessen" className="text-xs text-brand-accent underline">
+          Passwort vergessen?
+        </Link>
         <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
           Noch kein Konto?{" "}
           <Link href="/registrieren" className="text-brand-accent underline">
