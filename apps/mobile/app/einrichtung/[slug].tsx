@@ -1,18 +1,12 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, Alert, Image, ScrollView, Text, View } from "react-native";
+import { PflegekassenZuschussRechner } from "@/components/PflegekassenZuschussRechner";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/lib/AuthContext";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
+import { formatPriceEuro } from "@/lib/format";
 import { resolvePhotoUrl } from "@/lib/photoUrl";
 import { trpc } from "@/lib/trpc";
-
-function formatPriceEuro(cents: number): string {
-  return new Intl.NumberFormat("de-DE", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
-}
 
 export default function FacilityDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -101,8 +95,15 @@ export default function FacilityDetailScreen() {
                   </View>
                   {capacity.monthlyPriceCents != null && (
                     <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-                      ab {formatPriceEuro(capacity.monthlyPriceCents)} / Monat
+                      ab {formatPriceEuro(capacity.monthlyPriceCents)} / Monat (Heimpreis vor
+                      Pflegekassen-Zuschuss)
                     </Text>
+                  )}
+                  {capacity.pflegegradPricing.length > 0 && (
+                    <PflegekassenZuschussRechner
+                      bookingType={capacity.bookingType}
+                      pflegegradPricing={capacity.pflegegradPricing}
+                    />
                   )}
                 </View>
               ))}
