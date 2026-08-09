@@ -4,6 +4,7 @@ import type {
   BookingType,
   PaymentMethod,
   PaymentStatus,
+  PhotoCategory,
   UnitBookingStatus,
 } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
@@ -31,6 +32,7 @@ import {
   deleteObject,
   headUploadedObjectSize,
   newDocumentKey,
+  withPhotoUrl,
 } from "../r2";
 import { refundBookingPayment, stripeClient } from "../stripe";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
@@ -48,6 +50,9 @@ export type MyBooking = {
   hoursPerDay: number | null;
   guestFirstName: string | null;
   guestLastName: string | null;
+  krankenkasse: string | null;
+  pflegegrad: number | null;
+  note: string | null;
   paymentMethod: PaymentMethod | null;
   paymentStatus: PaymentStatus | null;
   facilityApprovedAt: Date | null;
@@ -55,7 +60,14 @@ export type MyBooking = {
   facilityApprovalStatus: BookingFacilityApprovalStatus;
   createdAt: Date;
   cancelledAt: Date | null;
-  facility: { name: string; slug: string; street: string; postalCode: string; city: string };
+  facility: {
+    name: string;
+    slug: string;
+    street: string;
+    postalCode: string;
+    city: string;
+    photos: { url: string | null; category: PhotoCategory | null }[];
+  };
 };
 
 // Verbindliche, sofort bestätigte Buchung ("wie Booking.com") - im
@@ -296,8 +308,8 @@ export const bookingRouter = router({
   // Für "Meine Buchungen" im Konto - nur die eigenen Buchungen, neueste
   // zuerst. Kein decrypt der Versicherungsnummer, die wird hier nicht
   // gebraucht.
-  myBookings: protectedProcedure.query(({ ctx }): Promise<MyBooking[]> =>
-    ctx.db.booking.findMany({
+  myBookings: protectedProcedure.query(async ({ ctx }): Promise<MyBooking[]> => {
+    const bookings = await ctx.db.booking.findMany({
       where: { userId: ctx.user.id },
       orderBy: { createdAt: "desc" },
       select: {
@@ -310,6 +322,9 @@ export const bookingRouter = router({
         hoursPerDay: true,
         guestFirstName: true,
         guestLastName: true,
+        krankenkasse: true,
+        pflegegrad: true,
+        note: true,
         paymentMethod: true,
         paymentStatus: true,
         facilityApprovedAt: true,
@@ -318,11 +333,22 @@ export const bookingRouter = router({
         createdAt: true,
         cancelledAt: true,
         facility: {
-          select: { name: true, slug: true, street: true, postalCode: true, city: true },
+          select: {
+            name: true,
+            slug: true,
+            street: true,
+            postalCode: true,
+            city: true,
+            photos: { take: 1, orderBy: { createdAt: "asc" } },
+          },
         },
       },
-    }),
-  ),
+    });
+    return bookings.map((booking) => ({
+      ...booking,
+      facility: { ...booking.facility, photos: booking.facility.photos.map(withPhotoUrl) },
+    }));
+  }),
 
   // Storno durch die eingeloggte Nutzerin/den eingeloggten Nutzer selbst,
   // aus "Meine Buchungen" heraus - Berechtigung ist die Konto-Ownership
