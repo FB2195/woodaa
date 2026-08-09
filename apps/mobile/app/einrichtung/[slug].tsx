@@ -1,5 +1,5 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, Alert, Image, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, Text, View } from "react-native";
 import { PflegekassenZuschussRechner } from "@/components/PflegekassenZuschussRechner";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/lib/AuthContext";
@@ -130,16 +130,13 @@ export default function FacilityDetailScreen() {
           )}
 
           <PrimaryButton
-            label="Jetzt anfragen"
+            label="Pflegeplatz buchen"
             onPress={() => {
               if (!user) {
                 router.push("/login");
                 return;
               }
-              Alert.alert(
-                "In Kürze verfügbar",
-                "Der Buchungsablauf folgt in einem der nächsten Schritte.",
-              );
+              router.push(`/einrichtung/${facility.slug}/buchen`);
             }}
           />
         </View>
