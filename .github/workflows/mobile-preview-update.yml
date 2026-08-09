@@ -33,4 +33,12 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PUBLIC_API_URL: https://www.woodaa.de
-        run: eas update --branch preview --message "Preview update" --non-interactive
+        # Faking a TTY via `script` makes eas-cli print its normal
+        # human-facing output, including the Expo Go QR code / exp:// link
+        # section that only renders when stdout looks like a terminal - we
+        # don't want to hand-construct that URL ourselves, since getting the
+        # format wrong looks like a real failure on the phone (a manifest
+        # download error) rather than an obviously bad link. --non-interactive
+        # is kept so any prompts (e.g. "install expo-updates?") auto-accept
+        # instead of hanging with no stdin attached.
+        run: script -qec "eas update --branch preview --message 'Preview update' --non-interactive" /dev/null
