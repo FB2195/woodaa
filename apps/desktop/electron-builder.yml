@@ -7,6 +7,10 @@ files:
   - package.json
 mac:
   category: public.app-category.business
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
   target:
     - target: dmg
       arch: [universal]
