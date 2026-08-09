@@ -40,6 +40,32 @@ jobs:
       - name: Build installer
         run: pnpm --filter desktop run ${{ matrix.script }}
 
+      - name: Smoke test (macOS) - launch the packaged app, fail if it crashes on startup
+        if: matrix.os == 'macos-latest'
+        run: |
+          set -e
+          APP_PATH=$(find apps/desktop/release -maxdepth 2 -name "*.app" -print -quit)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found under apps/desktop/release"
+            exit 1
+          fi
+          APP_NAME=$(basename "$APP_PATH" .app)
+          EXECUTABLE="$APP_PATH/Contents/MacOS/$APP_NAME"
+          echo "Launching $EXECUTABLE"
+          "$EXECUTABLE" &
+          PID=$!
+          sleep 8
+          if kill -0 "$PID" 2>/dev/null; then
+            echo "Still running after 8s - looks healthy."
+            kill "$PID"
+            wait "$PID" 2>/dev/null || true
+          else
+            wait "$PID"
+            EXIT_CODE=$?
+            echo "Exited within 8s (code $EXIT_CODE) - this usually means it crashed on startup."
+            exit 1
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: woodaa-desktop-${{ matrix.os }}
