@@ -5,13 +5,13 @@ directories:
 files:
   - out/**/*
   - package.json
+afterSign: scripts/afterSignAdhoc.cjs
 mac:
   category: public.app-category.business
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
-  afterSign: scripts/afterSignAdhoc.cjs
   target:
     - target: dmg
       arch: [universal]
