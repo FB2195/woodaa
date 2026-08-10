@@ -1,7 +1,9 @@
 import { router, Tabs } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { Image, Pressable, Text, View } from "react-native";
-import woodaaLogo from "../../assets/splash-icon.png";
+// Dark-background-safe color variant (see assets/README.md) - this header
+// always sits on the dark green headerStyle background below.
+import woodaaLogo from "../../assets/wordmark-dark-bg.png";
 
 function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
   return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{symbol}</Text>;
@@ -14,7 +16,7 @@ function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
 // gibt es serverseitig noch nicht, die Icons führen vorerst zu einem
 // "Kommt bald"-Screen.
 function SearchHeaderTitle() {
-  return <Image source={woodaaLogo} style={{ width: 84, height: 44 }} resizeMode="contain" />;
+  return <Image source={woodaaLogo} style={{ width: 129, height: 36 }} resizeMode="contain" />;
 }
 
 function SearchHeaderRight() {

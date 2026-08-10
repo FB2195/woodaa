@@ -1,9 +1,23 @@
-`splash-icon.png` (Kopie von apps/web/public/logo.png, unbeschnitten)
-wird von components/AppSplashOverlay.tsx fuer den JS-gerenderten
-Splash-Ersatz verwendet - dort wird die Groesse explizit per style
-gesetzt, daher unpadded.
+`wordmark-dark-bg.png` und `wordmark-light-bg.png` sind der aktuelle
+Wordmark (Lupe mit medizinischem Kreuz + "Wo? Da!"-Tagline, vom Nutzer
+als offizielles Logo geliefert), unbeschnitten (tight bounding box),
+in zwei Farbvarianten: Das Original ist eine flache Salbeigruen-Schrift
+mit sehr hellgrauer Tagline - das liest sich gut auf einem dunklen
+Hintergrund (`wordmark-dark-bg.png`, unveraendert, genutzt im
+Tab-Header vor dessen dunkelgruenem headerStyle-Hintergrund), aber auf
+dem hellen/cremefarbenen App-Hintergrund (#FAF9F5) waere der Kontrast
+zu schwach (WCAG-Kontrast Haupttext ~2.6:1, Tagline ~1.2:1 - praktisch
+unsichtbar). `wordmark-light-bg.png` ist exakt dieselbe Grafik, nur mit
+Haupttext/Tagline auf die Marken-Farbtoene primary (#5B6B3F, ~5.5:1
+Kontrast) bzw. textMuted (#6B6F62, ~4.9:1 Kontrast) aus
+packages/ui/src/tokens.ts umgefaerbt (per Farbabstand-Ersetzung, nur
+die beiden flachen Text-Farbtoene betroffen, die Lupen-/Kreuz-Grafik
+mit ihrem eigenen Gradient/Schatten blieb unangetastet) - wird ueberall
+auf hellem Hintergrund verwendet (aktuell components/AppSplashOverlay.tsx).
+Falls das Logo kuenftig auf weiteren Hintergruenden auftaucht, die
+passende Variante waehlen statt eine dritte Farbvariante zu erfinden.
 
-`splash-native.png` ist dieselbe Grafik, aber auf einer 2000x2000
+`splash-native.png` ist `wordmark-light-bg.png` auf einer 2000x2000
 groesstenteils transparenten Flaeche zentriert (Logo ca. 35% der
 Breite). Wird ueber den legacy `splash`-Key in app.json
 (image/resizeMode/backgroundColor) als natives Splash-Bild verwendet -
@@ -20,14 +34,8 @@ dort) eine Mindestanzeigezeit ein, damit das Logo nicht nur kurz
 aufblitzt.
 
 `icon.png` (App-Icon) und `adaptive-icon-foreground.png`
-(Android-Adaptive-Icon-Vordergrund) sind das Wordmark zentriert auf
-einer 1024x1024-Flaeche - das Logo selbst ist kein quadratisches
-Icon-Motiv (kein separates Bildzeichen ohne Schriftzug vorhanden),
-daher wird hier bewusst das volle Wordmark verkleinert dargestellt statt
-ein Ausschnitt (ein Crop wuerde benachbarte Buchstaben anschneiden, da
-die Lupe eng mit den umgebenden "o"s verschraenkt ist). `icon.png` hat
-einen deckenden Hintergrund (#FAF9F5), `adaptive-icon-foreground.png`
-ist transparent (Android komponiert es ueber
-`android.adaptiveIcon.backgroundColor`) und nutzt einen kleineren
-Logo-Anteil (55% statt 72% Breite) fuer Androids aggressiveren
-Adaptive-Icon-Sicherheitsbereich.
+(Android-Adaptive-Icon-Vordergrund) sind noch vom **alten** Wordmark
+(Lupe mit Weltkugel statt Kreuz) generiert - der Nutzer schickt fuer
+das eigentliche App-Icon (Homescreen-Kachel) ein separates, dediziertes
+Design, das diese beiden Dateien ersetzen wird. Bis dahin unveraendert
+gelassen, um dem nicht vorzugreifen.
