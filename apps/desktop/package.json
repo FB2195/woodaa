@@ -31,7 +31,7 @@
     "@vitejs/plugin-react": "^4.3.2",
     "@woodaa/config": "workspace:*",
     "autoprefixer": "^10.4.20",
-    "electron": "^43.3.0",
+    "electron": "42.8.1",
     "electron-builder": "^25.1.8",
     "electron-vite": "^2.3.0",
     "postcss": "^8.4.47",
