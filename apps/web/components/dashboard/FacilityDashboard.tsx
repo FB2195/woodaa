@@ -9,6 +9,7 @@ import { HouseRulesForm } from "./HouseRulesForm";
 import { OperatorReviews } from "./OperatorReviews";
 import { PaymentApprovals } from "./PaymentApprovals";
 import { PflegegradSuitabilityForm } from "./PflegegradSuitabilityForm";
+import { HandoverNotes } from "./HandoverNotes";
 import { PhotoManager } from "./PhotoManager";
 import { PublicListingPrompt } from "./PublicListingPrompt";
 import { TeamTasks } from "./TeamTasks";
@@ -96,6 +97,8 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
       <WaitlistEntries />
 
       <TeamTasks />
+
+      <HandoverNotes />
 
       <BookingApprovalModeForm mode={facility.bookingApprovalMode} />
 
