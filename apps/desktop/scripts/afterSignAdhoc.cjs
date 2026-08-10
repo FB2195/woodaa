@@ -179,8 +179,22 @@ function signRealFlatDeep(appPath, entitlements) {
       throw new Error("afterSign: no Developer ID Application identity found in the imported keychain");
     }
     const identity = hashMatch[1];
-    console.log(`afterSign: signing with real identity ${identity} (flat --deep)`);
 
+    // Loose files first, --deep last: a .framework's own CodeResources
+    // seal hashes everything under its Resources/Libraries as literal
+    // resources, so signing those loose files AFTER --deep already sealed
+    // the framework invalidates the framework's (and in turn the outer
+    // app's) signature - confirmed by notarization rejecting exactly the
+    // outer app + Electron Framework + Squirrel with "signature of the
+    // binary is invalid" once this was done in the wrong order. Signing
+    // the loose files first, then letting --deep do the outer bundle
+    // (and, as part of that, re-seal every nested .framework/.app) last,
+    // means the frameworks' own seals correctly reflect their already-
+    // final Libraries/Resources/Helpers content.
+    console.log(`afterSign: signing loose files with real identity ${identity}`);
+    signLooseMachO(appPath, identity, entitlements, keychainPath);
+
+    console.log(`afterSign: signing with real identity ${identity} (flat --deep)`);
     execFileSync(
       "codesign",
       [
@@ -199,13 +213,6 @@ function signRealFlatDeep(appPath, entitlements) {
       ],
       { stdio: "inherit" },
     );
-
-    // Nested frameworks/apps each carry their own separate embedded
-    // signature (not byte-hashed into the outer bundle's own seal), so
-    // signing these loose files after the --deep pass above doesn't
-    // invalidate the outer app's already-valid signature - no need to
-    // re-seal it again afterward.
-    signLooseMachO(appPath, identity, entitlements, keychainPath);
 
     console.log("afterSign: signature details after signing (checking for Timestamp=...):");
     execFileSync("codesign", ["-dvvv", appPath], { stdio: "inherit" });
