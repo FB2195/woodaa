@@ -4,7 +4,22 @@
 <dict>
   <key>com.apple.security.cs.allow-jit</key>
   <true/>
-  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <!--
+    A real crash report plus a reproduction in CI (see desktop-release.yml's
+    smoke test) both show the packaged, hardened-runtime-signed app dying
+    with EXC_BREAKPOINT/brk 0 inside V8, before any of our own code runs -
+    at the identical byte offset in Electron Framework both times, but not
+    on every launch. That pattern (same crash site, intermittent) matches a
+    known unresolved class of Electron/V8 bug on Apple Silicon: a race when
+    V8 toggles a JIT memory page between writable and executable under
+    hardened runtime (see electron/electron#51351, #49522 - both closed
+    without a fix). disable-executable-page-protection removes the
+    toggling entirely (pages stay both writable and executable at once),
+    which eliminates that race at the cost of weakening this process's W^X
+    exploit mitigation. It supersedes allow-unsigned-executable-memory
+    (the latter is redundant once this is set).
+  -->
+  <key>com.apple.security.cs.disable-executable-page-protection</key>
   <true/>
   <key>com.apple.security.cs.allow-dyld-environment-variables</key>
   <true/>
