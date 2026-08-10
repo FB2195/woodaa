@@ -222,6 +222,60 @@ jobs:
             echo "BARE SIGNED ELECTRON RESULT: exited without a crash stop reason - treating as healthy."
           fi
 
+      - name: Smoke test signed Electron + trivial custom main.js (macOS, diagnostic only)
+        # Bisecting further: the step above proved bare signed Electron (its
+        # own internal default_app, no custom main.js at all) doesn't crash,
+        # but our real packaged app (full main.ts - safeStorage, ipcMain,
+        # preload, loading real renderer content) does. This is the missing
+        # middle rung - the same signed Electron binary, given the smallest
+        # possible custom main.js (one BrowserWindow, nothing else) via
+        # Electron's `electron path-to-app` CLI convention. If this crashes,
+        # the trigger is "any custom app loaded at all" (something structural
+        # in how a real vs. default_app boots) rather than anything specific
+        # in our own main.ts.
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: |
+          ELECTRON_APP=$(find /tmp/electron-bare -maxdepth 1 -name "*.app" -print -quit)
+          if [ -z "$ELECTRON_APP" ]; then
+            echo "No signed bare Electron.app to test - skipping."
+            exit 0
+          fi
+          EXECUTABLE="$ELECTRON_APP/Contents/MacOS/$(basename "$ELECTRON_APP" .app)"
+
+          mkdir -p /tmp/minimal-app
+          cat > /tmp/minimal-app/package.json <<'JSON'
+          {"name": "minimal-app", "main": "index.js"}
+          JSON
+          cat > /tmp/minimal-app/index.js <<'JS'
+          const { app, BrowserWindow } = require("electron");
+          app.whenReady().then(() => {
+            new BrowserWindow({ show: false });
+          });
+          JS
+
+          echo "Launching signed Electron + minimal custom main.js under lldb (quarantined)"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" /tmp/minimal-app \
+            > minimal-lldb-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "MINIMAL CUSTOM APP RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          cat minimal-lldb-output.txt
+          if grep -q "stop reason" minimal-lldb-output.txt; then
+            echo "MINIMAL CUSTOM APP RESULT: CRASHED (see backtrace above) - a trivial custom main.js is enough to trigger it, not anything specific to woodaa's own code."
+          else
+            echo "MINIMAL CUSTOM APP RESULT: exited without a crash stop reason - treating as healthy."
+          fi
+
       - name: Smoke test (macOS) - launch the packaged app, fail if it crashes on startup
         if: matrix.os == 'macos-latest'
         run: |
