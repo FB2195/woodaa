@@ -62,7 +62,11 @@ export function AccountMenu({ role }: { role: "SUCHENDE" | "BETREIBER" | "ADMIN"
     role === "SUCHENDE"
       ? [
           { href: "/konto/buchungen", label: "Meine Buchungen", icon: <CalendarIcon /> },
-          { href: "/konto/pflegeleistungen", label: "Pflegeleistungen", icon: <HeartPulseIcon /> },
+          {
+            href: "/konto/pflegeleistungen",
+            label: "Pflegeleistungen beantragen",
+            icon: <HeartPulseIcon />,
+          },
           {
             href: "/konto/bevollmaechtigung",
             label: "Bevollmächtigte/r Angehörige/r",

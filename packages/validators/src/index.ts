@@ -654,6 +654,17 @@ export type ChatMessageInput = z.infer<typeof ChatMessageInput>;
 
 // A real Sozialversicherungsnummer, not just a display string - loosely
 export const UpdateCareProfileInput = z.object({
+  // Same constraints as RegisterSuchendeInput above - these fields are
+  // collected at registration but were never editable afterward (neither
+  // web nor mobile exposed an update path), even though myCareProfile
+  // already returns them for booking-prefill purposes.
+  vorname: z.string().trim().min(1).max(100).optional(),
+  nachname: z.string().trim().min(1).max(100).optional(),
+  geburtsdatum: z.string().date().optional(),
+  street: z.string().trim().min(1).max(200).optional(),
+  postalCode: z.string().trim().min(1).max(20).optional(),
+  city: z.string().trim().min(1).max(200).optional(),
+  phone: z.string().trim().max(50).optional(),
   versicherungsnummer: Versicherungsnummer.optional(),
   pflegegrad: Pflegegrad.optional(),
   pflegegradAntragLaeuft: z.boolean().optional(),

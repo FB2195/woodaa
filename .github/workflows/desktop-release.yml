@@ -75,10 +75,17 @@ jobs:
           fi
 
       - name: Write Apple notarization API key (macOS, only if configured)
-        if: matrix.os == 'macos-latest' && secrets.APPLE_API_KEY_P8 != ''
+        if: matrix.os == 'macos-latest'
         env:
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
         run: |
+          # secrets.* isn't allowed in a step's `if:`, so the "only if
+          # configured" check happens here instead - if the secret is unset
+          # this is a no-op and the ad-hoc signing fallback stays active.
+          if [ -z "$APPLE_API_KEY_P8" ]; then
+            echo "APPLE_API_KEY_P8 not set - skipping (ad-hoc signing fallback will be used)."
+            exit 0
+          fi
           mkdir -p "$RUNNER_TEMP/apple"
           printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/apple/AuthKey.p8"
           echo "APPLE_API_KEY=$RUNNER_TEMP/apple/AuthKey.p8" >> "$GITHUB_ENV"
@@ -98,6 +105,21 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      - name: Verify code signature and entitlements (macOS)
+        # Regardless of ad-hoc vs. real Developer ID signing, confirm what
+        # actually landed in the shipped bundle - the afterSign hook only
+        # prints this itself in the ad-hoc fallback path, so the real-signing
+        # path (electron-builder's own @electron/osx-sign call) has never
+        # been checked here before.
+        if: matrix.os == 'macos-latest'
+        run: |
+          APP_PATH=$(find apps/desktop/release -maxdepth 2 -name "*.app" -print -quit)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found under apps/desktop/release"
+            exit 1
+          fi
+          codesign -dvvv --entitlements - "$APP_PATH"
+
       - name: Smoke test (macOS) - launch the packaged app, fail if it crashes on startup
         if: matrix.os == 'macos-latest'
         run: |
@@ -108,7 +130,15 @@ jobs:
           fi
           APP_NAME=$(basename "$APP_PATH" .app)
           EXECUTABLE="$APP_PATH/Contents/MacOS/$APP_NAME"
-          echo "Launching $EXECUTABLE under lldb"
+          # A real downloaded app carries a Gatekeeper quarantine xattr,
+          # which triggers a stricter runtime assessment than a bare local
+          # launch does. A user report showed the notarized build crashing
+          # on real hardware (EXC_BREAKPOINT/SIGTRAP at startup) even though
+          # this smoke test passed - reproducing that gap here so CI can
+          # actually catch it instead of only finding out from a crash
+          # report days later.
+          xattr -w com.apple.quarantine "0081;00000000;Chrome;" "$APP_PATH"
+          echo "Launching $EXECUTABLE under lldb (quarantined, simulating a real download)"
           # macOS's async ReportCrash daemon doesn't appear to run on these
           # ephemeral CI images (no crash report ever showed up under
           # ~/Library/Logs/DiagnosticReports/ despite the app reliably

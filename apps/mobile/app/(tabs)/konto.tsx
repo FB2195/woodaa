@@ -1,6 +1,20 @@
 import { router } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import type { ReactNode } from "react";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  BellIcon,
+  CalendarIcon,
+  ChevronRightIcon,
+  DownloadIcon,
+  HeartPulseIcon,
+  HelpCircleIcon,
+  LockIcon,
+  PersonIcon,
+  ShieldIcon,
+  TrashIcon,
+  UsersIcon,
+} from "@/components/account/icons";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/lib/AuthContext";
 import { setTheme } from "@/lib/themeStore";
@@ -12,14 +26,44 @@ const roleLabels = {
   ADMIN: "Admin",
 } as const;
 
-const menuItems = [
-  { href: "/konto/favoriten", label: "Favoriten" },
-  { href: "/konto/persoenliche-angaben", label: "Persönliche Angaben" },
-  { href: "/konto/pflegeleistungen", label: "Meine Pflegeleistungen" },
-  { href: "/konto/bevollmaechtigung", label: "Bevollmächtigte/r Angehörige/r" },
-  { href: "/konto/sicherheit", label: "Sicherheit (2FA)" },
-  { href: "/konto/daten", label: "Meine Daten (DSGVO)" },
-] as const;
+type MenuItem = { href: Parameters<typeof router.push>[0]; label: string; icon: ReactNode };
+
+// Mobile port of apps/web/components/account/AccountMenu.tsx - gleiche
+// Gruppierung, Label und Reihenfolge, damit sich "Mein Konto" auf App und
+// Web identisch anfühlt. "Favoriten" ist ein Mobile-Zusatz (auf Web über den
+// Header erreichbar, hier gibt es keinen persistenten Header-Link dafür).
+function MenuRow({ href, label, icon }: MenuItem) {
+  return (
+    <Pressable
+      onPress={() => router.push(href)}
+      className="flex-row items-center justify-between gap-3 border-b border-brand-border px-4 py-4 last:border-b-0 dark:border-brand-border-dark"
+    >
+      <View className="flex-1 flex-row items-center gap-3">
+        {icon}
+        <Text className="text-sm font-medium text-brand-text dark:text-brand-text-dark">
+          {label}
+        </Text>
+      </View>
+      <ChevronRightIcon />
+    </Pressable>
+  );
+}
+
+function MenuSection({ title, items }: { title: string; items: MenuItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <View className="mt-6">
+      <Text className="mb-2 text-sm font-semibold text-brand-text-muted dark:text-brand-text-muted-dark">
+        {title}
+      </Text>
+      <View className="overflow-hidden rounded-brand-lg border border-brand-border bg-brand-surface dark:border-brand-border-dark dark:bg-brand-surface-dark">
+        {items.map((item) => (
+          <MenuRow key={item.href as string} {...item} />
+        ))}
+      </View>
+    </View>
+  );
+}
 
 export default function AccountScreen() {
   const { user, isLoading, logout } = useAuth();
@@ -55,8 +99,57 @@ export default function AccountScreen() {
     );
   }
 
+  const kontoItems: MenuItem[] = [
+    { href: "/konto/favoriten", label: "Favoriten", icon: <HeartPulseIcon /> },
+    { href: "/konto/persoenliche-angaben", label: "Persönliche Angaben", icon: <PersonIcon /> },
+    ...(user.role !== "ADMIN"
+      ? [{ href: "/konto/sicherheit" as const, label: "Sicherheitseinstellungen", icon: <LockIcon /> }]
+      : []),
+    ...(user.role !== "ADMIN"
+      ? [{ href: "/konto/konto-loeschen" as const, label: "Konto löschen", icon: <TrashIcon /> }]
+      : []),
+  ];
+
+  const buchungenItems: MenuItem[] =
+    user.role === "SUCHENDE"
+      ? [
+          { href: "/(tabs)/buchungen", label: "Meine Buchungen", icon: <CalendarIcon /> },
+          {
+            href: "/konto/pflegeleistungen",
+            label: "Pflegeleistungen beantragen",
+            icon: <HeartPulseIcon />,
+          },
+          {
+            href: "/konto/bevollmaechtigung",
+            label: "Bevollmächtigte/r Angehörige/r",
+            icon: <UsersIcon />,
+          },
+          {
+            href: "/konto/gespeicherte-suchen",
+            label: "Gespeicherte Suchen",
+            icon: <BellIcon />,
+          },
+        ]
+      : [];
+
+  const hilfeItems: MenuItem[] = [
+    { href: "/konto/kundenservice", label: "Kundenservice", icon: <HelpCircleIcon /> },
+    { href: "/konto/hilfe", label: "Hilfe & FAQ", icon: <HelpCircleIcon /> },
+    { href: "/konto/fehler-melden", label: "Fehler/Problem melden", icon: <HelpCircleIcon /> },
+  ];
+
+  const rechtlichesItems: MenuItem[] = [
+    { href: "/konto/daten", label: "Meine Daten exportieren", icon: <DownloadIcon /> },
+    { href: "/konto/datenschutz", label: "Datenschutz", icon: <ShieldIcon /> },
+    { href: "/konto/nutzungsbedingungen", label: "Nutzungsbedingungen", icon: <ShieldIcon /> },
+    { href: "/konto/impressum", label: "Impressum", icon: <ShieldIcon /> },
+  ];
+
   return (
-    <View className="flex-1 gap-4 bg-brand-background px-6 py-8 dark:bg-brand-background-dark">
+    <ScrollView
+      className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+      contentContainerClassName="gap-4 px-6 py-8"
+    >
       <View className="rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
         <Text className="text-lg font-semibold text-brand-primary-dark">{user.name}</Text>
         <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
@@ -70,24 +163,17 @@ export default function AccountScreen() {
         )}
       </View>
 
-      <View className="overflow-hidden rounded-brand-lg border border-brand-border bg-brand-surface dark:border-brand-border-dark dark:bg-brand-surface-dark">
-        {menuItems.map((item, index) => (
-          <Pressable
-            key={item.href}
-            onPress={() => router.push(item.href)}
-            className={`px-4 py-3.5 ${index > 0 ? "border-t border-brand-border dark:border-brand-border-dark" : ""}`}
-          >
-            <Text className="text-sm font-medium text-brand-text dark:text-brand-text-dark">
-              {item.label}
-            </Text>
-          </Pressable>
-        ))}
+      <MenuSection title="Konto verwalten" items={kontoItems} />
+      <MenuSection title="Meine Buchungen & Pflege" items={buchungenItems} />
+      <MenuSection title="Hilfe" items={hilfeItems} />
+      <MenuSection title="Rechtliches und Datenschutz" items={rechtlichesItems} />
+
+      <View className="mt-2">
+        <ThemeToggle colorScheme={colorScheme} />
       </View>
 
-      <ThemeToggle colorScheme={colorScheme} />
-
       <PrimaryButton label="Abmelden" variant="secondary" onPress={() => logout()} />
-    </View>
+    </ScrollView>
   );
 }
 

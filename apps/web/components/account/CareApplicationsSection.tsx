@@ -1,10 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { BookingType, SettableCareApplicationStatus } from "@woodaa/validators";
 import { bookingTypeOptions } from "@/lib/bookingTypeLabels";
 import { formatDate } from "@/lib/format";
-import { pflegegradOptions } from "@/lib/pflegegradLabels";
 import { trpc } from "@/lib/trpc";
 import { CareApplicationSubmitForm } from "./CareApplicationSubmitForm";
 
@@ -12,11 +12,7 @@ export function CareApplicationsSection() {
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.careApplication.myCareProfile.useQuery();
   const [openSubmitFor, setOpenSubmitFor] = useState<BookingType | null>(null);
-  const [profileError, setProfileError] = useState<string | null>(null);
 
-  const updateProfile = trpc.careApplication.updateCareProfile.useMutation({
-    onSuccess: () => utils.careApplication.myCareProfile.invalidate(),
-  });
   const setStatus = trpc.careApplication.setCareApplicationStatus.useMutation({
     onSuccess: () => utils.careApplication.myCareProfile.invalidate(),
   });
@@ -27,101 +23,32 @@ export function CareApplicationsSection() {
     data.applications.map((a) => [a.bookingType, a]),
   ) as Partial<Record<BookingType, (typeof data.applications)[number]>>;
 
-  const pflegegradAntragLabel =
-    data.pflegegrad === null || data.pflegegrad === 0
-      ? "Pflegegrad-Antrag läuft bereits"
-      : "Höherstufung ist bereits beantragt";
+  const missingProfileData = !data.versicherungsnummer || data.pflegegrad === null;
 
   return (
     <div>
       <p className="text-sm text-brand-text-muted">
-        Hinterlege deine Versicherungsnummer und deinen Pflegegrad - wir
-        helfen dir dann, offene Anträge direkt bei eurer Krankenkasse
-        einzureichen.
+        Hier kannst du offene Anträge direkt bei eurer Krankenkasse
+        einreichen. Versicherungsnummer und Pflegegrad pflegst du unter{" "}
+        <Link href="/konto/persoenliche-angaben" className="underline">
+          Persönliche Angaben
+        </Link>
+        .
       </p>
 
-      <form
-        className="mt-4 flex flex-col gap-3 rounded-brand-lg border border-brand-border bg-brand-surface p-5"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          setProfileError(null);
-          const form = new FormData(event.currentTarget);
-          const versicherungsnummer = String(form.get("versicherungsnummer") ?? "").trim();
-          const pflegegradRaw = String(form.get("pflegegrad") ?? "");
-          const krankenkasse = String(form.get("krankenkasse") ?? "").trim();
-
-          try {
-            await updateProfile.mutateAsync({
-              ...(versicherungsnummer ? { versicherungsnummer } : {}),
-              ...(pflegegradRaw !== ""
-                ? { pflegegrad: Number(pflegegradRaw) as 0 | 1 | 2 | 3 | 4 | 5 }
-                : {}),
-              ...(krankenkasse ? { krankenkasse } : {}),
-            });
-          } catch (err) {
-            setProfileError(
-              err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.",
-            );
-          }
-        }}
-      >
-        <label className="flex flex-col gap-1 text-sm text-brand-text">
-          Versicherungsnummer
-          <input
-            name="versicherungsnummer"
-            defaultValue={data.versicherungsnummer ?? ""}
-            placeholder="z. B. A123456789"
-            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm text-brand-text">
-          Krankenkasse
-          <input
-            name="krankenkasse"
-            defaultValue={data.krankenkasse ?? ""}
-            placeholder="z. B. AOK, TK, Barmer…"
-            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm text-brand-text">
-          Aktueller Pflegegrad
-          <select
-            name="pflegegrad"
-            defaultValue={data.pflegegrad ?? ""}
-            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+      {missingProfileData && (
+        <p className="mt-3 rounded-brand-md bg-brand-background p-3 text-sm text-brand-text-muted">
+          Bitte hinterlege zuerst deine Versicherungsnummer und deinen
+          Pflegegrad unter{" "}
+          <Link
+            href="/konto/persoenliche-angaben"
+            className="font-medium text-brand-accent underline"
           >
-            <option value="">Nicht angegeben</option>
-            {pflegegradOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex items-center gap-2 text-sm text-brand-text">
-          <input
-            type="checkbox"
-            checked={data.pflegegradAntragLaeuft}
-            onChange={(event) =>
-              updateProfile.mutate({ pflegegradAntragLaeuft: event.target.checked })
-            }
-          />
-          {pflegegradAntragLabel}
-        </label>
-
-        {profileError && <p className="text-sm text-red-600">{profileError}</p>}
-
-        <button
-          type="submit"
-          disabled={updateProfile.isPending}
-          className="self-start rounded-brand-md bg-brand-accent px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-        >
-          {updateProfile.isPending ? "Wird gespeichert…" : "Speichern"}
-        </button>
-      </form>
+            Persönliche Angaben
+          </Link>
+          , bevor du Anträge einreichst.
+        </p>
+      )}
 
       {!data.krankenkasseConfigured && (
         <p className="mt-3 text-xs text-brand-text-muted">
@@ -165,7 +92,9 @@ export function CareApplicationsSection() {
                 )}
               </div>
 
-              {status === "MUSS_BEANTRAGT_WERDEN" && data.krankenkasseConfigured && (
+              {status === "MUSS_BEANTRAGT_WERDEN" &&
+                data.krankenkasseConfigured &&
+                !missingProfileData && (
                 <>
                   {openSubmitFor === value ? (
                     <CareApplicationSubmitForm

@@ -72,6 +72,15 @@ export const careApplicationRouter = router({
       await ctx.db.user.update({
         where: { id: ctx.user.id },
         data: {
+          ...(input.vorname !== undefined ? { vorname: input.vorname } : {}),
+          ...(input.nachname !== undefined ? { nachname: input.nachname } : {}),
+          ...(input.geburtsdatum !== undefined
+            ? { geburtsdatum: new Date(input.geburtsdatum) }
+            : {}),
+          ...(input.street !== undefined ? { street: input.street } : {}),
+          ...(input.postalCode !== undefined ? { postalCode: input.postalCode } : {}),
+          ...(input.city !== undefined ? { city: input.city } : {}),
+          ...(input.phone !== undefined ? { phone: input.phone } : {}),
           ...(input.versicherungsnummer !== undefined
             ? { versicherungsnummerEncrypted: encryptSecret(input.versicherungsnummer) }
             : {}),

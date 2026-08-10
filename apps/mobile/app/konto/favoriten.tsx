@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router, Stack } from "expo-router";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { FacilityCard } from "@/components/FacilityCard";
 import { trpc } from "@/lib/trpc";
@@ -19,7 +19,9 @@ export default function FavoritenScreen() {
   }
 
   return (
-    <FlatList
+    <>
+      <Stack.Screen options={{ title: "Favoriten" }} />
+      <FlatList
       className="flex-1 bg-brand-background dark:bg-brand-background-dark"
       contentContainerClassName="p-6"
       data={favoritesQuery.data ?? []}
@@ -42,6 +44,7 @@ export default function FavoritenScreen() {
           </Pressable>
         </View>
       )}
-    />
+      />
+    </>
   );
 }

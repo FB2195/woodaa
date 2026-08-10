@@ -1,13 +1,10 @@
 import type { BookingType, SettableCareApplicationStatus } from "@woodaa/validators";
-import { useState } from "react";
+import { Stack } from "expo-router";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { Checkbox } from "@/components/Checkbox";
-import { FormField } from "@/components/FormField";
-import { PrimaryButton } from "@/components/PrimaryButton";
 import { SelectField } from "@/components/SelectField";
 import { bookingTypeOptions } from "@/lib/bookingTypeLabels";
 import { formatDate } from "@/lib/format";
-import { pflegegradOptions } from "@/lib/pflegegradLabels";
 import { trpc } from "@/lib/trpc";
 
 // Mobile port of apps/web/app/konto/pflegeleistungen +
@@ -15,15 +12,13 @@ import { trpc } from "@/lib/trpc";
 // "Jetzt online einreichen" sub-flow (CareApplicationSubmitForm, a
 // single-Krankenkasse pilot integration) isn't ported - the status
 // toggle (muss beantragt werden / bereits beantragt) covers the
-// non-pilot-dependent part of this screen.
+// non-pilot-dependent part of this screen. Versicherungsnummer/
+// Krankenkasse/Pflegegrad moved to Persönliche Angaben (personal data,
+// not application status) - this screen is only about the Antrag-Prozess
+// selbst.
 export default function PflegeleistungenScreen() {
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.careApplication.myCareProfile.useQuery();
-  const [versicherungsnummer, setVersicherungsnummer] = useState<string | null>(null);
-  const [krankenkasse, setKrankenkasse] = useState<string | null>(null);
-  const [pflegegrad, setPflegegrad] = useState<number | null | undefined>(undefined);
-  const [profileError, setProfileError] = useState<string | null>(null);
-
   const updateProfile = trpc.careApplication.updateCareProfile.useMutation({
     onSuccess: () => utils.careApplication.myCareProfile.invalidate(),
   });
@@ -39,10 +34,6 @@ export default function PflegeleistungenScreen() {
     );
   }
 
-  const versicherungsnummerValue = versicherungsnummer ?? data.versicherungsnummer ?? "";
-  const krankenkasseValue = krankenkasse ?? data.krankenkasse ?? "";
-  const pflegegradValue = pflegegrad === undefined ? data.pflegegrad : pflegegrad;
-
   const pflegegradAntragLabel =
     data.pflegegrad === null || data.pflegegrad === 0
       ? "Pflegegrad-Antrag läuft bereits"
@@ -57,62 +48,19 @@ export default function PflegeleistungenScreen() {
       className="flex-1 bg-brand-background dark:bg-brand-background-dark"
       contentContainerClassName="gap-4 p-6"
     >
+      <Stack.Screen options={{ title: "Pflegeleistungen beantragen" }} />
       <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-        Hinterlege deine Versicherungsnummer und deinen Pflegegrad - wir helfen dir dann, offene
-        Anträge direkt bei eurer Krankenkasse einzureichen.
+        Pflegegrad und Krankenkasse hinterlegst du unter Persönliche Angaben - wir helfen dir dann,
+        offene Anträge direkt bei eurer Krankenkasse einzureichen.
       </Text>
 
       <View className="gap-3 rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
-        <FormField
-          label="Versicherungsnummer"
-          value={versicherungsnummerValue}
-          onChangeText={setVersicherungsnummer}
-          autoCapitalize="characters"
-          placeholder="z. B. A123456789"
-        />
-        <FormField
-          label="Krankenkasse"
-          value={krankenkasseValue}
-          onChangeText={setKrankenkasse}
-          placeholder="z. B. AOK, TK, Barmer…"
-        />
-        <SelectField
-          label="Aktueller Pflegegrad"
-          value={pflegegradValue}
-          options={pflegegradOptions}
-          placeholder="Nicht angegeben"
-          onChange={setPflegegrad}
-        />
         <Checkbox
           checked={data.pflegegradAntragLaeuft}
           onToggle={() => updateProfile.mutate({ pflegegradAntragLaeuft: !data.pflegegradAntragLaeuft })}
         >
           {pflegegradAntragLabel}
         </Checkbox>
-
-        {profileError && <Text className="text-sm text-red-600">{profileError}</Text>}
-
-        <PrimaryButton
-          label={updateProfile.isPending ? "Wird gespeichert…" : "Speichern"}
-          variant="secondary"
-          loading={updateProfile.isPending}
-          onPress={async () => {
-            setProfileError(null);
-            try {
-              await updateProfile.mutateAsync({
-                ...(versicherungsnummerValue.trim()
-                  ? { versicherungsnummer: versicherungsnummerValue.trim() }
-                  : {}),
-                ...(pflegegradValue !== null && pflegegradValue !== undefined
-                  ? { pflegegrad: pflegegradValue as 0 | 1 | 2 | 3 | 4 | 5 }
-                  : {}),
-                ...(krankenkasseValue.trim() ? { krankenkasse: krankenkasseValue.trim() } : {}),
-              });
-            } catch (err) {
-              setProfileError(err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.");
-            }
-          }}
-        />
       </View>
 
       {!data.krankenkasseConfigured && (
