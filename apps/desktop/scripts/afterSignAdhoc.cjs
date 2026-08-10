@@ -68,19 +68,38 @@ function isMachO(filePath) {
   }
 }
 
+// A file directly inside a "MacOS" directory is an .app bundle's own main
+// executable (Apple convention - nothing else lives there), and a file
+// directly inside "Versions/<X>/" is a .framework's own primary binary
+// (also an Apple convention: <Fw>.framework/Versions/A/<Fw>). Both are
+// already correctly signed by codesign --deep, as part of properly
+// signing their enclosing bundle - re-signing them again via their raw
+// file path (bypassing the bundle-level codesign invocation --deep uses)
+// produces an invalid signature instead of a harmless no-op, confirmed by
+// notarization rejecting a first attempt at this with "The signature of
+// the binary is invalid" on exactly these files. Only files that live
+// *underneath* one more directory level (Libraries/, Resources/,
+// Helpers/) are the ones --deep leaves untouched.
+function isBundlePrimaryBinary(filePath) {
+  const parts = filePath.split(path.sep);
+  const parent = parts[parts.length - 2];
+  const grandparent = parts[parts.length - 3];
+  return parent === "MacOS" || grandparent === "Versions";
+}
+
 // `codesign --deep` recurses into nested .framework/.app bundles but is
 // known to miss loose Mach-O files sitting directly in a Resources/
-// Libraries folder - confirmed by notarization rejecting woodaa's build
-// over unsigned GPU-fallback dylibs (libEGL.dylib, libvk_swiftshader.dylib,
-// libGLESv2.dylib, libffmpeg.dylib) and Squirrel's "ShipIt" helper
-// executable, none of which --deep touched. This walks the whole bundle
-// and force-signs every executable Mach-O file it finds - unconditionally,
-// not just ones that look unsigned, because several of these dylibs ship
-// from their vendors with a pre-existing (non-Developer-ID) signature that
-// makes a plain `codesign -dv` check report them as "already signed" when
-// they're not signed with OUR identity at all. --force makes re-signing
-// something --deep already handled correctly a harmless no-op.
-function signAllLooseMachO(appPath, identity, entitlements, keychainPath) {
+// Libraries/Helpers folder - confirmed by notarization rejecting woodaa's
+// build over unsigned GPU-fallback dylibs (libEGL.dylib,
+// libvk_swiftshader.dylib, libGLESv2.dylib, libffmpeg.dylib) and
+// Squirrel's "ShipIt" helper executable, none of which --deep touched.
+// This walks the whole bundle and force-signs every such loose executable
+// Mach-O file it finds - unconditionally, not just ones that look
+// unsigned, because several of these dylibs ship from their vendors with
+// a pre-existing (non-Developer-ID) signature that makes a plain
+// `codesign -dv` check report them as "already signed" when they're not
+// signed with OUR identity at all.
+function signLooseMachO(appPath, identity, entitlements, keychainPath) {
   function walk(dir) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       if (entry.isSymbolicLink()) continue;
@@ -92,7 +111,8 @@ function signAllLooseMachO(appPath, identity, entitlements, keychainPath) {
       if (!entry.isFile()) continue;
       if (!(fs.statSync(full).mode & 0o111)) continue;
       if (!isMachO(full)) continue;
-      console.log(`afterSign: signing ${full}`);
+      if (isBundlePrimaryBinary(full)) continue;
+      console.log(`afterSign: signing loose Mach-O ${full}`);
       execFileSync(
         "codesign",
         [
@@ -180,29 +200,12 @@ function signRealFlatDeep(appPath, entitlements) {
       { stdio: "inherit" },
     );
 
-    signAllLooseMachO(appPath, identity, entitlements, keychainPath);
-
-    // Re-seal the outer bundle once more (no --deep - nested items already
-    // carry their own valid signatures now) so its own CodeDirectory/
-    // CodeResources reflect the final state, including whatever
-    // signAllLooseMachO just added.
-    execFileSync(
-      "codesign",
-      [
-        "--force",
-        "--options",
-        "runtime",
-        "--timestamp",
-        "--sign",
-        identity,
-        "--entitlements",
-        entitlements,
-        "--keychain",
-        keychainPath,
-        appPath,
-      ],
-      { stdio: "inherit" },
-    );
+    // Nested frameworks/apps each carry their own separate embedded
+    // signature (not byte-hashed into the outer bundle's own seal), so
+    // signing these loose files after the --deep pass above doesn't
+    // invalidate the outer app's already-valid signature - no need to
+    // re-seal it again afterward.
+    signLooseMachO(appPath, identity, entitlements, keychainPath);
 
     console.log("afterSign: signature details after signing (checking for Timestamp=...):");
     execFileSync("codesign", ["-dvvv", appPath], { stdio: "inherit" });
