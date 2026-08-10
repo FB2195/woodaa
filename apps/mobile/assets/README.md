@@ -19,7 +19,15 @@ einen simplen React-State-Timer (kein natives Modul, siehe Kommentar
 dort) eine Mindestanzeigezeit ein, damit das Logo nicht nur kurz
 aufblitzt.
 
-App-Icon (`icon`) und Android-Adaptive-Icon-Vordergrund
-(`android.adaptiveIcon.foregroundImage`) sind noch offen - das Logo ist
-ein breites Wordmark, kein quadratisches Icon-Motiv, dafür wird eine
-eigene Icon-Variante gebraucht.
+`icon.png` (App-Icon) und `adaptive-icon-foreground.png`
+(Android-Adaptive-Icon-Vordergrund) sind das Wordmark zentriert auf
+einer 1024x1024-Flaeche - das Logo selbst ist kein quadratisches
+Icon-Motiv (kein separates Bildzeichen ohne Schriftzug vorhanden),
+daher wird hier bewusst das volle Wordmark verkleinert dargestellt statt
+ein Ausschnitt (ein Crop wuerde benachbarte Buchstaben anschneiden, da
+die Lupe eng mit den umgebenden "o"s verschraenkt ist). `icon.png` hat
+einen deckenden Hintergrund (#FAF9F5), `adaptive-icon-foreground.png`
+ist transparent (Android komponiert es ueber
+`android.adaptiveIcon.backgroundColor`) und nutzt einen kleineren
+Logo-Anteil (55% statt 72% Breite) fuer Androids aggressiveren
+Adaptive-Icon-Sicherheitsbereich.
