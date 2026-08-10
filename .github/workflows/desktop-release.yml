@@ -336,6 +336,57 @@ jobs:
             echo "RENDERER-ONLY RESULT: exited without a crash stop reason - treating as healthy."
           fi
 
+      - name: Smoke test signed Electron + our real main.ts/preload.ts, no asar packaging (macOS, diagnostic only)
+        # Across every run so far: bare Electron, a trivial custom main.js,
+        # and the real renderer bundle with no preload/safeStorage/ipcMain
+        # have NEVER crashed once (0 crashes across ~7-8 attempts each).
+        # Only the real packaged app crashes, and does so most of the time.
+        # The one remaining difference is the auth/keychain code in
+        # main.ts (safeStorage, ipcMain handlers) plus the preload script's
+        # contextBridge/contextIsolation setup. This runs our ACTUAL built
+        # out/main/main.js and out/preload/preload.js - unmodified, just not
+        # packaged into an .asar by electron-builder - to confirm whether
+        # that code alone reproduces the crash at a similar rate.
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: |
+          ELECTRON_APP=$(find /tmp/electron-bare -maxdepth 1 -name "*.app" -print -quit)
+          REAL_OUT_DIR="$GITHUB_WORKSPACE/apps/desktop/out"
+          if [ -z "$ELECTRON_APP" ] || [ ! -d "$REAL_OUT_DIR" ]; then
+            echo "No signed bare Electron.app or built out/ dir to test - skipping."
+            exit 0
+          fi
+          EXECUTABLE="$ELECTRON_APP/Contents/MacOS/$(basename "$ELECTRON_APP" .app)"
+
+          rm -rf /tmp/real-main-app
+          mkdir -p /tmp/real-main-app
+          cp -R "$REAL_OUT_DIR"/. /tmp/real-main-app/
+          cat > /tmp/real-main-app/package.json <<'JSON'
+          {"name": "real-main-app", "main": "main/main.js"}
+          JSON
+
+          echo "Launching signed Electron + our real main.ts/preload.ts (no asar) under lldb (quarantined)"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" /tmp/real-main-app \
+            > real-main-lldb-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "REAL MAIN.TS RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          cat real-main-lldb-output.txt
+          if grep -q "stop reason" real-main-lldb-output.txt; then
+            echo "REAL MAIN.TS RESULT: CRASHED (see backtrace above) - our real main.ts/preload.ts is enough on its own, confirming safeStorage/ipcMain/preload as the trigger."
+          else
+            echo "REAL MAIN.TS RESULT: exited without a crash stop reason - treating as healthy."
+          fi
+
       - name: Smoke test (macOS) - launch the packaged app, fail if it crashes on startup
         if: matrix.os == 'macos-latest'
         run: |
