@@ -5,6 +5,12 @@ directories:
 files:
   - out/**/*
   - package.json
+# Re-testing with the now-fixed signing/notarization pipeline - the
+# earlier asar:false attempt never actually got a valid comparison
+# because notarization was failing regardless (missing loose-file
+# signatures) at the time. See desktop-release.yml for the diagnostic
+# history.
+asar: false
 afterSign: scripts/afterSignAdhoc.cjs
 mac:
   category: public.app-category.business
