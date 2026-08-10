@@ -4,6 +4,7 @@ import { FacilityLocationMap } from "@/components/FacilityLocationMap";
 import { FacilityNeighborhood } from "@/components/FacilityNeighborhood";
 import { FacilityReviews } from "@/components/FacilityReviews";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { PflegekassenZuschussRechner } from "@/components/PflegekassenZuschussRechner";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/lib/AuthContext";
@@ -54,9 +55,12 @@ export default function FacilityDetailScreen() {
         <View className="gap-4 p-6">
           <View className="flex-row items-start justify-between gap-2">
             <View className="flex-1">
-              <Text className="text-2xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">
-                {facility.name}
-              </Text>
+              <View className="flex-row items-center gap-2">
+                <Text className="text-2xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">
+                  {facility.name}
+                </Text>
+                {facility.verifiedAt && <VerifiedBadge />}
+              </View>
               <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
                 {facility.street}, {facility.postalCode} {facility.city}
               </Text>

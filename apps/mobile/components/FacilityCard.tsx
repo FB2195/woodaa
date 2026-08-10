@@ -1,6 +1,7 @@
 import type { BookingType } from "@woodaa/validators";
 import { Image, Pressable, Text, View } from "react-native";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { resolvePhotoUrl } from "@/lib/photoUrl";
 
@@ -21,6 +22,7 @@ type FacilityCardData = {
   reviewCount?: number;
   displayPriceCents?: number | null;
   responseTimeBadge?: string | null;
+  verifiedAt?: string | Date | null;
 };
 
 function formatPriceEuro(cents: number): string {
@@ -59,9 +61,12 @@ export function FacilityCard({
       </View>
 
       <View className="p-4">
-        <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
-          {facility.name}
-        </Text>
+        <View className="flex-row items-center gap-1.5">
+          <Text className="flex-1 text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
+            {facility.name}
+          </Text>
+          {facility.verifiedAt && <VerifiedBadge />}
+        </View>
         <Text className="mt-0.5 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           {facility.postalCode} {facility.city}
           {facility.distanceKm != null ? ` · ${facility.distanceKm.toFixed(1)} km` : ""}
