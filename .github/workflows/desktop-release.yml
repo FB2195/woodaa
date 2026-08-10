@@ -499,6 +499,11 @@ jobs:
             echo "REAL MAIN.TS RESULT: exited without a crash stop reason - treating as healthy."
           fi
 
+      - name: Install Rosetta (macOS, only needed while testing an x64 build on Apple Silicon runners)
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: softwareupdate --install-rosetta --agree-to-license
+
       - name: Smoke test (macOS) - launch the packaged app, fail if it crashes on startup
         if: matrix.os == 'macos-latest'
         run: |
