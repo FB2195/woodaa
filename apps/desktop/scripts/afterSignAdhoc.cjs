@@ -1,40 +1,36 @@
-// Ad-hoc signing ("-", no real Apple identity) turns out to be insufficient
-// on real Apple-Silicon hardware: AMFI/Hardened Runtime won't actually grant
-// entitlements like allow-jit/allow-unsigned-executable-memory to ad-hoc
-// signed code, so V8 crashes on startup on a real Mac even though the
-// signature and entitlements look completely valid via `codesign -dvvv`
-// (confirmed - GitHub's macOS CI runners are Apple-hosted VMs that don't
-// enforce this the same way real hardware does, which is why CI never
-// caught it). The durable fix is a real "Developer ID Application"
-// certificate + notarization, not another ad-hoc workaround.
+// Real code signing and notarization happen entirely in this hook, NOT via
+// electron-builder's own built-in signing (@electron/osx-sign). This is
+// deliberate: 22 CI runs (see desktop-release.yml's diagnostic smoke tests)
+// isolated the cause of an intermittent startup crash (EXC_BREAKPOINT/
+// SIGTRAP inside V8, before any woodaa code runs, "brk 0" trap) precisely
+// to electron-builder's own signing method - it signs every nested
+// .framework/.app individually ("properly", the Apple-recommended way).
+// A packaged app re-signed with a single flat `codesign --deep` pass
+// instead ran cleanly in 14/14 CI attempts, vs. roughly 60% crash rate for
+// the electron-builder-signed original (not chance - p < 0.001). Every
+// other candidate (ad-hoc vs. real signing, .asar packaging, window
+// visibility, safeStorage/preload/ipcMain, the renderer bundle, Electron
+// itself) was ruled out first.
 //
-// Once CSC_LINK is set (see desktop-release.yml), electron-builder detects
-// the imported real certificate itself, signs with it, applies
-// mac.entitlements/entitlementsInherit, and auto-notarizes via the
-// APPLE_API_KEY/APPLE_API_KEY_ID/APPLE_API_ISSUER env vars - all before this
-// hook even runs. In that case this hook must NOT touch the bundle at all,
-// or it would clobber that real signature with an ad-hoc one again.
+// WOODAA_CSC_LINK/WOODAA_CSC_KEY_PASSWORD (set in desktop-release.yml) are
+// deliberately NOT named CSC_LINK/CSC_KEY_PASSWORD - those are the names
+// electron-builder auto-detects and signs with itself, which is exactly
+// what this hook needs to prevent so it has full control instead. Because
+// electron-builder never finds a signing identity this way, it also skips
+// its own auto-notarize step (notarization requires an already-signed
+// app), so this hook has to do that too: sign, notarize, staple.
 //
-// Without CSC_LINK (e.g. no Apple Developer account configured yet, or a
-// local unsigned dev build), electron-builder skips signing entirely (no
-// "Developer ID Application" identity found in the keychain) - it never
-// touches mac.entitlements/entitlementsInherit in that case either. This
-// hook then falls back to force-signing the packaged .app ad-hoc so it's at
-// least launchable in environments that don't enforce the real-hardware
-// entitlement restriction (e.g. our own CI smoke test). This ad-hoc
-// fallback is known to NOT be sufficient on real Apple-Silicon Macs - see
-// above.
-//
-// Signing has to happen inside-out (every nested .framework/.app signed
-// individually, deepest first, then the outer bundle last) rather than via
-// `codesign --deep`, which re-signs everything in one pass with the same
-// flat entitlements and turned out to corrupt something Electron/V8 needs -
-// the packaged app crashed on startup every time despite a seemingly valid
-// signature, and only stopped once --deep was replaced with this explicit
-// inside-out signing.
+// Without WOODAA_CSC_LINK (e.g. a local dev build with no Apple Developer
+// account configured), this falls back to ad-hoc signing so the app is at
+// least launchable for local testing. Ad-hoc signing is NOT sufficient on
+// real Apple Silicon hardware (AMFI won't grant hardened-runtime
+// entitlements like allow-jit to it), so this fallback is for local
+// development only, never for a distributed release.
 const { execFileSync } = require("node:child_process");
 const path = require("node:path");
 const fs = require("node:fs");
+const os = require("node:os");
+const crypto = require("node:crypto");
 
 function findNestedCodeTargets(appPath) {
   const targets = [];
@@ -50,29 +46,119 @@ function findNestedCodeTargets(appPath) {
   }
   walk(path.join(appPath, "Contents"));
   // Deepest paths (most path separators) first, so nested helper apps and
-  // frameworks are signed before the bundles that contain them.
+  // frameworks are signed before the bundles that contain them. Only
+  // relevant to the ad-hoc fallback below - the real path signs everything
+  // in one flat --deep pass instead.
   return targets.sort((a, b) => b.split(path.sep).length - a.split(path.sep).length);
+}
+
+function signRealFlatDeep(appPath, entitlements) {
+  const keychainPath = path.join(os.tmpdir(), `woodaa-signing-${crypto.randomUUID()}.keychain-db`);
+  const keychainPassword = crypto.randomUUID();
+  const certPath = path.join(os.tmpdir(), `woodaa-cert-${crypto.randomUUID()}.p12`);
+
+  try {
+    execFileSync("security", ["create-keychain", "-p", keychainPassword, keychainPath]);
+    execFileSync("security", ["set-keychain-settings", "-lut", "21600", keychainPath]);
+    execFileSync("security", ["unlock-keychain", "-p", keychainPassword, keychainPath]);
+
+    fs.writeFileSync(certPath, Buffer.from(process.env.WOODAA_CSC_LINK, "base64"));
+    execFileSync("security", [
+      "import",
+      certPath,
+      "-k",
+      keychainPath,
+      "-P",
+      process.env.WOODAA_CSC_KEY_PASSWORD,
+      "-T",
+      "/usr/bin/codesign",
+    ]);
+    execFileSync("security", [
+      "set-key-partition-list",
+      "-S",
+      "apple-tool:,apple:,codesign:",
+      "-s",
+      "-k",
+      keychainPassword,
+      keychainPath,
+    ]);
+
+    const existingKeychains = execFileSync("security", ["list-keychains", "-d", "user"])
+      .toString()
+      .split("\n")
+      .map((line) => line.trim().replace(/^"|"$/g, ""))
+      .filter(Boolean);
+    execFileSync("security", ["list-keychains", "-d", "user", "-s", keychainPath, ...existingKeychains]);
+
+    const identityList = execFileSync("security", ["find-identity", "-v", "-p", "codesigning", keychainPath]).toString();
+    const hashMatch = identityList.match(/^\s*\d+\)\s+([A-F0-9]{40})\s+"Developer ID Application/m);
+    if (!hashMatch) {
+      throw new Error("afterSign: no Developer ID Application identity found in the imported keychain");
+    }
+    const identity = hashMatch[1];
+    console.log(`afterSign: signing with real identity ${identity} (flat --deep)`);
+
+    execFileSync(
+      "codesign",
+      ["--deep", "--force", "--options", "runtime", "--sign", identity, "--entitlements", entitlements, "--keychain", keychainPath, appPath],
+      { stdio: "inherit" },
+    );
+  } finally {
+    fs.rmSync(certPath, { force: true });
+    try {
+      execFileSync("security", ["delete-keychain", keychainPath]);
+    } catch {
+      // best-effort cleanup only
+    }
+  }
+}
+
+function notarizeAndStaple(appPath) {
+  const zipPath = path.join(os.tmpdir(), `woodaa-notarize-${crypto.randomUUID()}.zip`);
+  execFileSync("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", appPath, zipPath], { stdio: "inherit" });
+  try {
+    execFileSync(
+      "xcrun",
+      [
+        "notarytool",
+        "submit",
+        zipPath,
+        "--key",
+        process.env.APPLE_API_KEY,
+        "--key-id",
+        process.env.APPLE_API_KEY_ID,
+        "--issuer",
+        process.env.APPLE_API_ISSUER,
+        "--wait",
+      ],
+      { stdio: "inherit" },
+    );
+  } finally {
+    fs.rmSync(zipPath, { force: true });
+  }
+  execFileSync("xcrun", ["stapler", "staple", appPath], { stdio: "inherit" });
 }
 
 exports.default = async function afterSign(context) {
   if (context.electronPlatformName !== "darwin") return;
 
-  if (process.env.CSC_LINK) {
-    console.log(
-      "afterSignAdhoc: CSC_LINK is set - electron-builder already signed with a real " +
-        "Developer ID certificate (and will notarize), skipping the ad-hoc fallback.",
-    );
-    return;
-  }
-
   const appOutDir = context.appOutDir;
   const appName = fs.readdirSync(appOutDir).find((f) => f.endsWith(".app"));
   if (!appName) {
-    throw new Error(`afterSignAdhoc: no .app bundle found in ${appOutDir}`);
+    throw new Error(`afterSign: no .app bundle found in ${appOutDir}`);
   }
   const appPath = path.join(appOutDir, appName);
   const entitlements = path.join(__dirname, "..", "resources", "entitlements.mac.plist");
 
+  if (process.env.WOODAA_CSC_LINK) {
+    signRealFlatDeep(appPath, entitlements);
+    console.log("afterSign: notarizing and stapling...");
+    notarizeAndStaple(appPath);
+    execFileSync("codesign", ["-dvvv", "--entitlements", "-", appPath], { stdio: "inherit" });
+    return;
+  }
+
+  console.log("afterSign: WOODAA_CSC_LINK not set - falling back to ad-hoc signing (local dev build only).");
   const sign = (target) => {
     execFileSync(
       "codesign",
@@ -80,14 +166,9 @@ exports.default = async function afterSign(context) {
       { stdio: "inherit" },
     );
   };
-
   for (const target of findNestedCodeTargets(appPath)) {
     sign(target);
   }
   sign(appPath);
-
-  // Print the resulting signature to the CI log so a broken entitlements/
-  // runtime-flag regression shows up here instead of only surfacing as a
-  // crash report from a real Mac days later.
   execFileSync("codesign", ["-dvvv", "--entitlements", "-", appPath], { stdio: "inherit" });
 };

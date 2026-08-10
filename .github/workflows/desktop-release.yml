@@ -91,16 +91,17 @@ jobs:
           echo "APPLE_API_KEY=$RUNNER_TEMP/apple/AuthKey.p8" >> "$GITHUB_ENV"
 
       - name: Build installer
-        # On macOS, real code signing + notarization activate automatically
-        # once CSC_LINK (a base64-encoded "Developer ID Application" .p12) and
-        # the APPLE_* secrets are configured in this repo - see
-        # apps/desktop/scripts/afterSignAdhoc.cjs for how the ad-hoc fallback
-        # steps aside when that happens. Until then these all evaluate to
-        # empty strings and behavior is unchanged.
+        # Real code signing + notarization happen entirely inside
+        # afterSignAdhoc.cjs now (flat `codesign --deep` + notarytool +
+        # stapler), not electron-builder's own built-in signing - see that
+        # file for why. WOODAA_CSC_LINK/WOODAA_CSC_KEY_PASSWORD (not
+        # electron-builder's auto-detected CSC_LINK/CSC_KEY_PASSWORD names)
+        # keep electron-builder from signing/notarizing itself, so the hook
+        # has full control instead.
         run: pnpm --filter desktop run ${{ matrix.script }}
         env:
-          CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.CSC_KEY_PASSWORD || '' }}
+          WOODAA_CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.CSC_LINK || '' }}
+          WOODAA_CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.CSC_KEY_PASSWORD || '' }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
