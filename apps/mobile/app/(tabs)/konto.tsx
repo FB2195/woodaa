@@ -114,7 +114,11 @@ export default function AccountScreen() {
     user.role === "SUCHENDE"
       ? [
           { href: "/(tabs)/buchungen", label: "Meine Buchungen", icon: <CalendarIcon /> },
-          { href: "/konto/pflegeleistungen", label: "Pflegeleistungen", icon: <HeartPulseIcon /> },
+          {
+            href: "/konto/pflegeleistungen",
+            label: "Pflegeleistungen beantragen",
+            icon: <HeartPulseIcon />,
+          },
           {
             href: "/konto/bevollmaechtigung",
             label: "Bevollmächtigte/r Angehörige/r",

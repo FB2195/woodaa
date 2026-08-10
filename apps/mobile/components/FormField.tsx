@@ -1,19 +1,24 @@
 import { useColorScheme } from "nativewind";
+import type { ReactNode } from "react";
 import type { TextInputProps } from "react-native";
 import { Text, TextInput, View } from "react-native";
 
 type FormFieldProps = TextInputProps & {
   label: string;
+  labelRight?: ReactNode;
   hint?: string;
   error?: string;
 };
 
-export function FormField({ label, hint, error, ...inputProps }: FormFieldProps) {
+export function FormField({ label, labelRight, hint, error, ...inputProps }: FormFieldProps) {
   const { colorScheme } = useColorScheme();
 
   return (
     <View className="gap-1">
-      <Text className="text-sm text-brand-text dark:text-brand-text-dark">{label}</Text>
+      <View className="flex-row items-center justify-between">
+        <Text className="text-sm text-brand-text dark:text-brand-text-dark">{label}</Text>
+        {labelRight}
+      </View>
       <TextInput
         placeholderTextColor={colorScheme === "dark" ? "#B7C2A8" : "#6B6F62"}
         className="rounded-brand-md border border-brand-border bg-brand-surface px-3 py-2.5 text-base text-brand-text dark:border-brand-border-dark dark:bg-brand-surface-dark dark:text-brand-text-dark"

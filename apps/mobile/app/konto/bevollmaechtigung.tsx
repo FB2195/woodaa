@@ -1,5 +1,6 @@
 import * as DocumentPicker from "expo-document-picker";
 import { MAX_DOCUMENT_BYTES } from "@woodaa/validators";
+import { Stack } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { FormField } from "@/components/FormField";
@@ -79,6 +80,7 @@ export default function BevollmaechtigungScreen() {
       className="flex-1 bg-brand-background dark:bg-brand-background-dark"
       contentContainerClassName="gap-4 p-6"
     >
+      <Stack.Screen options={{ title: "Bevollmächtigte/r Angehörige/r" }} />
       <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
         Buchst du für eine andere Person (z. B. deine Eltern)? Lade eine Vollmacht hoch - wir
         prüfen sie, danach kannst du in ihrem Namen buchen. Jede Buchung von diesem Konto wird

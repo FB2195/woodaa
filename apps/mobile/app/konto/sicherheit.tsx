@@ -1,3 +1,4 @@
+import { Stack } from "expo-router";
 import { useState } from "react";
 import { Image, ScrollView, Text, View } from "react-native";
 import { FormField } from "@/components/FormField";
@@ -45,6 +46,7 @@ export default function SicherheitScreen() {
   if (enabled && step === "idle") {
     return (
       <View className="flex-1 bg-brand-background p-6 dark:bg-brand-background-dark">
+        <Stack.Screen options={{ title: "Sicherheit (2FA)" }} />
         <View className="gap-3 rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
           <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
             Zwei-Faktor-Authentifizierung
@@ -71,6 +73,7 @@ export default function SicherheitScreen() {
   if (step === "recovery-codes") {
     return (
       <View className="flex-1 bg-brand-background p-6 dark:bg-brand-background-dark">
+        <Stack.Screen options={{ title: "Sicherheit (2FA)" }} />
         <View className="gap-3 rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
           <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
             2FA ist jetzt aktiv
@@ -98,6 +101,7 @@ export default function SicherheitScreen() {
         className="flex-1 bg-brand-background dark:bg-brand-background-dark"
         contentContainerClassName="p-6"
       >
+        <Stack.Screen options={{ title: "Sicherheit (2FA)" }} />
         <View className="gap-3 rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
           <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
             2FA einrichten
@@ -124,6 +128,7 @@ export default function SicherheitScreen() {
 
   return (
     <View className="flex-1 bg-brand-background p-6 dark:bg-brand-background-dark">
+      <Stack.Screen options={{ title: "Sicherheit (2FA)" }} />
       <View className="gap-3 rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
         <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
           Zwei-Faktor-Authentifizierung
