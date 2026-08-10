@@ -129,13 +129,24 @@ jobs:
         # test above only proved unsigned bare Electron doesn't crash - not a
         # clean comparison, since the crashing app is hardened-runtime-signed.
         # This produces the missing middle data point: bare Electron, signed
-        # exactly like our real app, no woodaa code at all. Not notarized
-        # (would add another 15-40min wait) - the user strips the quarantine
-        # xattr locally before running it instead.
+        # exactly like our real app, no woodaa code at all.
+        #
+        # Now also notarizes and staples this copy (previously skipped to
+        # save 15-40min). Every earlier "clean" diagnostic in this job was
+        # ONLY ever locally signed, never actually notarized/stapled - only
+        # the real app (which has always crashed intermittently) goes
+        # through that. That's a confound this diagnostic never controlled
+        # for: does the STAPLED NOTARIZATION TICKET itself change something
+        # at launch (Gatekeeper does a stricter validation pass for
+        # notarized+quarantined apps than for a merely-signed one), not the
+        # signing method? Testing bare Electron notarized+stapled isolates
+        # exactly that.
         if: matrix.os == 'macos-latest'
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           if [ -z "$CSC_LINK" ]; then
             echo "CSC_LINK not set - skipping diagnostic signed-bare-Electron build."
@@ -167,9 +178,41 @@ jobs:
           echo "Signing bare Electron.app with $IDENTITY"
 
           ENTITLEMENTS="$GITHUB_WORKSPACE/apps/desktop/resources/entitlements.mac.plist"
-          codesign --deep --force --options runtime --sign "$IDENTITY" \
+
+          # Sign every loose Mach-O file first (same reason as the real
+          # production hook: a .framework's own CodeResources seal hashes
+          # its Resources/Libraries contents, so this has to happen before
+          # --deep or the framework's own signature ends up invalid).
+          find "$ELECTRON_APP/Contents" -type f -perm -u+x | while read -r f; do
+            if file "$f" | grep -q "Mach-O"; then
+              parent=$(basename "$(dirname "$f")")
+              grandparent=$(basename "$(dirname "$(dirname "$f")")")
+              if [ "$parent" != "MacOS" ] && [ "$grandparent" != "Versions" ]; then
+                echo "Signing loose Mach-O $f"
+                codesign --force --options runtime --timestamp --sign "$IDENTITY" \
+                  --entitlements "$ENTITLEMENTS" --keychain "$KEYCHAIN_PATH" "$f"
+              fi
+            fi
+          done
+
+          codesign --deep --force --options runtime --timestamp --sign "$IDENTITY" \
             --entitlements "$ENTITLEMENTS" --keychain "$KEYCHAIN_PATH" "$ELECTRON_APP"
           codesign -dvvv --entitlements - "$ELECTRON_APP"
+
+          ZIP_PATH="$RUNNER_TEMP/electron-bare-notarize.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$ELECTRON_APP" "$ZIP_PATH"
+          SUBMIT_OUTPUT=$(xcrun notarytool submit "$ZIP_PATH" \
+            --key "$APPLE_API_KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" --wait)
+          echo "$SUBMIT_OUTPUT"
+          if echo "$SUBMIT_OUTPUT" | grep -q "status: Accepted"; then
+            echo "Notarization accepted - stapling."
+            xcrun stapler staple "$ELECTRON_APP"
+          else
+            SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | grep -m1 "id:" | awk '{print $2}')
+            echo "Notarization NOT accepted - fetching log for $SUBMISSION_ID"
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --key "$APPLE_API_KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" || true
+          fi
 
           mkdir -p /tmp/electron-bare-signed
           ditto -c -k --sequesterRsrc --keepParent "$ELECTRON_APP" /tmp/electron-bare-signed/electron-bare-signed.zip
