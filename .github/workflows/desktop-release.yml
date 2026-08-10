@@ -73,6 +73,8 @@ jobs:
             wait "$PID" || EXIT_CODE=$?
             echo "ISOLATION RESULT: bare Electron demo exited within 10s (code $EXIT_CODE) - CRASHED, same as our app."
           fi
+          echo "===== Full Info.plist (bare Electron, for comparison against the real app's) ====="
+          plutil -p "$ELECTRON_APP/Contents/Info.plist"
 
       - name: Write Apple notarization API key (macOS, only if configured)
         if: matrix.os == 'macos-latest'
@@ -91,16 +93,17 @@ jobs:
           echo "APPLE_API_KEY=$RUNNER_TEMP/apple/AuthKey.p8" >> "$GITHUB_ENV"
 
       - name: Build installer
-        # On macOS, real code signing + notarization activate automatically
-        # once CSC_LINK (a base64-encoded "Developer ID Application" .p12) and
-        # the APPLE_* secrets are configured in this repo - see
-        # apps/desktop/scripts/afterSignAdhoc.cjs for how the ad-hoc fallback
-        # steps aside when that happens. Until then these all evaluate to
-        # empty strings and behavior is unchanged.
+        # Real code signing + notarization happen entirely inside
+        # afterSignAdhoc.cjs now (flat `codesign --deep` + notarytool +
+        # stapler), not electron-builder's own built-in signing - see that
+        # file for why. WOODAA_CSC_LINK/WOODAA_CSC_KEY_PASSWORD (not
+        # electron-builder's auto-detected CSC_LINK/CSC_KEY_PASSWORD names)
+        # keep electron-builder from signing/notarizing itself, so the hook
+        # has full control instead.
         run: pnpm --filter desktop run ${{ matrix.script }}
         env:
-          CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.CSC_KEY_PASSWORD || '' }}
+          WOODAA_CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.CSC_LINK || '' }}
+          WOODAA_CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.CSC_KEY_PASSWORD || '' }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -119,6 +122,8 @@ jobs:
             exit 1
           fi
           codesign -dvvv --entitlements - "$APP_PATH"
+          echo "===== Full Info.plist (real packaged app) ====="
+          plutil -p "$APP_PATH/Contents/Info.plist"
 
       - name: Sign bare Electron with our real cert (macOS, diagnostic only)
         # Isolates whether a real crash report from a user's Mac (EXC_BREAKPOINT/
@@ -128,13 +133,24 @@ jobs:
         # test above only proved unsigned bare Electron doesn't crash - not a
         # clean comparison, since the crashing app is hardened-runtime-signed.
         # This produces the missing middle data point: bare Electron, signed
-        # exactly like our real app, no woodaa code at all. Not notarized
-        # (would add another 15-40min wait) - the user strips the quarantine
-        # xattr locally before running it instead.
+        # exactly like our real app, no woodaa code at all.
+        #
+        # Now also notarizes and staples this copy (previously skipped to
+        # save 15-40min). Every earlier "clean" diagnostic in this job was
+        # ONLY ever locally signed, never actually notarized/stapled - only
+        # the real app (which has always crashed intermittently) goes
+        # through that. That's a confound this diagnostic never controlled
+        # for: does the STAPLED NOTARIZATION TICKET itself change something
+        # at launch (Gatekeeper does a stricter validation pass for
+        # notarized+quarantined apps than for a merely-signed one), not the
+        # signing method? Testing bare Electron notarized+stapled isolates
+        # exactly that.
         if: matrix.os == 'macos-latest'
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           if [ -z "$CSC_LINK" ]; then
             echo "CSC_LINK not set - skipping diagnostic signed-bare-Electron build."
@@ -166,9 +182,41 @@ jobs:
           echo "Signing bare Electron.app with $IDENTITY"
 
           ENTITLEMENTS="$GITHUB_WORKSPACE/apps/desktop/resources/entitlements.mac.plist"
-          codesign --deep --force --options runtime --sign "$IDENTITY" \
+
+          # Sign every loose Mach-O file first (same reason as the real
+          # production hook: a .framework's own CodeResources seal hashes
+          # its Resources/Libraries contents, so this has to happen before
+          # --deep or the framework's own signature ends up invalid).
+          find "$ELECTRON_APP/Contents" -type f -perm -u+x | while read -r f; do
+            if file "$f" | grep -q "Mach-O"; then
+              parent=$(basename "$(dirname "$f")")
+              grandparent=$(basename "$(dirname "$(dirname "$f")")")
+              if [ "$parent" != "MacOS" ] && [ "$grandparent" != "Versions" ]; then
+                echo "Signing loose Mach-O $f"
+                codesign --force --options runtime --timestamp --sign "$IDENTITY" \
+                  --entitlements "$ENTITLEMENTS" --keychain "$KEYCHAIN_PATH" "$f"
+              fi
+            fi
+          done
+
+          codesign --deep --force --options runtime --timestamp --sign "$IDENTITY" \
             --entitlements "$ENTITLEMENTS" --keychain "$KEYCHAIN_PATH" "$ELECTRON_APP"
           codesign -dvvv --entitlements - "$ELECTRON_APP"
+
+          ZIP_PATH="$RUNNER_TEMP/electron-bare-notarize.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$ELECTRON_APP" "$ZIP_PATH"
+          SUBMIT_OUTPUT=$(xcrun notarytool submit "$ZIP_PATH" \
+            --key "$APPLE_API_KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" --wait)
+          echo "$SUBMIT_OUTPUT"
+          if echo "$SUBMIT_OUTPUT" | grep -q "status: Accepted"; then
+            echo "Notarization accepted - stapling."
+            xcrun stapler staple "$ELECTRON_APP"
+          else
+            SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | grep -m1 "id:" | awk '{print $2}')
+            echo "Notarization NOT accepted - fetching log for $SUBMISSION_ID"
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --key "$APPLE_API_KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" || true
+          fi
 
           mkdir -p /tmp/electron-bare-signed
           ditto -c -k --sequesterRsrc --keepParent "$ELECTRON_APP" /tmp/electron-bare-signed/electron-bare-signed.zip
@@ -179,6 +227,282 @@ jobs:
           name: electron-bare-signed-diagnostic
           path: /tmp/electron-bare-signed/electron-bare-signed.zip
           if-no-files-found: ignore
+
+      - name: Smoke test full app re-signed with flat --deep (macOS, diagnostic only)
+        # Every diagnostic in this job signs with a single flat `codesign
+        # --deep` pass and has NEVER crashed (9/9 clean across prior runs,
+        # vs. the real app's ~60% crash rate - not chance). electron-builder
+        # itself (via @electron/osx-sign) instead signs every nested
+        # .framework/.app individually, deepest-first, which is the
+        # "correct" Apple-recommended method - and is the one remaining
+        # difference between our diagnostics and the real crashing app.
+        # This takes the actual built+notarized app, re-signs a COPY of it
+        # with the same flat --deep approach (invalidating notarization,
+        # which is fine - we're only checking whether it still crashes),
+        # and smoke-tests that copy to isolate the signing method itself
+        # as a variable.
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+        run: |
+          if [ -z "$CSC_LINK" ]; then
+            echo "CSC_LINK not set - skipping."
+            exit 0
+          fi
+          APP_PATH=$(find apps/desktop/release -maxdepth 2 -name "*.app" -print -quit)
+          KEYCHAIN_PATH="$RUNNER_TEMP/diagnostic-signing.keychain-db"
+          if [ -z "$APP_PATH" ] || [ ! -f "$KEYCHAIN_PATH" ]; then
+            echo "No packaged app or diagnostic keychain to test - skipping."
+            exit 0
+          fi
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk '/Developer ID Application/{print $2; exit}')
+          if [ -z "$IDENTITY" ]; then
+            echo "No Developer ID Application identity found - skipping."
+            exit 0
+          fi
+
+          rm -rf /tmp/deep-resigned.app
+          cp -R "$APP_PATH" /tmp/deep-resigned.app
+          ENTITLEMENTS="$GITHUB_WORKSPACE/apps/desktop/resources/entitlements.mac.plist"
+          codesign --deep --force --options runtime --sign "$IDENTITY" \
+            --entitlements "$ENTITLEMENTS" --keychain "$KEYCHAIN_PATH" /tmp/deep-resigned.app
+          codesign -dvvv --entitlements - /tmp/deep-resigned.app
+
+          EXECUTABLE="/tmp/deep-resigned.app/Contents/MacOS/$(basename "$APP_PATH" .app)"
+          echo "Launching flat---deep-re-signed full app under lldb"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" \
+            > deep-resigned-lldb-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "DEEP-RESIGNED FULL APP RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          cat deep-resigned-lldb-output.txt
+          if grep -q "stop reason" deep-resigned-lldb-output.txt; then
+            echo "DEEP-RESIGNED FULL APP RESULT: CRASHED (see backtrace above) - the signing method is not the trigger."
+          else
+            echo "DEEP-RESIGNED FULL APP RESULT: exited without a crash stop reason - treating as healthy."
+          fi
+
+      - name: Smoke test signed bare Electron (macOS, diagnostic only) - same crash class, no woodaa code
+        # The real app's smoke test below is intermittent (crashes maybe half
+        # the time - a real user report and a prior CI run hit the identical
+        # crash address, but the very next identical run passed). A single
+        # pass/fail on the real app can't tell us whether that's an
+        # Electron-level bug or something in our own code/packaging. This
+        # runs the SAME crash-hunting lldb check against the bare,
+        # real-cert-signed Electron built just above (zero woodaa code) so
+        # every workflow run produces a same-run comparison point instead of
+        # requiring several separate runs.
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: |
+          ELECTRON_APP=$(find /tmp/electron-bare -maxdepth 1 -name "*.app" -print -quit)
+          if [ -z "$ELECTRON_APP" ]; then
+            echo "No signed bare Electron.app to test - skipping."
+            exit 0
+          fi
+          EXECUTABLE="$ELECTRON_APP/Contents/MacOS/$(basename "$ELECTRON_APP" .app)"
+          xattr -w com.apple.quarantine "0081;00000000;Chrome;" "$ELECTRON_APP"
+          echo "Launching signed bare $EXECUTABLE under lldb (quarantined)"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" \
+            > bare-lldb-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "BARE SIGNED ELECTRON RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          cat bare-lldb-output.txt
+          if grep -q "stop reason" bare-lldb-output.txt; then
+            echo "BARE SIGNED ELECTRON RESULT: CRASHED (see backtrace above) - same crash class as our packaged app, with zero woodaa code involved."
+          else
+            echo "BARE SIGNED ELECTRON RESULT: exited without a crash stop reason - treating as healthy."
+          fi
+
+      - name: Smoke test signed Electron + trivial custom main.js (macOS, diagnostic only)
+        # Bisecting further: the step above proved bare signed Electron (its
+        # own internal default_app, no custom main.js at all) doesn't crash,
+        # but our real packaged app (full main.ts - safeStorage, ipcMain,
+        # preload, loading real renderer content) does. This is the missing
+        # middle rung - the same signed Electron binary, given the smallest
+        # possible custom main.js (one BrowserWindow, nothing else) via
+        # Electron's `electron path-to-app` CLI convention. If this crashes,
+        # the trigger is "any custom app loaded at all" (something structural
+        # in how a real vs. default_app boots) rather than anything specific
+        # in our own main.ts.
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: |
+          ELECTRON_APP=$(find /tmp/electron-bare -maxdepth 1 -name "*.app" -print -quit)
+          if [ -z "$ELECTRON_APP" ]; then
+            echo "No signed bare Electron.app to test - skipping."
+            exit 0
+          fi
+          EXECUTABLE="$ELECTRON_APP/Contents/MacOS/$(basename "$ELECTRON_APP" .app)"
+
+          mkdir -p /tmp/minimal-app
+          cat > /tmp/minimal-app/package.json <<'JSON'
+          {"name": "minimal-app", "main": "index.js"}
+          JSON
+          cat > /tmp/minimal-app/index.js <<'JS'
+          const { app, BrowserWindow } = require("electron");
+          app.whenReady().then(() => {
+            new BrowserWindow({ show: false });
+          });
+          JS
+
+          echo "Launching signed Electron + minimal custom main.js under lldb (quarantined)"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" /tmp/minimal-app \
+            > minimal-lldb-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "MINIMAL CUSTOM APP RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          cat minimal-lldb-output.txt
+          if grep -q "stop reason" minimal-lldb-output.txt; then
+            echo "MINIMAL CUSTOM APP RESULT: CRASHED (see backtrace above) - a trivial custom main.js is enough to trigger it, not anything specific to woodaa's own code."
+          else
+            echo "MINIMAL CUSTOM APP RESULT: exited without a crash stop reason - treating as healthy."
+          fi
+
+      - name: Smoke test signed Electron + real renderer, no safeStorage/preload (macOS, diagnostic only)
+        # Narrows further: a trivial custom main.js (previous step) does NOT
+        # crash, but our full app (safeStorage + ipcMain + preload +
+        # contextIsolation + the real ~520KB React/tRPC renderer bundle,
+        # which fetches https://www.woodaa.de on load) does. This isolates
+        # just the renderer half - load the actual built out/renderer/
+        # index.html, but with no preload script and no safeStorage/ipcMain
+        # at all - to see if the real UI bundle alone is enough to trigger
+        # it, independent of the auth/keychain code in main.ts.
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: |
+          ELECTRON_APP=$(find /tmp/electron-bare -maxdepth 1 -name "*.app" -print -quit)
+          RENDERER_HTML="$GITHUB_WORKSPACE/apps/desktop/out/renderer/index.html"
+          if [ -z "$ELECTRON_APP" ] || [ ! -f "$RENDERER_HTML" ]; then
+            echo "No signed bare Electron.app or built renderer to test - skipping."
+            exit 0
+          fi
+          EXECUTABLE="$ELECTRON_APP/Contents/MacOS/$(basename "$ELECTRON_APP" .app)"
+
+          mkdir -p /tmp/renderer-only-app
+          cat > /tmp/renderer-only-app/package.json <<'JSON'
+          {"name": "renderer-only-app", "main": "index.js"}
+          JSON
+          cat > /tmp/renderer-only-app/index.js <<JS
+          const { app, BrowserWindow } = require("electron");
+          app.whenReady().then(() => {
+            // show left at its default (true), like the real app's
+            // createWindow() - every earlier diagnostic used show:false,
+            // which never needed the runner to actually composite/display
+            // anything. If this is what makes the difference, it points at
+            // on-screen rendering/WindowServer interaction rather than
+            // safeStorage/preload/ipcMain.
+            const win = new BrowserWindow({ width: 1360, height: 860 });
+            win.loadFile("$RENDERER_HTML");
+          });
+          JS
+
+          echo "Launching signed Electron + real renderer bundle (no safeStorage/preload) under lldb (quarantined)"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" /tmp/renderer-only-app \
+            > renderer-only-lldb-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "RENDERER-ONLY RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          cat renderer-only-lldb-output.txt
+          if grep -q "stop reason" renderer-only-lldb-output.txt; then
+            echo "RENDERER-ONLY RESULT: CRASHED (see backtrace above) - the real renderer bundle alone is enough, independent of safeStorage/preload/ipcMain."
+          else
+            echo "RENDERER-ONLY RESULT: exited without a crash stop reason - treating as healthy."
+          fi
+
+      - name: Smoke test signed Electron + our real main.ts/preload.ts, no asar packaging (macOS, diagnostic only)
+        # Across every run so far: bare Electron, a trivial custom main.js,
+        # and the real renderer bundle with no preload/safeStorage/ipcMain
+        # have NEVER crashed once (0 crashes across ~7-8 attempts each).
+        # Only the real packaged app crashes, and does so most of the time.
+        # The one remaining difference is the auth/keychain code in
+        # main.ts (safeStorage, ipcMain handlers) plus the preload script's
+        # contextBridge/contextIsolation setup. This runs our ACTUAL built
+        # out/main/main.js and out/preload/preload.js - unmodified, just not
+        # packaged into an .asar by electron-builder - to confirm whether
+        # that code alone reproduces the crash at a similar rate.
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: |
+          ELECTRON_APP=$(find /tmp/electron-bare -maxdepth 1 -name "*.app" -print -quit)
+          REAL_OUT_DIR="$GITHUB_WORKSPACE/apps/desktop/out"
+          if [ -z "$ELECTRON_APP" ] || [ ! -d "$REAL_OUT_DIR" ]; then
+            echo "No signed bare Electron.app or built out/ dir to test - skipping."
+            exit 0
+          fi
+          EXECUTABLE="$ELECTRON_APP/Contents/MacOS/$(basename "$ELECTRON_APP" .app)"
+
+          rm -rf /tmp/real-main-app
+          mkdir -p /tmp/real-main-app
+          cp -R "$REAL_OUT_DIR"/. /tmp/real-main-app/
+          cat > /tmp/real-main-app/package.json <<'JSON'
+          {"name": "real-main-app", "main": "main/main.js"}
+          JSON
+
+          echo "Launching signed Electron + our real main.ts/preload.ts (no asar) under lldb (quarantined)"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" /tmp/real-main-app \
+            > real-main-lldb-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "REAL MAIN.TS RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          cat real-main-lldb-output.txt
+          if grep -q "stop reason" real-main-lldb-output.txt; then
+            echo "REAL MAIN.TS RESULT: CRASHED (see backtrace above) - our real main.ts/preload.ts is enough on its own, confirming safeStorage/ipcMain/preload as the trigger."
+          else
+            echo "REAL MAIN.TS RESULT: exited without a crash stop reason - treating as healthy."
+          fi
+
+      - name: Install Rosetta (macOS, only needed while testing an x64 build on Apple Silicon runners)
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: softwareupdate --install-rosetta --agree-to-license
 
       - name: Smoke test (macOS) - launch the packaged app, fail if it crashes on startup
         if: matrix.os == 'macos-latest'
@@ -229,7 +553,67 @@ jobs:
           fi
           echo "lldb exited without a crash stop reason - treating as healthy."
 
+      - name: Smoke test (macOS, diagnostic only) - same app, with candidate V8/libuv concurrency flags
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: |
+          # Every real-hardware crash report so far traps inside V8's
+          # concurrent-inlining dependency tracking (CompilationDependencies)
+          # on a background compiler thread, and the crash reliably vanishes
+          # under Instruments' heavier tracing overhead - both point at a
+          # timing-sensitive race in V8/libuv's background thread pool at
+          # startup, not at our own code. Testing two targeted (not blanket
+          # --jitless, already ruled out) concurrency-reducing flags here,
+          # via the same lldb+quarantine harness as the real smoke test
+          # above, to see if either changes the crash rate. These are set
+          # as env vars here only for this CI experiment; the shipped app
+          # gets them via Info.plist LSEnvironment instead (which lldb here
+          # bypasses, since it execs the binary directly, not through
+          # LaunchServices).
+          APP_PATH=$(find apps/desktop/release -maxdepth 2 -name "*.app" -print -quit)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found - skipping."
+            exit 0
+          fi
+          APP_NAME=$(basename "$APP_PATH" .app)
+          EXECUTABLE="$APP_PATH/Contents/MacOS/$APP_NAME"
+          xattr -w com.apple.quarantine "0081;00000000;Chrome;" "$APP_PATH"
+          export UV_THREADPOOL_SIZE=1
+          export NODE_OPTIONS="--no-concurrent-inlining"
+          echo "Launching $EXECUTABLE under lldb with UV_THREADPOOL_SIZE=1 NODE_OPTIONS=--no-concurrent-inlining"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" \
+            > lldb-flags-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "FLAGGED RUN RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            cat lldb-flags-output.txt
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          echo "===== lldb output (with candidate flags) ====="
+          cat lldb-flags-output.txt
+          echo "===== end lldb output ====="
+          if grep -q "stop reason" lldb-flags-output.txt; then
+            echo "FLAGGED RUN RESULT: CRASHED even with the candidate flags - see backtrace above."
+          else
+            echo "FLAGGED RUN RESULT: exited without a crash stop reason - the flags may have helped."
+          fi
+
       - uses: actions/upload-artifact@v4
+        # Always upload the built, signed, notarized DMG/exe even if the
+        # CI smoke test caught a crash - CI reproduces this intermittent
+        # crash maybe 60-80% of the time, not 100%, and a real device is
+        # exactly what's needed to test it anyway. Without this, a "failed"
+        # run (crash caught) silently skips the upload and leaves no build
+        # to download.
+        if: always()
         with:
           name: woodaa-desktop-${{ matrix.os }}
           path: apps/desktop/${{ matrix.artifact }}
+          if-no-files-found: ignore

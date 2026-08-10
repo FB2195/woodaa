@@ -1,6 +1,10 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, Image, ScrollView, Text, View } from "react-native";
+import { FacilityLocationMap } from "@/components/FacilityLocationMap";
+import { FacilityNeighborhood } from "@/components/FacilityNeighborhood";
 import { FacilityReviews } from "@/components/FacilityReviews";
+import { FavoriteButton } from "@/components/FavoriteButton";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { PflegekassenZuschussRechner } from "@/components/PflegekassenZuschussRechner";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/lib/AuthContext";
@@ -49,19 +53,31 @@ export default function FacilityDetailScreen() {
         )}
 
         <View className="gap-4 p-6">
-          <View>
-            <Text className="text-2xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">
-              {facility.name}
-            </Text>
-            <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-              {facility.street}, {facility.postalCode} {facility.city}
-            </Text>
-            {facility.avgRating != null && (
+          <View className="flex-row items-start justify-between gap-2">
+            <View className="flex-1">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-2xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">
+                  {facility.name}
+                </Text>
+                {facility.verifiedAt && <VerifiedBadge />}
+              </View>
               <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-                ★ {facility.avgRating.toFixed(1)} ({facility.reviewCount} Bewertungen)
+                {facility.street}, {facility.postalCode} {facility.city}
               </Text>
-            )}
+              {facility.avgRating != null && (
+                <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
+                  ★ {facility.avgRating.toFixed(1)} ({facility.reviewCount} Bewertungen)
+                </Text>
+              )}
+            </View>
+            <FavoriteButton facilityId={facility.id} />
           </View>
+
+          <FacilityLocationMap
+            latitude={facility.latitude}
+            longitude={facility.longitude}
+            facilityName={facility.name}
+          />
 
           {facility.description && (
             <Text className="text-sm leading-5 text-brand-text dark:text-brand-text-dark">
@@ -129,6 +145,96 @@ export default function FacilityDetailScreen() {
               </View>
             </View>
           )}
+
+          {(facility.checkInTime ||
+            facility.checkOutTime ||
+            facility.visitingHours ||
+            facility.wifiInfo ||
+            facility.parkingInfo ||
+            facility.petsPolicy ||
+            facility.cancellationPolicyDays !== null) && (
+            <View className="gap-2">
+              <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
+                Unterkunftsrichtlinien
+              </Text>
+              <View className="flex-row flex-wrap gap-x-6 gap-y-3">
+                {facility.checkInTime && (
+                  <View className="min-w-[45%]">
+                    <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+                      Check-in
+                    </Text>
+                    <Text className="text-sm text-brand-text dark:text-brand-text-dark">
+                      {facility.checkInTime}
+                    </Text>
+                  </View>
+                )}
+                {facility.checkOutTime && (
+                  <View className="min-w-[45%]">
+                    <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+                      Check-out
+                    </Text>
+                    <Text className="text-sm text-brand-text dark:text-brand-text-dark">
+                      {facility.checkOutTime}
+                    </Text>
+                  </View>
+                )}
+                {facility.visitingHours && (
+                  <View className="min-w-[45%]">
+                    <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+                      Besuchszeiten
+                    </Text>
+                    <Text className="text-sm text-brand-text dark:text-brand-text-dark">
+                      {facility.visitingHours}
+                    </Text>
+                  </View>
+                )}
+                {facility.wifiInfo && (
+                  <View className="min-w-[45%]">
+                    <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+                      Internetzugang
+                    </Text>
+                    <Text className="text-sm text-brand-text dark:text-brand-text-dark">
+                      {facility.wifiInfo}
+                    </Text>
+                  </View>
+                )}
+                {facility.parkingInfo && (
+                  <View className="min-w-[45%]">
+                    <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+                      Parkmöglichkeiten
+                    </Text>
+                    <Text className="text-sm text-brand-text dark:text-brand-text-dark">
+                      {facility.parkingInfo}
+                    </Text>
+                  </View>
+                )}
+                {facility.petsPolicy && (
+                  <View className="min-w-[45%]">
+                    <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+                      Haustiere
+                    </Text>
+                    <Text className="text-sm text-brand-text dark:text-brand-text-dark">
+                      {facility.petsPolicy}
+                    </Text>
+                  </View>
+                )}
+                {facility.cancellationPolicyDays !== null && (
+                  <View className="min-w-[45%]">
+                    <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+                      Stornierung
+                    </Text>
+                    <Text className="text-sm text-brand-text dark:text-brand-text-dark">
+                      Bis {facility.cancellationPolicyDays}{" "}
+                      {facility.cancellationPolicyDays === 1 ? "Tag" : "Tage"} vorher kostenlos
+                      stornierbar
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
+          <FacilityNeighborhood latitude={facility.latitude} longitude={facility.longitude} />
 
           <PrimaryButton
             label="Pflegeplatz buchen"

@@ -36,3 +36,11 @@ packages/db/prisma/*.db
 coverage/
 .eas/
 node-compile-cache/
+
+# iOS signing (fetched from GitHub secrets at CI time, never committed -
+# see .github/workflows/mobile-ios-testflight-build.yml)
+apps/mobile/credentials.json
+apps/mobile/ios-certs/
+*.p12
+*.mobileprovision
+*.p8

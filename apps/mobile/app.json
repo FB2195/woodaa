@@ -7,6 +7,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#FAF9F5",
+    "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash-native.png",
       "resizeMode": "contain",
@@ -14,11 +15,17 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "de.woodaa.app"
+      "bundleIdentifier": "de.woodaa.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "woodaa nutzt die Kamera, um beim Bezahlen optional eine Kreditkarte einzuscannen (über unseren Zahlungsdienstleister Stripe)."
+      },
+      "buildNumber": "10"
     },
     "android": {
       "package": "de.woodaa.app",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundColor": "#FAF9F5"
       }
     },
@@ -33,7 +40,10 @@
           "locationWhenInUsePermission": "woodaa nutzt deinen Standort, um Pflegeplätze in deiner Nähe zu finden."
         }
       ],
-      ["@stripe/stripe-react-native", {}]
+      [
+        "@stripe/stripe-react-native",
+        {}
+      ]
     ],
     "extra": {
       "router": {

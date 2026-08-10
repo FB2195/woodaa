@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { bookingTypeLabels, dateRangedBookingTypes } from "@/lib/bookingTypeLabels";
 import { formatDate } from "@/lib/format";
 import { PflegegradPricingTable } from "./PflegegradPricingTable";
+import { ResidentNotes } from "./ResidentNotes";
 import type { BookingType } from "@woodaa/validators";
 import type { FacilityCapacity, FacilityUnit, UnitBooking } from "@woodaa/api";
 
@@ -39,67 +40,82 @@ function UnitRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(unit.label);
+  const [notesOpen, setNotesOpen] = useState(false);
   const booking = unit.bookings[0];
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-brand-md border border-brand-border px-3 py-2 text-sm">
-      {editing ? (
-        <form
-          className="flex items-center gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onRename(value);
-            setEditing(false);
-          }}
-        >
-          <input
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            autoFocus
-            className="w-32 rounded-brand-md border border-brand-border px-2 py-1 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
-          />
-          <button type="submit" className="text-brand-accent">
-            ✓
-          </button>
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          title="Umbenennen"
-          className="font-medium text-brand-text hover:underline"
-        >
-          {unit.label}
-        </button>
-      )}
-
-      {booking ? (
-        <div className="flex items-center gap-3">
-          <span className="text-brand-text-muted">
-            belegt ({sourceLabels[booking.source]})
-            {booking.startDate && booking.endDate
-              ? ` · ${formatDate(booking.startDate)}–${formatDate(booking.endDate)}`
-              : ""}
-            {booking.guestName ? ` · ${booking.guestName}` : ""}
-            {booking.user?.vollmachtDocumentKey && (
-              <span className="ml-1 rounded-brand-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                Bevollmächtigte/r Angehörige/r
-              </span>
-            )}
-          </span>
+    <>
+      <li className="flex flex-wrap items-center justify-between gap-2 rounded-brand-md border border-brand-border px-3 py-2 text-sm">
+        {editing ? (
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onRename(value);
+              setEditing(false);
+            }}
+          >
+            <input
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              autoFocus
+              className="w-32 rounded-brand-md border border-brand-border px-2 py-1 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+            />
+            <button type="submit" className="text-brand-accent">
+              ✓
+            </button>
+          </form>
+        ) : (
           <button
             type="button"
-            disabled={cancelPending}
-            onClick={() => onCancelBooking(booking.id)}
-            className="text-brand-text-muted hover:text-red-600 disabled:opacity-50"
+            onClick={() => setEditing(true)}
+            title="Umbenennen"
+            className="font-medium text-brand-text hover:underline"
           >
-            Stornieren
+            {unit.label}
           </button>
-        </div>
-      ) : (
-        <span className="font-medium text-brand-accent">frei</span>
+        )}
+
+        {booking ? (
+          <div className="flex items-center gap-3">
+            <span className="text-brand-text-muted">
+              belegt ({sourceLabels[booking.source]})
+              {booking.startDate && booking.endDate
+                ? ` · ${formatDate(booking.startDate)}–${formatDate(booking.endDate)}`
+                : ""}
+              {booking.guestName ? ` · ${booking.guestName}` : ""}
+              {booking.user?.vollmachtDocumentKey && (
+                <span className="ml-1 rounded-brand-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  Bevollmächtigte/r Angehörige/r
+                </span>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => setNotesOpen((open) => !open)}
+              className="text-brand-text-muted hover:text-brand-accent"
+            >
+              {notesOpen ? "Notizen ausblenden" : "Notizen"}
+            </button>
+            <button
+              type="button"
+              disabled={cancelPending}
+              onClick={() => onCancelBooking(booking.id)}
+              className="text-brand-text-muted hover:text-red-600 disabled:opacity-50"
+            >
+              Stornieren
+            </button>
+          </div>
+        ) : (
+          <span className="font-medium text-brand-accent">frei</span>
+        )}
+      </li>
+      {booking && notesOpen && (
+        <li>
+          <ResidentNotes bookingId={booking.id} />
+        </li>
       )}
-    </li>
+    </>
   );
 }
 
@@ -138,8 +154,7 @@ function ManualBookingForm({
       }}
     >
       <p className="text-xs text-brand-text-muted">
-        Ein freier Platz wird automatisch zugewiesen - du musst keinen bestimmten
-        auswählen.
+        Ein freier Platz wird automatisch zugewiesen - du musst keinen bestimmten auswählen.
       </p>
       <div className="flex gap-4 text-sm text-brand-text">
         <label className="flex items-center gap-1">
@@ -238,9 +253,7 @@ export function CategoryPanel({
   return (
     <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-brand-heading">
-          {bookingTypeLabels[bookingType]}
-        </h3>
+        <h3 className="font-semibold text-brand-heading">{bookingTypeLabels[bookingType]}</h3>
         <span
           className={
             freeUnits > 0
@@ -261,8 +274,8 @@ export function CategoryPanel({
               : "Preis auf Anfrage"}
           </p>
           <p className="max-w-xs text-brand-text-muted">
-            Wird automatisch aus dem günstigsten Pflegegrad-Satz unten berechnet - keine
-            eigene Eingabe nötig.
+            Wird automatisch aus dem günstigsten Pflegegrad-Satz unten berechnet - keine eigene
+            Eingabe nötig.
           </p>
         </div>
 
