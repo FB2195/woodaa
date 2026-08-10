@@ -116,26 +116,42 @@ function signRealFlatDeep(appPath, entitlements) {
 function notarizeAndStaple(appPath) {
   const zipPath = path.join(os.tmpdir(), `woodaa-notarize-${crypto.randomUUID()}.zip`);
   execFileSync("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", appPath, zipPath], { stdio: "inherit" });
+  const notarytoolArgs = [
+    "--key",
+    process.env.APPLE_API_KEY,
+    "--key-id",
+    process.env.APPLE_API_KEY_ID,
+    "--issuer",
+    process.env.APPLE_API_ISSUER,
+  ];
+  let submitOutput;
   try {
-    execFileSync(
-      "xcrun",
-      [
-        "notarytool",
-        "submit",
-        zipPath,
-        "--key",
-        process.env.APPLE_API_KEY,
-        "--key-id",
-        process.env.APPLE_API_KEY_ID,
-        "--issuer",
-        process.env.APPLE_API_ISSUER,
-        "--wait",
-      ],
-      { stdio: "inherit" },
-    );
+    submitOutput = execFileSync("xcrun", ["notarytool", "submit", zipPath, ...notarytoolArgs, "--wait"]).toString();
+    console.log(submitOutput);
   } finally {
     fs.rmSync(zipPath, { force: true });
   }
+
+  // notarytool submit --wait exits 0 once it has a terminal status, even
+  // when that status is a rejection - the acceptance has to be checked
+  // from its output, not its exit code. On rejection, fetch the detailed
+  // log (the plain submit output only ever says "Invalid", never why) so
+  // a CI failure is diagnosable here instead of needing a manual re-run.
+  const idMatch = submitOutput.match(/id: ([a-f0-9-]{36})/);
+  const statusMatch = submitOutput.match(/^\s*status:\s+(\w+)/m);
+  const status = statusMatch ? statusMatch[1] : "unknown";
+  if (status !== "Accepted") {
+    if (idMatch) {
+      console.error(`afterSign: notarization status "${status}" - fetching detailed log for ${idMatch[1]}...`);
+      try {
+        execFileSync("xcrun", ["notarytool", "log", idMatch[1], ...notarytoolArgs], { stdio: "inherit" });
+      } catch (logError) {
+        console.error("afterSign: failed to fetch notarization log:", logError.message);
+      }
+    }
+    throw new Error(`afterSign: notarization was not accepted (status: ${status})`);
+  }
+
   execFileSync("xcrun", ["stapler", "staple", appPath], { stdio: "inherit" });
 }
 
