@@ -180,6 +180,48 @@ jobs:
           path: /tmp/electron-bare-signed/electron-bare-signed.zip
           if-no-files-found: ignore
 
+      - name: Smoke test signed bare Electron (macOS, diagnostic only) - same crash class, no woodaa code
+        # The real app's smoke test below is intermittent (crashes maybe half
+        # the time - a real user report and a prior CI run hit the identical
+        # crash address, but the very next identical run passed). A single
+        # pass/fail on the real app can't tell us whether that's an
+        # Electron-level bug or something in our own code/packaging. This
+        # runs the SAME crash-hunting lldb check against the bare,
+        # real-cert-signed Electron built just above (zero woodaa code) so
+        # every workflow run produces a same-run comparison point instead of
+        # requiring several separate runs.
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: |
+          ELECTRON_APP=$(find /tmp/electron-bare -maxdepth 1 -name "*.app" -print -quit)
+          if [ -z "$ELECTRON_APP" ]; then
+            echo "No signed bare Electron.app to test - skipping."
+            exit 0
+          fi
+          EXECUTABLE="$ELECTRON_APP/Contents/MacOS/$(basename "$ELECTRON_APP" .app)"
+          xattr -w com.apple.quarantine "0081;00000000;Chrome;" "$ELECTRON_APP"
+          echo "Launching signed bare $EXECUTABLE under lldb (quarantined)"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" \
+            > bare-lldb-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "BARE SIGNED ELECTRON RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          cat bare-lldb-output.txt
+          if grep -q "stop reason" bare-lldb-output.txt; then
+            echo "BARE SIGNED ELECTRON RESULT: CRASHED (see backtrace above) - same crash class as our packaged app, with zero woodaa code involved."
+          else
+            echo "BARE SIGNED ELECTRON RESULT: exited without a crash stop reason - treating as healthy."
+          fi
+
       - name: Smoke test (macOS) - launch the packaged app, fail if it crashes on startup
         if: matrix.os == 'macos-latest'
         run: |
