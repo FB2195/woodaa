@@ -1,0 +1,64 @@
+name: Mobile iOS TestFlight Build
+
+# Manual for now, mirrors mobile-preview-build.yml but for iOS: builds a
+# store-signed IPA via EAS and auto-submits it to TestFlight (--auto-submit
+# uses the eas.json submit profile with the same name as the build
+# profile - "testflight" for both here). Unlike the Android preview APK,
+# an iOS build can't just be downloaded and side-loaded - TestFlight is the
+# only practical way to get a build onto a real iPhone without a Mac.
+#
+# Requires these repository secrets in addition to EXPO_TOKEN (already
+# used by mobile-preview-build.yml):
+#   EAS_APPLE_ASC_KEY_ID      - App Store Connect API Key ID
+#   EAS_APPLE_ASC_ISSUER_ID   - App Store Connect API Key Issuer ID
+#   EAS_APPLE_ASC_API_KEY     - full contents of the downloaded .p8 key file
+# See https://appstoreconnect.apple.com/access/integrations/api to create
+# an API key (Admin role) and get these three values.
+#
+# Also requires apps/mobile/eas.json's submit.testflight.ios to be filled
+# in with appleTeamId + ascAppId (not secret, just identifiers - see
+# apps/mobile/eas.json).
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install EAS CLI
+        run: npm install --global eas-cli
+
+      - name: Write App Store Connect API key
+        working-directory: apps/mobile
+        env:
+          EAS_APPLE_ASC_API_KEY: ${{ secrets.EAS_APPLE_ASC_API_KEY }}
+        run: printf '%s' "$EAS_APPLE_ASC_API_KEY" > AuthKey.p8
+
+      - name: Build + submit to TestFlight
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_ASC_API_KEY_PATH: ./AuthKey.p8
+          EXPO_ASC_KEY_ID: ${{ secrets.EAS_APPLE_ASC_KEY_ID }}
+          EXPO_ASC_ISSUER_ID: ${{ secrets.EAS_APPLE_ASC_ISSUER_ID }}
+        run: |
+          eas build --platform ios --profile testflight --non-interactive --wait --auto-submit --json > build-result.json
+          cat build-result.json
+
+      - name: Clean up API key file
+        if: always()
+        working-directory: apps/mobile
+        run: rm -f AuthKey.p8
