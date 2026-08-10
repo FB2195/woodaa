@@ -116,6 +116,14 @@ function signRealFlatDeep(appPath, entitlements) {
       ],
       { stdio: "inherit" },
     );
+    // Notarization failed twice in a row on "signature does not include a
+    // secure timestamp" despite --timestamp being passed - printing this
+    // here (before notarization, so it's visible even if notarization
+    // fails again) shows whether codesign actually embedded one or
+    // silently skipped it (e.g. a network issue reaching Apple's
+    // timestamp server from this runner).
+    console.log("afterSign: signature details after signing (checking for Timestamp=...):");
+    execFileSync("codesign", ["-dvvv", appPath], { stdio: "inherit" });
   } finally {
     fs.rmSync(certPath, { force: true });
     try {
