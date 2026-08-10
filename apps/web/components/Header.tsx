@@ -67,8 +67,8 @@ export function Header() {
           <Image
             src="/logo.png"
             alt="woodaa"
-            width={786}
-            height={412}
+            width={478}
+            height={142}
             priority
             className="h-9 w-auto"
           />
