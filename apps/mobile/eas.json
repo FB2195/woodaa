@@ -15,9 +15,18 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "testflight": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {},
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://www.woodaa.de"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {},
+    "testflight": {}
   }
 }
