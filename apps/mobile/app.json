@@ -20,7 +20,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "woodaa nutzt die Kamera, um beim Bezahlen optional eine Kreditkarte einzuscannen (über unseren Zahlungsdienstleister Stripe)."
       },
-      "buildNumber": "5"
+      "buildNumber": "10"
     },
     "android": {
       "package": "de.woodaa.app",
