@@ -73,6 +73,8 @@ jobs:
             wait "$PID" || EXIT_CODE=$?
             echo "ISOLATION RESULT: bare Electron demo exited within 10s (code $EXIT_CODE) - CRASHED, same as our app."
           fi
+          echo "===== Full Info.plist (bare Electron, for comparison against the real app's) ====="
+          plutil -p "$ELECTRON_APP/Contents/Info.plist"
 
       - name: Write Apple notarization API key (macOS, only if configured)
         if: matrix.os == 'macos-latest'
@@ -120,6 +122,8 @@ jobs:
             exit 1
           fi
           codesign -dvvv --entitlements - "$APP_PATH"
+          echo "===== Full Info.plist (real packaged app) ====="
+          plutil -p "$APP_PATH/Contents/Info.plist"
 
       - name: Sign bare Electron with our real cert (macOS, diagnostic only)
         # Isolates whether a real crash report from a user's Mac (EXC_BREAKPOINT/
