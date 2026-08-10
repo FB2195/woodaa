@@ -13,7 +13,7 @@ export default async function PflegeleistungenPage() {
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-2xl px-6 py-12">
-        <SubPageHeader title="Meine Pflegeleistungen" />
+        <SubPageHeader title="Pflegeleistungen beantragen" />
         <CareApplicationsSection />
       </section>
     </main>
