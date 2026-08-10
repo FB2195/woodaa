@@ -100,7 +100,20 @@ function signRealFlatDeep(appPath, entitlements) {
 
     execFileSync(
       "codesign",
-      ["--deep", "--force", "--options", "runtime", "--sign", identity, "--entitlements", entitlements, "--keychain", keychainPath, appPath],
+      [
+        "--deep",
+        "--force",
+        "--options",
+        "runtime",
+        "--timestamp",
+        "--sign",
+        identity,
+        "--entitlements",
+        entitlements,
+        "--keychain",
+        keychainPath,
+        appPath,
+      ],
       { stdio: "inherit" },
     );
   } finally {
