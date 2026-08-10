@@ -17,7 +17,8 @@
       "bundleIdentifier": "de.woodaa.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "4"
     },
     "android": {
       "package": "de.woodaa.app",
@@ -36,7 +37,10 @@
           "locationWhenInUsePermission": "woodaa nutzt deinen Standort, um Pflegeplätze in deiner Nähe zu finden."
         }
       ],
-      ["@stripe/stripe-react-native", {}]
+      [
+        "@stripe/stripe-react-native",
+        {}
+      ]
     ],
     "extra": {
       "router": {

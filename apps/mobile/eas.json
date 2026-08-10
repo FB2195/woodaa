@@ -19,6 +19,7 @@
     "testflight": {
       "distribution": "store",
       "autoIncrement": true,
+      "credentialsSource": "local",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://www.woodaa.de"
       }
