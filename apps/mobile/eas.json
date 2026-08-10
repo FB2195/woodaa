@@ -19,7 +19,9 @@
     "testflight": {
       "distribution": "store",
       "autoIncrement": true,
-      "ios": {},
+      "ios": {
+        "appleTeamId": "Q8QBF5LDCZ"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://www.woodaa.de"
       }
@@ -27,6 +29,12 @@
   },
   "submit": {
     "production": {},
-    "testflight": {}
+    "testflight": {
+      "ios": {
+        "appleTeamId": "Q8QBF5LDCZ",
+        "ascAppId": "6799942969",
+        "ascApiKeyPath": "./AuthKey.p8"
+      }
+    }
   }
 }
