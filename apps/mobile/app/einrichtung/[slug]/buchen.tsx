@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { Checkbox } from "@/components/Checkbox";
 import { DateField } from "@/components/DateField";
+import { DateRangeCalendar } from "@/components/booking/DateRangeCalendar";
 import { KostenuebernahmeUpload } from "@/components/booking/KostenuebernahmeUpload";
 import { StripePaymentStep } from "@/components/booking/StripePaymentStep";
 import { FormField } from "@/components/FormField";
@@ -22,12 +23,8 @@ import { stripePublishableKey } from "@/lib/stripeConfig";
 import { trpc } from "@/lib/trpc";
 
 // Mobile port of apps/web/app/einrichtung/[slug]/buchen/page.tsx +
-// components/booking/BookingForm.tsx. Diverges from the web version in two
-// deliberate ways:
-// - DateRangeCalendar (a custom two-click calendar widget) isn't ported;
-//   two DateField pickers (native date pickers, see components/DateField)
-//   cover the same "von/bis" input without porting a whole custom calendar
-//   component.
+// components/booking/BookingForm.tsx. Diverges from the web version in one
+// deliberate way:
 // - Payment: card/Klarna/PayPal go through Stripe's PaymentSheet (see
 //   StripePaymentStep) instead of Stripe.js's <PaymentElement>, and are
 //   hidden entirely if EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY isn't configured
@@ -386,19 +383,34 @@ export default function BookingScreen() {
 
         {isDateRanged && (
           <View className="gap-2">
-            <View className="flex-row gap-3">
+            <View className="flex-row gap-6">
               <View className="flex-1">
-                <DateField label="Von" value={startDate} onChange={setStartDate} />
+                <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
+                  Von
+                </Text>
+                <Text className="text-base text-brand-text dark:text-brand-text-dark">
+                  {startDate ? startDate.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "–"}
+                </Text>
               </View>
               <View className="flex-1">
-                <DateField
-                  label="Bis"
-                  value={endDate}
-                  onChange={setEndDate}
-                  minimumDate={startDate ?? undefined}
-                />
+                <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
+                  Bis
+                </Text>
+                <Text className="text-base text-brand-text dark:text-brand-text-dark">
+                  {endDate ? endDate.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "–"}
+                </Text>
               </View>
             </View>
+
+            <DateRangeCalendar
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(newStart, newEnd) => {
+                setStartDate(newStart);
+                setEndDate(newEnd);
+              }}
+              disabled={allowsOpenEnd && endeOffen}
+            />
 
             {isKurzzeitpflege && minStayNights !== null && (
               <Text className={`text-xs ${belowMinStay ? "text-red-600" : "text-brand-text-muted dark:text-brand-text-muted-dark"}`}>

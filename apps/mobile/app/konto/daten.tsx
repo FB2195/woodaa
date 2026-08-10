@@ -1,17 +1,14 @@
-import { router } from "expo-router";
+import { Stack } from "expo-router";
 import { useState } from "react";
 import { Alert, ScrollView, Share, Text, View } from "react-native";
-import { FormField } from "@/components/FormField";
 import { PrimaryButton } from "@/components/PrimaryButton";
-import { useAuth } from "@/lib/AuthContext";
 import { trpc } from "@/lib/trpc";
 
+// Mobile port of apps/web/app/konto/meine-daten +
+// components/account/ExportDataButton.tsx. "Konto löschen" is its own
+// screen now (konto-loeschen.tsx), matching the web menu's separation.
 export default function MeineDatenScreen() {
-  const { logout } = useAuth();
   const utils = trpc.useUtils();
-  const deleteAccount = trpc.account.deleteAccount.useMutation();
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
   async function handleExport() {
@@ -29,39 +26,13 @@ export default function MeineDatenScreen() {
     }
   }
 
-  function confirmDelete() {
-    setError(null);
-    if (!password.trim()) {
-      setError("Bitte gib dein Passwort ein.");
-      return;
-    }
-    Alert.alert("Konto wirklich löschen?", "Diese Aktion kann nicht rückgängig gemacht werden.", [
-      { text: "Abbrechen", style: "cancel" },
-      {
-        text: "Endgültig löschen",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteAccount.mutateAsync({ password });
-            await logout();
-            router.replace("/(tabs)");
-          } catch (err) {
-            setError(err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.");
-          }
-        },
-      },
-    ]);
-  }
-
   return (
     <ScrollView
       className="flex-1 bg-brand-background dark:bg-brand-background-dark"
       contentContainerClassName="gap-6 p-6"
     >
+      <Stack.Screen options={{ title: "Meine Daten exportieren" }} />
       <View className="gap-2 rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
-        <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
-          Meine Daten exportieren
-        </Text>
         <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           Lädt alle über dich gespeicherten Daten (Art. 15/20 DSGVO) und öffnet das Teilen-Menü, z.
           B. um sie per E-Mail an dich selbst zu schicken.
@@ -71,25 +42,6 @@ export default function MeineDatenScreen() {
           variant="secondary"
           loading={exporting}
           onPress={handleExport}
-        />
-      </View>
-
-      <View className="gap-2 rounded-brand-lg border border-red-200 bg-brand-surface p-4 dark:border-red-900 dark:bg-brand-surface-dark">
-        <Text className="text-base font-semibold text-red-600">Konto löschen</Text>
-        <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-          Löscht dein Konto und alle zugehörigen Daten unwiderruflich.
-        </Text>
-        <FormField
-          label="Passwort zur Bestätigung"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        {error && <Text className="text-sm text-red-600">{error}</Text>}
-        <PrimaryButton
-          label="Konto endgültig löschen"
-          loading={deleteAccount.isPending}
-          onPress={confirmDelete}
         />
       </View>
     </ScrollView>
