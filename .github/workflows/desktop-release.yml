@@ -549,6 +549,14 @@ jobs:
           echo "lldb exited without a crash stop reason - treating as healthy."
 
       - uses: actions/upload-artifact@v4
+        # Always upload the built, signed, notarized DMG/exe even if the
+        # CI smoke test caught a crash - CI reproduces this intermittent
+        # crash maybe 60-80% of the time, not 100%, and a real device is
+        # exactly what's needed to test it anyway. Without this, a "failed"
+        # run (crash caught) silently skips the upload and leaves no build
+        # to download.
+        if: always()
         with:
           name: woodaa-desktop-${{ matrix.os }}
           path: apps/desktop/${{ matrix.artifact }}
+          if-no-files-found: ignore
