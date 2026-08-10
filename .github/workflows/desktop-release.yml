@@ -303,7 +303,13 @@ jobs:
           cat > /tmp/renderer-only-app/index.js <<JS
           const { app, BrowserWindow } = require("electron");
           app.whenReady().then(() => {
-            const win = new BrowserWindow({ show: false });
+            // show left at its default (true), like the real app's
+            // createWindow() - every earlier diagnostic used show:false,
+            // which never needed the runner to actually composite/display
+            // anything. If this is what makes the difference, it points at
+            // on-screen rendering/WindowServer interaction rather than
+            // safeStorage/preload/ipcMain.
+            const win = new BrowserWindow({ width: 1360, height: 860 });
             win.loadFile("$RENDERER_HTML");
           });
           JS
