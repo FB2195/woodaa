@@ -120,6 +120,66 @@ jobs:
           fi
           codesign -dvvv --entitlements - "$APP_PATH"
 
+      - name: Sign bare Electron with our real cert (macOS, diagnostic only)
+        # Isolates whether a real crash report from a user's Mac (EXC_BREAKPOINT/
+        # SIGTRAP, no window ever appears) is caused by Electron + hardened
+        # runtime + our real Developer ID cert in general, or by something
+        # specific to woodaa's own packaged app/code. The earlier isolation
+        # test above only proved unsigned bare Electron doesn't crash - not a
+        # clean comparison, since the crashing app is hardened-runtime-signed.
+        # This produces the missing middle data point: bare Electron, signed
+        # exactly like our real app, no woodaa code at all. Not notarized
+        # (would add another 15-40min wait) - the user strips the quarantine
+        # xattr locally before running it instead.
+        if: matrix.os == 'macos-latest'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          if [ -z "$CSC_LINK" ]; then
+            echo "CSC_LINK not set - skipping diagnostic signed-bare-Electron build."
+            exit 0
+          fi
+          ELECTRON_APP=$(find /tmp/electron-bare -maxdepth 1 -name "*.app" -print -quit)
+          if [ -z "$ELECTRON_APP" ]; then
+            echo "No bare Electron.app from the isolation test above - skipping."
+            exit 0
+          fi
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/diagnostic-signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          CERT_PATH="$RUNNER_TEMP/diagnostic-cert.p12"
+          echo "$CSC_LINK" | base64 --decode > "$CERT_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed 's/"//g')
+
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk '/Developer ID Application/{print $2; exit}')
+          if [ -z "$IDENTITY" ]; then
+            echo "No Developer ID Application identity found in the diagnostic keychain - skipping."
+            exit 0
+          fi
+          echo "Signing bare Electron.app with $IDENTITY"
+
+          ENTITLEMENTS="$GITHUB_WORKSPACE/apps/desktop/resources/entitlements.mac.plist"
+          codesign --deep --force --options runtime --sign "$IDENTITY" \
+            --entitlements "$ENTITLEMENTS" --keychain "$KEYCHAIN_PATH" "$ELECTRON_APP"
+          codesign -dvvv --entitlements - "$ELECTRON_APP"
+
+          mkdir -p /tmp/electron-bare-signed
+          ditto -c -k --sequesterRsrc --keepParent "$ELECTRON_APP" /tmp/electron-bare-signed/electron-bare-signed.zip
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'macos-latest'
+        with:
+          name: electron-bare-signed-diagnostic
+          path: /tmp/electron-bare-signed/electron-bare-signed.zip
+          if-no-files-found: ignore
+
       - name: Smoke test (macOS) - launch the packaged app, fail if it crashes on startup
         if: matrix.os == 'macos-latest'
         run: |
