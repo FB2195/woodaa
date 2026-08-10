@@ -19,9 +19,6 @@
     "testflight": {
       "distribution": "store",
       "autoIncrement": true,
-      "ios": {
-        "appleTeamId": "Q8QBF5LDCZ"
-      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://www.woodaa.de"
       }
