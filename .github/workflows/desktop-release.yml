@@ -180,6 +180,70 @@ jobs:
           path: /tmp/electron-bare-signed/electron-bare-signed.zip
           if-no-files-found: ignore
 
+      - name: Smoke test full app re-signed with flat --deep (macOS, diagnostic only)
+        # Every diagnostic in this job signs with a single flat `codesign
+        # --deep` pass and has NEVER crashed (9/9 clean across prior runs,
+        # vs. the real app's ~60% crash rate - not chance). electron-builder
+        # itself (via @electron/osx-sign) instead signs every nested
+        # .framework/.app individually, deepest-first, which is the
+        # "correct" Apple-recommended method - and is the one remaining
+        # difference between our diagnostics and the real crashing app.
+        # This takes the actual built+notarized app, re-signs a COPY of it
+        # with the same flat --deep approach (invalidating notarization,
+        # which is fine - we're only checking whether it still crashes),
+        # and smoke-tests that copy to isolate the signing method itself
+        # as a variable.
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+        run: |
+          if [ -z "$CSC_LINK" ]; then
+            echo "CSC_LINK not set - skipping."
+            exit 0
+          fi
+          APP_PATH=$(find apps/desktop/release -maxdepth 2 -name "*.app" -print -quit)
+          KEYCHAIN_PATH="$RUNNER_TEMP/diagnostic-signing.keychain-db"
+          if [ -z "$APP_PATH" ] || [ ! -f "$KEYCHAIN_PATH" ]; then
+            echo "No packaged app or diagnostic keychain to test - skipping."
+            exit 0
+          fi
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk '/Developer ID Application/{print $2; exit}')
+          if [ -z "$IDENTITY" ]; then
+            echo "No Developer ID Application identity found - skipping."
+            exit 0
+          fi
+
+          rm -rf /tmp/deep-resigned.app
+          cp -R "$APP_PATH" /tmp/deep-resigned.app
+          ENTITLEMENTS="$GITHUB_WORKSPACE/apps/desktop/resources/entitlements.mac.plist"
+          codesign --deep --force --options runtime --sign "$IDENTITY" \
+            --entitlements "$ENTITLEMENTS" --keychain "$KEYCHAIN_PATH" /tmp/deep-resigned.app
+          codesign -dvvv --entitlements - /tmp/deep-resigned.app
+
+          EXECUTABLE="/tmp/deep-resigned.app/Contents/MacOS/$(basename "$APP_PATH" .app)"
+          echo "Launching flat---deep-re-signed full app under lldb"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" \
+            > deep-resigned-lldb-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "DEEP-RESIGNED FULL APP RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          cat deep-resigned-lldb-output.txt
+          if grep -q "stop reason" deep-resigned-lldb-output.txt; then
+            echo "DEEP-RESIGNED FULL APP RESULT: CRASHED (see backtrace above) - the signing method is not the trigger."
+          else
+            echo "DEEP-RESIGNED FULL APP RESULT: exited without a crash stop reason - treating as healthy."
+          fi
+
       - name: Smoke test signed bare Electron (macOS, diagnostic only) - same crash class, no woodaa code
         # The real app's smoke test below is intermittent (crashes maybe half
         # the time - a real user report and a prior CI run hit the identical
