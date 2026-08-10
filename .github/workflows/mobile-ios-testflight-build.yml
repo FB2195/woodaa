@@ -60,7 +60,23 @@ jobs:
         working-directory: apps/mobile
         env:
           EAS_APPLE_ASC_API_KEY: ${{ secrets.EAS_APPLE_ASC_API_KEY }}
-        run: printf '%s' "$EAS_APPLE_ASC_API_KEY" > AuthKey.p8
+          EAS_APPLE_ASC_KEY_ID: ${{ secrets.EAS_APPLE_ASC_KEY_ID }}
+          EAS_APPLE_ASC_ISSUER_ID: ${{ secrets.EAS_APPLE_ASC_ISSUER_ID }}
+        run: |
+          printf '%s' "$EAS_APPLE_ASC_API_KEY" > AuthKey.p8
+          # eas build --auto-submit validates eas.json's submit profile up
+          # front (even though eas build itself also accepts the ASC key via
+          # the EXPO_ASC_* env vars below) - ascApiKeyIssuerId/ascApiKeyId
+          # aren't secret (just identifiers, the .p8 file is the actual
+          # secret) but are patched in here at runtime rather than committed,
+          # to keep all Apple-related config in one place (repo secrets).
+          node -e "
+            const fs = require('fs');
+            const easJson = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
+            easJson.submit.testflight.ios.ascApiKeyId = process.env.EAS_APPLE_ASC_KEY_ID;
+            easJson.submit.testflight.ios.ascApiKeyIssuerId = process.env.EAS_APPLE_ASC_ISSUER_ID;
+            fs.writeFileSync('eas.json', JSON.stringify(easJson, null, 2));
+          "
 
       - name: Write iOS distribution credentials
         working-directory: apps/mobile
