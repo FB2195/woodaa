@@ -276,6 +276,60 @@ jobs:
             echo "MINIMAL CUSTOM APP RESULT: exited without a crash stop reason - treating as healthy."
           fi
 
+      - name: Smoke test signed Electron + real renderer, no safeStorage/preload (macOS, diagnostic only)
+        # Narrows further: a trivial custom main.js (previous step) does NOT
+        # crash, but our full app (safeStorage + ipcMain + preload +
+        # contextIsolation + the real ~520KB React/tRPC renderer bundle,
+        # which fetches https://www.woodaa.de on load) does. This isolates
+        # just the renderer half - load the actual built out/renderer/
+        # index.html, but with no preload script and no safeStorage/ipcMain
+        # at all - to see if the real UI bundle alone is enough to trigger
+        # it, independent of the auth/keychain code in main.ts.
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: |
+          ELECTRON_APP=$(find /tmp/electron-bare -maxdepth 1 -name "*.app" -print -quit)
+          RENDERER_HTML="$GITHUB_WORKSPACE/apps/desktop/out/renderer/index.html"
+          if [ -z "$ELECTRON_APP" ] || [ ! -f "$RENDERER_HTML" ]; then
+            echo "No signed bare Electron.app or built renderer to test - skipping."
+            exit 0
+          fi
+          EXECUTABLE="$ELECTRON_APP/Contents/MacOS/$(basename "$ELECTRON_APP" .app)"
+
+          mkdir -p /tmp/renderer-only-app
+          cat > /tmp/renderer-only-app/package.json <<'JSON'
+          {"name": "renderer-only-app", "main": "index.js"}
+          JSON
+          cat > /tmp/renderer-only-app/index.js <<JS
+          const { app, BrowserWindow } = require("electron");
+          app.whenReady().then(() => {
+            const win = new BrowserWindow({ show: false });
+            win.loadFile("$RENDERER_HTML");
+          });
+          JS
+
+          echo "Launching signed Electron + real renderer bundle (no safeStorage/preload) under lldb (quarantined)"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" /tmp/renderer-only-app \
+            > renderer-only-lldb-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "RENDERER-ONLY RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          cat renderer-only-lldb-output.txt
+          if grep -q "stop reason" renderer-only-lldb-output.txt; then
+            echo "RENDERER-ONLY RESULT: CRASHED (see backtrace above) - the real renderer bundle alone is enough, independent of safeStorage/preload/ipcMain."
+          else
+            echo "RENDERER-ONLY RESULT: exited without a crash stop reason - treating as healthy."
+          fi
+
       - name: Smoke test (macOS) - launch the packaged app, fail if it crashes on startup
         if: matrix.os == 'macos-latest'
         run: |
