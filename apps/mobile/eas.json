@@ -11,7 +11,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://www.woodaa.de",
-        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51U0q5GHnT4D0Vrgggijai7lqUSqGvU0Gg219tigBcmu04hddFxu9bcXB5WWsvntoLRxZGTwiPPmz7A3M4Xom4izr00rmc4SRDo"
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51U0q5GHnT4D0Vrgggijai7lqUSqGvU0Gg219tigBcmu04hddFxu9bcXB5WWsvntoLRxZGTwiPPmz7A3M4Xom4izr00rmc4SRDo",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAUD9shkB5V-mTzbL6pw2Kq1pPynWpDiJw"
       }
     },
     "production": {
