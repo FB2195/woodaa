@@ -11,6 +11,7 @@ import { PaymentApprovals } from "./PaymentApprovals";
 import { PflegegradSuitabilityForm } from "./PflegegradSuitabilityForm";
 import { PhotoManager } from "./PhotoManager";
 import { PublicListingPrompt } from "./PublicListingPrompt";
+import { TeamTasks } from "./TeamTasks";
 import { WaitlistEntries } from "./WaitlistEntries";
 
 type Facility = FacilityWithOperatorDetails;
@@ -93,6 +94,8 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
       <PaymentApprovals bookings={facility.units.flatMap((u) => u.bookings)} />
 
       <WaitlistEntries />
+
+      <TeamTasks />
 
       <BookingApprovalModeForm mode={facility.bookingApprovalMode} />
 
