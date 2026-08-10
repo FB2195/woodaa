@@ -14,12 +14,12 @@ function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
 // gibt es serverseitig noch nicht, die Icons führen vorerst zu einem
 // "Kommt bald"-Screen.
 function SearchHeaderTitle() {
-  return <Image source={woodaaLogo} style={{ width: 72, height: 38 }} resizeMode="contain" />;
+  return <Image source={woodaaLogo} style={{ width: 84, height: 44 }} resizeMode="contain" />;
 }
 
 function SearchHeaderRight() {
   return (
-    <View style={{ flexDirection: "row", gap: 16, paddingRight: 4 }}>
+    <View style={{ flexDirection: "row", gap: 16, paddingRight: 16 }}>
       <Pressable onPress={() => router.push("/nachrichten")} hitSlop={8}>
         <Text style={{ fontSize: 20 }}>💬</Text>
       </Pressable>
