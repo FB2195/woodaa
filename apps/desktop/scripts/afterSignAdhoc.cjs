@@ -68,27 +68,19 @@ function isMachO(filePath) {
   }
 }
 
-function isUnsigned(filePath) {
-  try {
-    execFileSync("codesign", ["-dv", filePath], { stdio: "pipe" });
-    return false;
-  } catch {
-    return true;
-  }
-}
-
 // `codesign --deep` recurses into nested .framework/.app bundles but is
 // known to miss loose Mach-O files sitting directly in a Resources/
 // Libraries folder - confirmed by notarization rejecting woodaa's build
 // over unsigned GPU-fallback dylibs (libEGL.dylib, libvk_swiftshader.dylib,
 // libGLESv2.dylib, libffmpeg.dylib) and Squirrel's "ShipIt" helper
 // executable, none of which --deep touched. This walks the whole bundle
-// for any executable Mach-O file --deep left unsigned and signs it
-// individually, filling in exactly those gaps without changing how --deep
-// itself signs everything else (the same --deep pass that's been proven,
-// across 14 CI runs, not to trigger the startup crash electron-builder's
-// own per-component signing does).
-function signRemainingLooseMachO(appPath, identity, entitlements, keychainPath) {
+// and force-signs every executable Mach-O file it finds - unconditionally,
+// not just ones that look unsigned, because several of these dylibs ship
+// from their vendors with a pre-existing (non-Developer-ID) signature that
+// makes a plain `codesign -dv` check report them as "already signed" when
+// they're not signed with OUR identity at all. --force makes re-signing
+// something --deep already handled correctly a harmless no-op.
+function signAllLooseMachO(appPath, identity, entitlements, keychainPath) {
   function walk(dir) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       if (entry.isSymbolicLink()) continue;
@@ -100,8 +92,7 @@ function signRemainingLooseMachO(appPath, identity, entitlements, keychainPath) 
       if (!entry.isFile()) continue;
       if (!(fs.statSync(full).mode & 0o111)) continue;
       if (!isMachO(full)) continue;
-      if (!isUnsigned(full)) continue;
-      console.log(`afterSign: --deep left ${full} unsigned - signing it individually`);
+      console.log(`afterSign: signing ${full}`);
       execFileSync(
         "codesign",
         [
@@ -189,12 +180,12 @@ function signRealFlatDeep(appPath, entitlements) {
       { stdio: "inherit" },
     );
 
-    signRemainingLooseMachO(appPath, identity, entitlements, keychainPath);
+    signAllLooseMachO(appPath, identity, entitlements, keychainPath);
 
     // Re-seal the outer bundle once more (no --deep - nested items already
     // carry their own valid signatures now) so its own CodeDirectory/
     // CodeResources reflect the final state, including whatever
-    // signRemainingLooseMachO just added.
+    // signAllLooseMachO just added.
     execFileSync(
       "codesign",
       [
