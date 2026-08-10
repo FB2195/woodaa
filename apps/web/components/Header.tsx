@@ -62,7 +62,7 @@ export function Header() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <Link
           href="/"
-          className="flex items-center rounded-brand-md px-2 py-1 -mx-2 -my-1 transition-colors active:bg-brand-background"
+          className="flex items-end gap-1.5 rounded-brand-md px-2 py-1 -mx-2 -my-1 transition-colors active:bg-brand-background"
         >
           <Image
             src="/logo.png"
@@ -72,6 +72,12 @@ export function Header() {
             priority
             className="h-9 w-auto"
           />
+          {/* Baked into the logo image itself before, as a light gray that
+              was hard to read - especially in dark mode, where the fixed
+              raster color has no way to adapt. Rendered as real text now,
+              same brand-text-muted token every other muted label already
+              uses, so it stays legible in both themes. */}
+          <span className="pb-0.5 text-xs font-medium text-brand-text-muted">Wo? Da!</span>
         </Link>
 
         <div className="flex items-center gap-2">
