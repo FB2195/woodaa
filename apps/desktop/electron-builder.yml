@@ -12,6 +12,10 @@ mac:
   gatekeeperAssess: false
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
+  extendInfo:
+    LSEnvironment:
+      UV_THREADPOOL_SIZE: "1"
+      NODE_OPTIONS: "--no-concurrent-inlining"
   target:
     - target: dmg
       arch: [arm64]

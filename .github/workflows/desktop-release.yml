@@ -553,6 +553,58 @@ jobs:
           fi
           echo "lldb exited without a crash stop reason - treating as healthy."
 
+      - name: Smoke test (macOS, diagnostic only) - same app, with candidate V8/libuv concurrency flags
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: |
+          # Every real-hardware crash report so far traps inside V8's
+          # concurrent-inlining dependency tracking (CompilationDependencies)
+          # on a background compiler thread, and the crash reliably vanishes
+          # under Instruments' heavier tracing overhead - both point at a
+          # timing-sensitive race in V8/libuv's background thread pool at
+          # startup, not at our own code. Testing two targeted (not blanket
+          # --jitless, already ruled out) concurrency-reducing flags here,
+          # via the same lldb+quarantine harness as the real smoke test
+          # above, to see if either changes the crash rate. These are set
+          # as env vars here only for this CI experiment; the shipped app
+          # gets them via Info.plist LSEnvironment instead (which lldb here
+          # bypasses, since it execs the binary directly, not through
+          # LaunchServices).
+          APP_PATH=$(find apps/desktop/release -maxdepth 2 -name "*.app" -print -quit)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found - skipping."
+            exit 0
+          fi
+          APP_NAME=$(basename "$APP_PATH" .app)
+          EXECUTABLE="$APP_PATH/Contents/MacOS/$APP_NAME"
+          xattr -w com.apple.quarantine "0081;00000000;Chrome;" "$APP_PATH"
+          export UV_THREADPOOL_SIZE=1
+          export NODE_OPTIONS="--no-concurrent-inlining"
+          echo "Launching $EXECUTABLE under lldb with UV_THREADPOOL_SIZE=1 NODE_OPTIONS=--no-concurrent-inlining"
+          lldb --batch -o "run" -o "thread backtrace all" -o "quit" -- "$EXECUTABLE" \
+            > lldb-flags-output.txt 2>&1 &
+          LLDB_PID=$!
+          for i in $(seq 1 15); do
+            kill -0 "$LLDB_PID" 2>/dev/null || break
+            sleep 1
+          done
+          if kill -0 "$LLDB_PID" 2>/dev/null; then
+            echo "FLAGGED RUN RESULT: still running after 15s - did NOT crash."
+            kill "$LLDB_PID" 2>/dev/null || true
+            wait "$LLDB_PID" 2>/dev/null || true
+            cat lldb-flags-output.txt
+            exit 0
+          fi
+          wait "$LLDB_PID" || true
+          echo "===== lldb output (with candidate flags) ====="
+          cat lldb-flags-output.txt
+          echo "===== end lldb output ====="
+          if grep -q "stop reason" lldb-flags-output.txt; then
+            echo "FLAGGED RUN RESULT: CRASHED even with the candidate flags - see backtrace above."
+          else
+            echo "FLAGGED RUN RESULT: exited without a crash stop reason - the flags may have helped."
+          fi
+
       - uses: actions/upload-artifact@v4
         # Always upload the built, signed, notarized DMG/exe even if the
         # CI smoke test caught a crash - CI reproduces this intermittent
