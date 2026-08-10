@@ -16,7 +16,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "de.woodaa.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "woodaa nutzt die Kamera, um beim Bezahlen optional eine Kreditkarte einzuscannen (über unseren Zahlungsdienstleister Stripe)."
       },
       "buildNumber": "5"
     },
