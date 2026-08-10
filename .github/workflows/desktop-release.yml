@@ -105,6 +105,21 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      - name: Verify code signature and entitlements (macOS)
+        # Regardless of ad-hoc vs. real Developer ID signing, confirm what
+        # actually landed in the shipped bundle - the afterSign hook only
+        # prints this itself in the ad-hoc fallback path, so the real-signing
+        # path (electron-builder's own @electron/osx-sign call) has never
+        # been checked here before.
+        if: matrix.os == 'macos-latest'
+        run: |
+          APP_PATH=$(find apps/desktop/release -maxdepth 2 -name "*.app" -print -quit)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found under apps/desktop/release"
+            exit 1
+          fi
+          codesign -dvvv --entitlements - "$APP_PATH"
+
       - name: Smoke test (macOS) - launch the packaged app, fail if it crashes on startup
         if: matrix.os == 'macos-latest'
         run: |
@@ -115,7 +130,15 @@ jobs:
           fi
           APP_NAME=$(basename "$APP_PATH" .app)
           EXECUTABLE="$APP_PATH/Contents/MacOS/$APP_NAME"
-          echo "Launching $EXECUTABLE under lldb"
+          # A real downloaded app carries a Gatekeeper quarantine xattr,
+          # which triggers a stricter runtime assessment than a bare local
+          # launch does. A user report showed the notarized build crashing
+          # on real hardware (EXC_BREAKPOINT/SIGTRAP at startup) even though
+          # this smoke test passed - reproducing that gap here so CI can
+          # actually catch it instead of only finding out from a crash
+          # report days later.
+          xattr -w com.apple.quarantine "0081;00000000;Chrome;" "$APP_PATH"
+          echo "Launching $EXECUTABLE under lldb (quarantined, simulating a real download)"
           # macOS's async ReportCrash daemon doesn't appear to run on these
           # ephemeral CI images (no crash report ever showed up under
           # ~/Library/Logs/DiagnosticReports/ despite the app reliably
