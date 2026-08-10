@@ -10,12 +10,15 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { DateRangeCalendar } from "@/components/booking/DateRangeCalendar";
 import { DateField } from "@/components/DateField";
 import { FacilityCard } from "@/components/FacilityCard";
+import { FacilityResultsMap } from "@/components/FacilityResultsMap";
 import { buildPopularCities, HomeContent } from "@/components/home/HomeContent";
 import { LocationAutocomplete } from "@/components/LocationAutocomplete";
 import { SelectField } from "@/components/SelectField";
 import { bookingTypeOptions } from "@/lib/bookingTypeLabels";
+import { googleMapsApiKey } from "@/lib/googleMapsConfig";
 import { pflegegradOptions } from "@/lib/pflegegradLabels";
 import { sortOptions } from "@/lib/sortLabels";
 import { trpc } from "@/lib/trpc";
@@ -44,6 +47,7 @@ export default function SearchScreen() {
   const [bookingType, setBookingType] = useState<BookingType | null>(null);
   const [sort, setSort] = useState<(typeof sortOptions)[number]["value"]>("newest");
   const [showFilters, setShowFilters] = useState(false);
+  const [resultsView, setResultsView] = useState<"list" | "map">("list");
   const [radiusKm, setRadiusKm] = useState<number | null>(null);
   const [maxPrice, setMaxPrice] = useState("");
   const [pflegegrad, setPflegegrad] = useState<(typeof pflegegradOptions)[number]["value"] | null>(
@@ -169,14 +173,14 @@ export default function SearchScreen() {
         )}
 
         {bookingType === "KURZZEITPFLEGE" && (
-          <View className="flex-row gap-2">
-            <View className="flex-1">
-              <DateField label="Von" value={rangeStart} onChange={setRangeStart} />
-            </View>
-            <View className="flex-1">
-              <DateField label="Bis" value={rangeEnd} onChange={setRangeEnd} minimumDate={rangeStart ?? undefined} />
-            </View>
-          </View>
+          <DateRangeCalendar
+            startDate={rangeStart}
+            endDate={rangeEnd}
+            onChange={(newStart, newEnd) => {
+              setRangeStart(newStart);
+              setRangeEnd(newEnd);
+            }}
+          />
         )}
 
         {(bookingType === "TAGESPFLEGE" || bookingType === "NACHTPFLEGE") && (
@@ -290,17 +294,47 @@ export default function SearchScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#2F7D4F" />
         </View>
+      ) : resultsView === "map" ? (
+        <View className="flex-1 bg-brand-background dark:bg-brand-background-dark">
+          <View className="flex-row items-center justify-between px-6 pt-4">
+            <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
+              {search.data?.totalCount ?? 0} Treffer
+            </Text>
+            <Pressable
+              onPress={() => setResultsView("list")}
+              className="rounded-brand-full border border-brand-border bg-brand-background px-3 py-1.5 dark:border-brand-border-dark dark:bg-brand-background-dark"
+            >
+              <Text className="text-xs font-medium text-brand-text dark:text-brand-text-dark">
+                📋 Liste
+              </Text>
+            </Pressable>
+          </View>
+          <FacilityResultsMap facilities={search.data?.results ?? []} />
+        </View>
       ) : (
         <FlatList
+          className="flex-1 bg-brand-background dark:bg-brand-background-dark"
           data={search.data?.results ?? []}
           keyExtractor={(item) => item.id}
           contentContainerClassName="p-6"
           ListHeaderComponent={
             search.data ? (
-              <Text className="mb-3 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-                {search.data.totalCount} Treffer
-                {search.data.usedFallbackRadius ? " in der Umgebung" : ""}
-              </Text>
+              <View className="mb-3 flex-row items-center justify-between">
+                <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
+                  {search.data.totalCount} Treffer
+                  {search.data.usedFallbackRadius ? " in der Umgebung" : ""}
+                </Text>
+                {googleMapsApiKey() && (
+                  <Pressable
+                    onPress={() => setResultsView("map")}
+                    className="rounded-brand-full border border-brand-border bg-brand-background px-3 py-1.5 dark:border-brand-border-dark dark:bg-brand-background-dark"
+                  >
+                    <Text className="text-xs font-medium text-brand-text dark:text-brand-text-dark">
+                      🗺️ Karte
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
             ) : null
           }
           ListEmptyComponent={

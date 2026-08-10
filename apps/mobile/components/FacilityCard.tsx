@@ -1,5 +1,6 @@
 import type { BookingType } from "@woodaa/validators";
 import { Image, Pressable, Text, View } from "react-native";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { resolvePhotoUrl } from "@/lib/photoUrl";
 
@@ -44,13 +45,18 @@ export function FacilityCard({
       onPress={onPress}
       className="mb-4 overflow-hidden rounded-brand-lg border border-brand-border bg-brand-surface dark:border-brand-border-dark dark:bg-brand-surface-dark"
     >
-      {coverPhoto ? (
-        <Image source={{ uri: coverPhoto }} className="h-36 w-full" resizeMode="cover" />
-      ) : (
-        <View className="h-36 w-full items-center justify-center bg-brand-background dark:bg-brand-background-dark">
-          <Text className="text-brand-text-muted dark:text-brand-text-muted-dark">Kein Foto</Text>
+      <View>
+        {coverPhoto ? (
+          <Image source={{ uri: coverPhoto }} className="h-36 w-full" resizeMode="cover" />
+        ) : (
+          <View className="h-36 w-full items-center justify-center bg-brand-background dark:bg-brand-background-dark">
+            <Text className="text-brand-text-muted dark:text-brand-text-muted-dark">Kein Foto</Text>
+          </View>
+        )}
+        <View className="absolute right-2 top-2">
+          <FavoriteButton facilityId={facility.id} />
         </View>
-      )}
+      </View>
 
       <View className="p-4">
         <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">

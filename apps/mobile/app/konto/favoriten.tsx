@@ -1,14 +1,10 @@
 import { router, Stack } from "expo-router";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { FacilityCard } from "@/components/FacilityCard";
 import { trpc } from "@/lib/trpc";
 
 export default function FavoritenScreen() {
-  const utils = trpc.useUtils();
   const favoritesQuery = trpc.favorite.list.useQuery();
-  const toggle = trpc.favorite.toggle.useMutation({
-    onSuccess: () => utils.favorite.list.invalidate(),
-  });
 
   if (favoritesQuery.isLoading) {
     return (
@@ -32,17 +28,7 @@ export default function FavoritenScreen() {
         </Text>
       }
       renderItem={({ item }) => (
-        <View>
-          <FacilityCard facility={item} onPress={() => router.push(`/einrichtung/${item.slug}`)} />
-          <Pressable
-            onPress={() => toggle.mutate({ facilityId: item.id })}
-            className="-mt-3 mb-4 self-end px-1"
-          >
-            <Text className="text-xs font-medium text-brand-text-muted dark:text-brand-text-muted-dark">
-              Entfernen
-            </Text>
-          </Pressable>
-        </View>
+        <FacilityCard facility={item} onPress={() => router.push(`/einrichtung/${item.slug}`)} />
       )}
       />
     </>
