@@ -5,6 +5,15 @@ directories:
 files:
   - out/**/*
   - package.json
+# CI proved (17 runs, see desktop-release.yml history) that our own
+# main.ts/preload.ts run unpacked (loose files, no .asar) never crash on
+# startup, while the same code packed into the default .asar archive
+# crashes intermittently (~60% of launches) with EXC_BREAKPOINT/SIGTRAP
+# under hardened runtime on Apple Silicon - every other variable (real
+# vs. ad-hoc signing, window visibility, safeStorage/preload/ipcMain,
+# the renderer bundle) was ruled out first. Shipping loose files avoids
+# whatever startup-timing interaction the .asar reader triggers.
+asar: false
 afterSign: scripts/afterSignAdhoc.cjs
 mac:
   category: public.app-category.business
