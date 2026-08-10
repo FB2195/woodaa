@@ -52,6 +52,78 @@ function findNestedCodeTargets(appPath) {
   return targets.sort((a, b) => b.split(path.sep).length - a.split(path.sep).length);
 }
 
+const MACHO_MAGICS = new Set([0xfeedface, 0xfeedfacf, 0xcefaedfe, 0xcffaedfe, 0xcafebabe, 0xbebafeca]);
+
+function isMachO(filePath) {
+  let fd;
+  try {
+    fd = fs.openSync(filePath, "r");
+    const buf = Buffer.alloc(4);
+    if (fs.readSync(fd, buf, 0, 4, 0) < 4) return false;
+    return MACHO_MAGICS.has(buf.readUInt32BE(0));
+  } catch {
+    return false;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
+
+function isUnsigned(filePath) {
+  try {
+    execFileSync("codesign", ["-dv", filePath], { stdio: "pipe" });
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+// `codesign --deep` recurses into nested .framework/.app bundles but is
+// known to miss loose Mach-O files sitting directly in a Resources/
+// Libraries folder - confirmed by notarization rejecting woodaa's build
+// over unsigned GPU-fallback dylibs (libEGL.dylib, libvk_swiftshader.dylib,
+// libGLESv2.dylib, libffmpeg.dylib) and Squirrel's "ShipIt" helper
+// executable, none of which --deep touched. This walks the whole bundle
+// for any executable Mach-O file --deep left unsigned and signs it
+// individually, filling in exactly those gaps without changing how --deep
+// itself signs everything else (the same --deep pass that's been proven,
+// across 14 CI runs, not to trigger the startup crash electron-builder's
+// own per-component signing does).
+function signRemainingLooseMachO(appPath, identity, entitlements, keychainPath) {
+  function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      if (!(fs.statSync(full).mode & 0o111)) continue;
+      if (!isMachO(full)) continue;
+      if (!isUnsigned(full)) continue;
+      console.log(`afterSign: --deep left ${full} unsigned - signing it individually`);
+      execFileSync(
+        "codesign",
+        [
+          "--force",
+          "--options",
+          "runtime",
+          "--timestamp",
+          "--sign",
+          identity,
+          "--entitlements",
+          entitlements,
+          "--keychain",
+          keychainPath,
+          full,
+        ],
+        { stdio: "inherit" },
+      );
+    }
+  }
+  walk(path.join(appPath, "Contents"));
+}
+
 function signRealFlatDeep(appPath, entitlements) {
   const keychainPath = path.join(os.tmpdir(), `woodaa-signing-${crypto.randomUUID()}.keychain-db`);
   const keychainPassword = crypto.randomUUID();
@@ -116,12 +188,31 @@ function signRealFlatDeep(appPath, entitlements) {
       ],
       { stdio: "inherit" },
     );
-    // Notarization failed twice in a row on "signature does not include a
-    // secure timestamp" despite --timestamp being passed - printing this
-    // here (before notarization, so it's visible even if notarization
-    // fails again) shows whether codesign actually embedded one or
-    // silently skipped it (e.g. a network issue reaching Apple's
-    // timestamp server from this runner).
+
+    signRemainingLooseMachO(appPath, identity, entitlements, keychainPath);
+
+    // Re-seal the outer bundle once more (no --deep - nested items already
+    // carry their own valid signatures now) so its own CodeDirectory/
+    // CodeResources reflect the final state, including whatever
+    // signRemainingLooseMachO just added.
+    execFileSync(
+      "codesign",
+      [
+        "--force",
+        "--options",
+        "runtime",
+        "--timestamp",
+        "--sign",
+        identity,
+        "--entitlements",
+        entitlements,
+        "--keychain",
+        keychainPath,
+        appPath,
+      ],
+      { stdio: "inherit" },
+    );
+
     console.log("afterSign: signature details after signing (checking for Timestamp=...):");
     execFileSync("codesign", ["-dvvv", appPath], { stdio: "inherit" });
   } finally {
