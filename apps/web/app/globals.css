@@ -10,6 +10,11 @@
   --brand-text-muted: #6b6f62;
   --brand-border: #e4e2d8;
   --brand-heading: #3e4a2b;
+  /* Was a fixed Tailwind-preset color (packages/ui/src/tokens.ts) before -
+     redefined here as a CSS var too, same value, purely so .operator-theme
+     below can override it for business.woodaa.de without touching every
+     bg-brand-accent/text-brand-accent usage across the app. */
+  --brand-accent: #2f7d4f;
 }
 
 /* Tells the browser to render its own native widget chrome (select
@@ -26,6 +31,37 @@
   --brand-text-muted: #b7c2a8;
   --brand-border: #37472a;
   --brand-heading: #ffffff;
+  --brand-accent: #2f7d4f;
+}
+
+/* business.woodaa.de's own palette - a deeper, richer green family than
+   the consumer site's, deliberately not just "the same green with a
+   different header": distinct enough on first glance that a Pflegeheim
+   operator recognizes this as its own exclusive environment. Scoped via a
+   wrapper class (see app/betreiber/layout.tsx) rather than a second set of
+   Tailwind classes, so every existing "bg-brand-" and "text-brand-" usage
+   in the shared dashboard components picks it up automatically. */
+.operator-theme {
+  color-scheme: light;
+  --brand-background: #f5f4ea;
+  --brand-surface: #ffffff;
+  --brand-text: #1c2617;
+  --brand-text-muted: #5f6b52;
+  --brand-border: #dcd9c4;
+  --brand-heading: #16210f;
+  --brand-accent: #1e7a52;
+}
+
+.dark .operator-theme,
+.operator-theme.dark {
+  color-scheme: dark;
+  --brand-background: #0d150a;
+  --brand-surface: #182412;
+  --brand-text: #eef1e6;
+  --brand-text-muted: #9fac8f;
+  --brand-border: #293a1e;
+  --brand-heading: #ffffff;
+  --brand-accent: #2e9e71;
 }
 
 body {

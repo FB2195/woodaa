@@ -23,7 +23,7 @@ export function OperatorHeader() {
 
   return (
     <header className="border-b border-brand-border bg-brand-heading">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+      <div className="flex items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
         <Link href="/betreiber/dashboard" className="flex items-center gap-2.5">
           <Image
             src="/logo.png"
@@ -31,16 +31,16 @@ export function OperatorHeader() {
             width={478}
             height={142}
             priority
-            className="h-7 w-auto brightness-0 invert"
+            className="h-6 w-auto brightness-0 invert sm:h-7"
           />
-          <span className="rounded-brand-full border border-white/30 px-2.5 py-0.5 text-xs font-medium text-white/90">
+          <span className="hidden rounded-brand-full border border-white/30 px-2.5 py-0.5 text-xs font-medium text-white/90 sm:inline-block">
             Für Pflegeeinrichtungen
           </span>
         </Link>
         <button
           type="button"
           onClick={logout}
-          className="text-sm font-medium text-white/80 transition hover:text-white"
+          className="rounded-brand-md px-3 py-2 text-sm font-medium text-white/80 transition hover:text-white active:bg-white/10"
         >
           Abmelden
         </button>

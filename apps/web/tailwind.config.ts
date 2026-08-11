@@ -22,6 +22,7 @@ const config: Config = {
           "text-muted": "var(--brand-text-muted)",
           border: "var(--brand-border)",
           heading: "var(--brand-heading)",
+          accent: "var(--brand-accent)",
         },
       },
     },

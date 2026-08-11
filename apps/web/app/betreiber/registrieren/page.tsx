@@ -46,12 +46,12 @@ export default function OperatorRegisterPage() {
         </div>
       </div>
 
-      <section className="relative overflow-hidden bg-brand-primary-dark px-6 py-16 text-white">
+      <section className="relative overflow-hidden bg-brand-heading px-6 py-16 text-white">
         <div
           className="pointer-events-none absolute inset-0 opacity-20"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 15% 20%, #8BA888 0%, transparent 35%), radial-gradient(circle at 85% 15%, #2F7D4F 0%, transparent 40%)",
+              "radial-gradient(circle at 15% 20%, #8BA888 0%, transparent 35%), radial-gradient(circle at 85% 15%, #2F9E71 0%, transparent 40%)",
           }}
         />
         <div className="relative mx-auto max-w-5xl text-center">
