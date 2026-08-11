@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { StarRating } from "@/components/StarRating";
 import { formatDate } from "@/lib/format";
@@ -11,7 +11,47 @@ type Review = {
   rating: number;
   comment: string | null;
   operatorReply: string | null;
+  careRating?: number | null;
+  cleanlinessRating?: number | null;
+  foodRating?: number | null;
+  staffRating?: number | null;
 };
+
+const CATEGORY_LABELS = {
+  careRating: "Pflege",
+  cleanlinessRating: "Sauberkeit",
+  foodRating: "Verpflegung",
+  staffRating: "Personal",
+} as const;
+
+function categoryAverages(reviews: Review[]): { label: string; avg: number }[] {
+  return (Object.keys(CATEGORY_LABELS) as (keyof typeof CATEGORY_LABELS)[]).flatMap((key) => {
+    const values = reviews
+      .map((r) => r[key])
+      .filter((v): v is number => v !== null && v !== undefined);
+    if (values.length === 0) return [];
+    return [{ label: CATEGORY_LABELS[key], avg: values.reduce((a, b) => a + b, 0) / values.length }];
+  });
+}
+
+function CategoryBar({ label, avg }: { label: string; avg: number }) {
+  return (
+    <View>
+      <View className="flex-row items-baseline justify-between">
+        <Text className="text-sm text-brand-text dark:text-brand-text-dark">{label}</Text>
+        <Text className="text-sm font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
+          {avg.toLocaleString("de-DE", { maximumFractionDigits: 1 })}
+        </Text>
+      </View>
+      <View className="mt-1 h-1.5 rounded-full bg-brand-border dark:bg-brand-border-dark">
+        <View
+          className="h-1.5 rounded-full bg-brand-accent"
+          style={{ width: `${(avg / 5) * 100}%` }}
+        />
+      </View>
+    </View>
+  );
+}
 
 // Mobile port of apps/web/components/FacilityReviews.tsx.
 export function FacilityReviews({
@@ -27,6 +67,15 @@ export function FacilityReviews({
   avgRating: number | null;
   reviewCount: number;
 }) {
+  const categories = categoryAverages(reviews);
+  const highlighted = [...reviews]
+    .filter((r) => r.comment)
+    .sort(
+      (a, b) =>
+        b.rating - a.rating || new Date(b.createdAt).valueOf() - new Date(a.createdAt).valueOf(),
+    )
+    .slice(0, 3);
+
   return (
     <View className="gap-3">
       <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
@@ -47,6 +96,42 @@ export function FacilityReviews({
         <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           Noch keine Bewertungen.
         </Text>
+      )}
+
+      {categories.length > 0 && (
+        <View className="gap-4 rounded-brand-lg border border-brand-border p-5 dark:border-brand-border-dark">
+          {categories.map((c) => (
+            <CategoryBar key={c.label} label={c.label} avg={c.avg} />
+          ))}
+        </View>
+      )}
+
+      {highlighted.length > 0 && (
+        <View className="gap-3">
+          <Text className="text-sm font-semibold text-brand-text-muted dark:text-brand-text-muted-dark">
+            Was Gästen am besten gefallen hat
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
+            <View className="flex-row gap-4">
+              {highlighted.map((review) => (
+                <View
+                  key={review.id}
+                  className="w-64 rounded-brand-md border border-brand-border p-4 dark:border-brand-border-dark"
+                >
+                  <Text className="font-medium text-brand-text dark:text-brand-text-dark">
+                    {review.reviewerName}
+                  </Text>
+                  <Text
+                    className="mt-2 text-sm text-brand-text-muted dark:text-brand-text-muted-dark"
+                    numberOfLines={4}
+                  >
+                    „{review.comment}“
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
       )}
 
       <View className="gap-3">
