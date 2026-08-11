@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { pflegegradLabels } from "@/lib/pflegegradLabels";
 import { trpc } from "@/lib/trpc";
@@ -35,11 +35,15 @@ function SavedSearchRow({ search }: { search: SavedSearch }) {
       <Pressable
         disabled={remove.isPending}
         onPress={() => remove.mutate({ id: search.id })}
-        className="shrink-0 rounded-brand-md border border-brand-border px-3 py-1.5 dark:border-brand-border-dark"
+        className={`shrink-0 rounded-brand-md border border-brand-border px-3 py-1.5 dark:border-brand-border-dark ${remove.isPending ? "opacity-50" : ""}`}
       >
-        <Text className="text-xs font-semibold text-brand-text-muted dark:text-brand-text-muted-dark">
-          Löschen
-        </Text>
+        {remove.isPending ? (
+          <ActivityIndicator size="small" color="#2F7D4F" />
+        ) : (
+          <Text className="text-xs font-semibold text-brand-text-muted dark:text-brand-text-muted-dark">
+            Löschen
+          </Text>
+        )}
       </Pressable>
     </View>
   );
@@ -63,7 +67,11 @@ export default function GespeicherteSuchenScreen() {
         Wir informieren dich per E-Mail, sobald eine Einrichtung, die zu einer gespeicherten Suche
         passt, wieder einen freien Platz hat.
       </Text>
-      {isLoading || !data ? null : data.length === 0 ? (
+      {isLoading || !data ? (
+        <View className="items-center py-8">
+          <ActivityIndicator color="#2F7D4F" />
+        </View>
+      ) : data.length === 0 ? (
         <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           Noch keine gespeicherte Suche. Speichere eine Suche über den Button „Suche speichern" auf
           der Suchergebnisseite.

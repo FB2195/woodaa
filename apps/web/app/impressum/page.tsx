@@ -1,5 +1,10 @@
 import { Header } from "@/components/Header";
 
+// Deliberately not localized like the other legal pages - an Impressum is
+// a German TMG/MStV disclosure obligation tied to German paragraphs
+// regardless of UI language, and stays in German on multilingual sites
+// for that reason (unlike Datenschutz/Nutzungsbedingungen, which genuinely
+// need to be understandable to the reader under GDPR Art. 12).
 export default function ImpressumPage() {
   return (
     <main className="min-h-screen">

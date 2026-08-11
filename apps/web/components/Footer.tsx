@@ -21,7 +21,7 @@ export function Footer() {
       heading: t("brandColumn"),
       links: [
         { href: "/ueber-uns", label: tHeader("aboutUs") },
-        { href: "/betreiber/registrieren", label: tHeader("registerFacility") },
+        { href: "/betreiber/login", label: tHeader("registerFacility") },
       ],
     },
     {

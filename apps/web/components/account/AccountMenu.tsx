@@ -18,7 +18,9 @@ import {
   TrashIcon,
   UsersIcon,
 } from "@/components/account/icons";
+import { LogoutMenuRow } from "@/components/account/LogoutMenuRow";
 import { appStoreUrlFor, detectAppPlatform } from "@/lib/appStoreLinks";
+import { getServerTranslations } from "@/lib/i18n/server";
 
 type MenuItem = { href: string; label: string; icon: ReactNode };
 
@@ -69,68 +71,73 @@ export async function AccountMenu({
 }) {
   const userAgent = (await headers()).get("user-agent") ?? "";
   const appDownloadUrl = appStoreUrlFor(detectAppPlatform(userAgent));
+  const t = await getServerTranslations("account");
+  const tHeader = await getServerTranslations("header");
 
   const kontoItems: MenuItem[] = [
-    { href: "/konto/persoenliche-angaben", label: "Persönliche Angaben", icon: <PersonIcon /> },
+    { href: "/konto/persoenliche-angaben", label: t("personalData"), icon: <PersonIcon /> },
     ...(role !== "ADMIN"
-      ? [{ href: "/konto/sicherheit", label: "Sicherheitseinstellungen", icon: <LockIcon /> }]
+      ? [{ href: "/konto/sicherheit", label: t("securitySettings"), icon: <LockIcon /> }]
       : []),
-    { href: "/konto/meine-daten", label: "Meine Daten exportieren", icon: <DownloadIcon /> },
+    { href: "/konto/meine-daten", label: t("exportData"), icon: <DownloadIcon /> },
     ...(role !== "ADMIN"
-      ? [{ href: "/konto/konto-loeschen", label: "Konto löschen", icon: <TrashIcon /> }]
+      ? [{ href: "/konto/konto-loeschen", label: t("deleteAccount"), icon: <TrashIcon /> }]
       : []),
   ];
 
   const buchungenItems: MenuItem[] =
     role === "SUCHENDE"
       ? [
-          { href: "/konto/buchungen", label: "Meine Buchungen", icon: <CalendarIcon /> },
+          { href: "/konto/buchungen", label: t("myBookings"), icon: <CalendarIcon /> },
           {
             href: "/konto/pflegeleistungen",
-            label: "Pflegeleistungen beantragen",
+            label: t("requestCareBenefits"),
             icon: <HeartPulseIcon />,
           },
           {
             href: "/konto/bevollmaechtigung",
-            label: "Bevollmächtigte/r Angehörige/r",
+            label: t("authorizedRepresentative"),
             icon: <UsersIcon />,
           },
           {
             href: "/konto/gespeicherte-suchen",
-            label: "Gespeicherte Suchen",
+            label: t("savedSearches"),
             icon: <BellIcon />,
           },
         ]
       : [];
 
+  // Kein eigener "Kundenservice"-Punkt mehr - "Hilfe & FAQ" verlinkt ohnehin
+  // dorthin, ein separater Eintrag war redundant.
   const hilfeItems: MenuItem[] = [
-    { href: "/hilfe/kundenservice", label: "Kundenservice", icon: <HelpCircleIcon /> },
-    { href: "/hilfe", label: "Hilfe & FAQ", icon: <HelpCircleIcon /> },
-    { href: "/fehler-melden", label: "Fehler/Problem melden", icon: <HelpCircleIcon /> },
+    { href: "/hilfe", label: t("helpFaq"), icon: <HelpCircleIcon /> },
+    { href: "/fehler-melden", label: tHeader("reportIssue"), icon: <HelpCircleIcon /> },
   ];
 
   // Betreiber sind bereits registriert, ADMIN braucht den Werbe-Link nicht -
   // "Unterkunft anmelden" ist ein Upsell nur für Suchende, wie bei Booking.
+  // Führt zunächst auf die business.woodaa.de-Hauptseite (Betreiber-Login,
+  // siehe middleware.ts) statt direkt ins Registrierungsformular.
   const mehrItems: MenuItem[] = [
-    { href: appDownloadUrl, label: "App herunterladen", icon: <SmartphoneIcon /> },
+    { href: appDownloadUrl, label: t("downloadApp"), icon: <SmartphoneIcon /> },
     ...(role === "SUCHENDE"
-      ? [{ href: "/betreiber/registrieren", label: "Unterkunft anmelden", icon: <HomeIcon /> }]
+      ? [{ href: "/betreiber/login", label: t("registerFacility"), icon: <HomeIcon /> }]
       : []),
   ];
 
   const rechtlichesItems: MenuItem[] = [
-    { href: "/datenschutz", label: "Datenschutz", icon: <ShieldIcon /> },
-    { href: "/nutzungsbedingungen", label: "Nutzungsbedingungen", icon: <ShieldIcon /> },
-    { href: "/impressum", label: "Impressum", icon: <ShieldIcon /> },
+    { href: "/datenschutz", label: tHeader("privacy"), icon: <ShieldIcon /> },
+    { href: "/nutzungsbedingungen", label: t("termsOfService"), icon: <ShieldIcon /> },
+    { href: "/impressum", label: tHeader("imprint"), icon: <ShieldIcon /> },
   ];
 
   return (
     <div>
-      <MenuSection title="Konto verwalten" items={kontoItems} />
-      <MenuSection title="Meine Buchungen & Pflege" items={buchungenItems} />
-      <MenuSection title="Hilfe" items={hilfeItems} />
+      <MenuSection title={t("manageAccount")} items={kontoItems} />
+      <MenuSection title={t("bookingsAndCare")} items={buchungenItems} />
+      <MenuSection title={t("help")} items={hilfeItems} />
       <MenuSection
-        title="Mehr"
+        title={t("more")}
         items={mehrItems}
         extra={
           <div className="flex items-center justify-between gap-3 border-b border-brand-border px-4 py-4">
@@ -138,13 +145,17 @@ export async function AccountMenu({
               <span className="text-brand-text-muted">
                 <GlobeIcon />
               </span>
-              Sprache
+              {t("language")}
             </span>
             <LanguageSwitcher bare />
           </div>
         }
       />
-      <MenuSection title="Rechtliches und Datenschutz" items={rechtlichesItems} />
+      <MenuSection title={t("legalAndPrivacy")} items={rechtlichesItems} />
+
+      <div className="mt-8 rounded-brand-lg border border-brand-border bg-brand-surface">
+        <LogoutMenuRow label={t("logout")} loadingLabel={t("loggingOut")} />
+      </div>
     </div>
   );
 }

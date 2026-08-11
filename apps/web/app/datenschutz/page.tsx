@@ -1,22 +1,21 @@
 import { Header } from "@/components/Header";
+import { getServerTranslations } from "@/lib/i18n/server";
 
-export default function DatenschutzPage() {
+export default async function DatenschutzPage() {
+  const t = await getServerTranslations("datenschutz");
+
   return (
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-2xl font-bold text-brand-heading">Datenschutzerklärung</h1>
-        <p className="mt-2 text-sm text-brand-text-muted">
-          Diese Seite fasst zusammen, welche Daten woodaa verarbeitet und wofür. Sie ersetzt
-          keine rechtliche Prüfung - bitte vor Live-Schaltung von einer/einem
-          Datenschutzbeauftragten gegenprüfen lassen.
-        </p>
+        <h1 className="text-2xl font-bold text-brand-heading">{t("title")}</h1>
+        <p className="mt-2 text-sm text-brand-text-muted">{t("intro")}</p>
 
         <div className="mt-8 flex flex-col gap-6 text-brand-text">
           <div>
-            <h2 className="font-semibold text-brand-heading">Verantwortlicher</h2>
+            <h2 className="font-semibold text-brand-heading">{t("controllerTitle")}</h2>
             <p className="mt-1 text-sm">
-              [Firmenname], [Adresse] - siehe{" "}
+              {t("controllerBody")}{" "}
               <a href="/impressum" className="underline">
                 Impressum
               </a>
@@ -25,64 +24,48 @@ export default function DatenschutzPage() {
           </div>
 
           <div>
-            <h2 className="font-semibold text-brand-heading">Welche Daten wir verarbeiten</h2>
+            <h2 className="font-semibold text-brand-heading">{t("dataTitle")}</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-              <li>Kontodaten: Name, E-Mail-Adresse, Passwort (verschlüsselt gespeichert)</li>
-              <li>
-                Pflegebezogene Daten (nur wenn du sie angibst): Pflegegrad, Krankenkasse,
-                Versicherungsnummer (verschlüsselt gespeichert, AES-256), Angaben zur
-                gepflegten Person
-              </li>
-              <li>Buchungsdaten: gewünschte Einrichtung, Zeitraum, Zahlungsart, Zahlungsstatus</li>
-              <li>Zahlungsdaten: werden direkt von unserem Zahlungsdienstleister Stripe verarbeitet, wir sehen keine vollständigen Kartendaten</li>
-              <li>Bewertungen: Name (öffentlich sichtbar), Bewertungstext</li>
-              <li>Standortangaben bei der Suche (Stadt/PLZ), verarbeitet über Google Maps/Places zur Umkreis- und Kartenanzeige</li>
-              <li>Technisch notwendige Cookies, um dich eingeloggt zu halten (siehe Cookie-Infos)</li>
+              <li>{t("dataAccount")}</li>
+              <li>{t("dataCare")}</li>
+              <li>{t("dataBooking")}</li>
+              <li>{t("dataPayment")}</li>
+              <li>{t("dataReviews")}</li>
+              <li>{t("dataLocation")}</li>
+              <li>{t("dataCookies")}</li>
             </ul>
           </div>
 
           <div>
-            <h2 className="font-semibold text-brand-heading">Wofür wir sie nutzen</h2>
-            <p className="mt-1 text-sm">
-              Ausschließlich zur Bereitstellung des Dienstes: Kontoverwaltung, Suche und
-              Buchung von Pflegeplätzen, Kommunikation mit Einrichtungen, Zahlungsabwicklung,
-              Berechnung des voraussichtlichen Pflegekassen-Zuschusses. Kein Verkauf von Daten
-              an Dritte, keine Werbe- oder Tracking-Cookies.
-            </p>
+            <h2 className="font-semibold text-brand-heading">{t("purposeTitle")}</h2>
+            <p className="mt-1 text-sm">{t("purposeBody")}</p>
           </div>
 
           <div>
-            <h2 className="font-semibold text-brand-heading">Eingesetzte Dienstleister</h2>
+            <h2 className="font-semibold text-brand-heading">{t("providersTitle")}</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-              <li>Stripe (Zahlungsabwicklung)</li>
-              <li>Resend (Versand von E-Mails, z. B. Buchungsbestätigungen)</li>
-              <li>Cloudflare R2 (Speicherung hochgeladener Dokumente, z. B. Vollmachten)</li>
-              <li>Google Maps/Places (Kartenanzeige und Adressvorschläge)</li>
-              <li>Hosting- und Datenbank-Infrastruktur in der EU/den USA (Auftragsverarbeitung vertraglich geregelt)</li>
+              <li>{t("providerStripe")}</li>
+              <li>{t("providerResend")}</li>
+              <li>{t("providerR2")}</li>
+              <li>{t("providerMaps")}</li>
+              <li>{t("providerHosting")}</li>
             </ul>
           </div>
 
           <div>
-            <h2 className="font-semibold text-brand-heading">Deine Rechte</h2>
+            <h2 className="font-semibold text-brand-heading">{t("rightsTitle")}</h2>
             <p className="mt-1 text-sm">
-              Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der
-              Verarbeitung, Datenübertragbarkeit und Widerspruch gegen die Verarbeitung deiner
-              Daten. Wende dich dazu über das{" "}
+              {t("rightsBodyPre")}{" "}
               <a href="/hilfe/kundenservice" className="underline">
-                Kontaktformular
+                {t("rightsBodyLinkText")}
               </a>{" "}
-              an uns. Du kannst dich außerdem bei einer Datenschutz-Aufsichtsbehörde
-              beschweren.
+              {t("rightsBodyPost")}
             </p>
           </div>
 
           <div>
-            <h2 className="font-semibold text-brand-heading">Speicherdauer</h2>
-            <p className="mt-1 text-sm">
-              Wir speichern Daten nur so lange, wie es für die genannten Zwecke oder aufgrund
-              gesetzlicher Aufbewahrungspflichten erforderlich ist. Konten und zugehörige Daten
-              kannst du jederzeit über den Kundenservice löschen lassen.
-            </p>
+            <h2 className="font-semibold text-brand-heading">{t("retentionTitle")}</h2>
+            <p className="mt-1 text-sm">{t("retentionBody")}</p>
           </div>
         </div>
       </section>

@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { DateField } from "@/components/DateField";
 import { FormField } from "@/components/FormField";
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -65,9 +65,15 @@ export default function PersoenlicheAngabenScreen() {
 
   // Title is static, so render it even in the loading/no-data case - the
   // previous bare `return null` left no Stack.Screen mounted, so the header
-  // briefly fell back to showing the raw route path.
+  // briefly fell back to showing the raw route path. Also show a spinner
+  // instead of a blank screen while the queries are still loading.
   if (!me || !profile) {
-    return <Stack.Screen options={{ title: "Persönliche Angaben" }} />;
+    return (
+      <View className="flex-1 items-center justify-center bg-brand-background dark:bg-brand-background-dark">
+        <Stack.Screen options={{ title: "Persönliche Angaben" }} />
+        <ActivityIndicator color="#2F7D4F" />
+      </View>
+    );
   }
 
   const currentName = nameValue ?? me.name;
@@ -119,14 +125,16 @@ export default function PersoenlicheAngabenScreen() {
           </Text>
           <Text className="text-sm text-brand-text dark:text-brand-text-dark">{me.email}</Text>
         </View>
-        <View className="flex-row justify-between gap-4">
-          <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-            Rolle
-          </Text>
-          <Text className="text-sm text-brand-text dark:text-brand-text-dark">
-            {roleLabels[me.role]}
-          </Text>
-        </View>
+        {me.role !== "SUCHENDE" && (
+          <View className="flex-row justify-between gap-4">
+            <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
+              Rolle
+            </Text>
+            <Text className="text-sm text-brand-text dark:text-brand-text-dark">
+              {roleLabels[me.role]}
+            </Text>
+          </View>
+        )}
 
         {!emailFormOpen ? (
           <PrimaryButton

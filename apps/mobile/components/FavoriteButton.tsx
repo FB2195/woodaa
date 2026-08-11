@@ -33,8 +33,9 @@ export function FavoriteButton({ facilityId }: { facilityId: string }) {
         }
         toggle.mutate({ facilityId });
       }}
+      disabled={toggle.isPending}
       hitSlop={8}
-      className="h-9 w-9 items-center justify-center rounded-brand-full bg-brand-surface/90 dark:bg-brand-surface-dark/90"
+      className={`h-9 w-9 items-center justify-center rounded-brand-full bg-brand-surface/90 active:opacity-60 dark:bg-brand-surface-dark/90 ${toggle.isPending ? "opacity-50" : ""}`}
     >
       <Text className={favorited ? "text-lg text-red-500" : "text-lg text-brand-text-muted"}>
         {favorited ? "♥" : "♡"}

@@ -97,7 +97,7 @@ export function LocationAutocomplete({
                   if (blurTimeout.current) clearTimeout(blurTimeout.current);
                   void useMyLocation();
                 }}
-                className="flex-row items-center gap-2 px-4 py-3"
+                className="flex-row items-center gap-2 px-4 py-3 active:bg-brand-background dark:active:bg-brand-background-dark"
               >
                 {geoStatus === "loading" ? (
                   <ActivityIndicator size="small" color="#2F7D4F" />
@@ -127,7 +127,7 @@ export function LocationAutocomplete({
                     onChange(item.city);
                     setOpen(false);
                   }}
-                  className="border-t border-brand-border px-4 py-2.5 first:border-t-0 dark:border-brand-border-dark"
+                  className="border-t border-brand-border px-4 py-2.5 first:border-t-0 active:bg-brand-background dark:border-brand-border-dark dark:active:bg-brand-background-dark"
                 >
                   <Text className="text-sm text-brand-text dark:text-brand-text-dark">
                     {item.label}

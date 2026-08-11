@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppPromoBanner } from "@/components/AppPromoBanner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTranslations } from "@/lib/i18n/LocaleProvider";
 import { trpc } from "@/lib/trpc";
+import { useLogout } from "@/lib/useLogout";
 
 const dashboardFor: Record<"SUCHENDE" | "BETREIBER" | "MITARBEITER" | "ADMIN", string | null> = {
   SUCHENDE: null,
@@ -27,27 +27,11 @@ function PersonIcon() {
 }
 
 export function Header() {
-  const router = useRouter();
-  const utils = trpc.useUtils();
   const me = trpc.auth.me.useQuery(undefined, { retry: false });
   const [menuOpen, setMenuOpen] = useState(false);
   const [loginMenuOpen, setLoginMenuOpen] = useState(false);
   const t = useTranslations("header");
-
-  async function logout() {
-    setMenuOpen(false);
-    await fetch("/api/auth/session", { method: "DELETE" });
-    // router.refresh() alone only re-fetches Server Components, not this
-    // component's own React Query cache - and even invalidate() isn't
-    // enough on its own: React Query keeps the last successful `data`
-    // around when a background refetch errors (401 after logout), so
-    // `me.data` stayed populated until a manual reload. reset() clears it
-    // to undefined synchronously before refetching.
-    await utils.auth.me.reset();
-    await utils.invalidate();
-    router.push("/");
-    router.refresh();
-  }
+  const { logout, loggingOut } = useLogout();
 
   const dashboardHref = me.data ? dashboardFor[me.data.role] : null;
 
@@ -132,7 +116,7 @@ export function Header() {
                     <div className="my-1 border-t border-brand-border" />
 
                     <Link
-                      href="/betreiber/registrieren"
+                      href="/betreiber/login"
                       onClick={closeLoginMenu}
                       className="rounded-brand-md px-3 py-2 font-medium text-brand-accent hover:bg-brand-background"
                     >
@@ -219,15 +203,8 @@ export function Header() {
                   onClick={closeMenu}
                   className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text"
                 >
-                  {t("myAccount")} ({me.data.name})
+                  {t("myAccount")}
                 </Link>
-                <button
-                  type="button"
-                  onClick={logout}
-                  className="rounded-brand-md px-2 py-2 text-left hover:bg-brand-background hover:text-brand-text"
-                >
-                  {t("logout")}
-                </button>
               </>
             )}
 
@@ -239,13 +216,6 @@ export function Header() {
               className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text"
             >
               {t("helpSupport")}
-            </Link>
-            <Link
-              href="/hilfe/kundenservice"
-              onClick={closeMenu}
-              className="rounded-brand-md px-2 py-2 pl-6 hover:bg-brand-background hover:text-brand-text"
-            >
-              {t("customerService")}
             </Link>
             <Link
               href="/ueber-uns"
@@ -292,17 +262,37 @@ export function Header() {
             </Link>
 
             {/* Ganz unten, hervorgehoben - für eingeloggte Suchende/Betreiber/
-              Admins irrelevant, siehe Gating oben. */}
+              Admins irrelevant, siehe Gating oben. Führt zunächst auf die
+              business.woodaa.de-Hauptseite (Betreiber-Login) statt direkt
+              ins Registrierungsformular. */}
             {!me.data && (
               <>
                 <div className="my-2 border-t border-brand-border" />
                 <Link
-                  href="/betreiber/registrieren"
+                  href="/betreiber/login"
                   onClick={closeMenu}
                   className="rounded-brand-md bg-brand-accent px-3 py-2.5 text-center font-semibold text-white transition hover:opacity-90"
                 >
                   {t("registerFacility")}
                 </Link>
+              </>
+            )}
+
+            {/* Abmelden ganz unten, wie bei Booking. */}
+            {me.data && (
+              <>
+                <div className="my-2 border-t border-brand-border" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeMenu();
+                    void logout();
+                  }}
+                  disabled={loggingOut}
+                  className="rounded-brand-md px-2 py-2 text-left text-red-600 hover:bg-brand-background disabled:opacity-60 dark:text-red-400"
+                >
+                  {loggingOut ? `${t("logout")}…` : t("logout")}
+                </button>
               </>
             )}
           </nav>
