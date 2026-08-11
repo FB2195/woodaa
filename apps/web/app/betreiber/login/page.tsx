@@ -20,7 +20,7 @@ export default function OperatorLoginPage() {
             width={478}
             height={142}
             priority
-            className="h-10 w-auto"
+            className="h-10 w-auto brightness-0 invert"
           />
         </Link>
 
