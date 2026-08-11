@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { dateRangedBookingTypes } from "@/lib/bookingTypeLabels";
 import { formatDate } from "@/lib/format";
 import { computeUnitStatus, type UnitStatus } from "@/lib/unitStatus";
+import { BookingMessages } from "./BookingMessages";
 import { ResidentNotes } from "./ResidentNotes";
 import type { BookingType } from "@woodaa/validators";
 import type { FacilityUnit, UnitBooking } from "@woodaa/api";
@@ -235,6 +236,7 @@ function DetailPanel({
               )}
             </div>
             <ResidentNotes bookingId={booking.id} />
+            {booking.userId && <BookingMessages bookingId={booking.id} />}
             {status !== "ANFRAGE" && (
               <button
                 type="button"

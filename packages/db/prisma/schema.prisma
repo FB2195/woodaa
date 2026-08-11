@@ -675,6 +675,7 @@ model Booking {
   approvalReminderSentAt       DateTime?
   approvalEscalatedAt          DateTime?
   residentNotes                ResidentNote[]
+  messages                     BookingMessage[]
 
   @@index([facilityId, bookingType])
   @@index([unitId, status])
@@ -703,6 +704,32 @@ model ResidentNote {
   createdAt DateTime @default(now())
 
   @@index([bookingId])
+}
+
+enum MessageSenderType {
+  FACILITY
+  FAMILY
+}
+
+// Zwei-Wege-Nachrichten-Thread je Buchung zwischen dem Heim (Betreiber-
+// Portal) und dem woodaa-Account, der die Buchung angelegt hat - anders als
+// ResidentNote oben (intern, nur fürs Heim sichtbar) sieht hier auch die
+// Familie mit. Nur für Buchungen mit userId sinnvoll: Telefon-/Vor-Ort-
+// Buchungen ohne Account haben niemanden, der auf der Familienseite
+// mitlesen könnte - das gated der Router/die UI, nicht dieses Modell.
+// readAt bezieht sich immer auf die jeweils andere Seite: bei
+// senderType=FACILITY heißt gesetzt "von der Familie gelesen", bei
+// senderType=FAMILY "vom Heim gelesen".
+model BookingMessage {
+  id         String            @id @default(cuid())
+  booking    Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingId  String
+  senderType MessageSenderType
+  body       String
+  readAt     DateTime?
+  createdAt  DateTime          @default(now())
+
+  @@index([bookingId, createdAt])
 }
 
 // Team-Kommunikation (apps/desktop): a plain per-facility to-do list, not

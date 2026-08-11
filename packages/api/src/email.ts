@@ -730,3 +730,70 @@ Alle Treffer für diese Suche: ${searchUrl}
 Gespeicherte Suchen verwaltest du in deinem woodaa-Konto.`,
   });
 }
+
+// Verschickt an die Familie, wenn das Heim eine neue Nachricht in einer
+// Buchung schreibt (operator.sendBookingMessage) - siehe
+// sendNewBookingMessageToFacilityEmail für die Gegenrichtung.
+export async function sendNewBookingMessageToFamilyEmail({
+  to,
+  recipientName,
+  facilityName,
+  bookingId,
+}: {
+  to: string;
+  recipientName: string;
+  facilityName: string;
+  bookingId: string;
+}) {
+  const bookingUrl = `${appUrl()}/konto/buchungen/${bookingId}`;
+  const safeRecipientName = escapeHtml(recipientName);
+  const safeFacilityName = escapeHtml(facilityName);
+
+  await sendEmail({
+    to,
+    subject: `Neue Nachricht von ${facilityName}`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${safeRecipientName},</p>
+      <p><strong>${safeFacilityName}</strong> hat dir zu einer Buchung geschrieben.</p>
+      <p>Nachricht lesen und antworten: <a href="${bookingUrl}">${bookingUrl}</a></p>
+    `,
+    text: `Hallo ${recipientName},
+
+${facilityName} hat dir zu einer Buchung geschrieben.
+
+Nachricht lesen und antworten: ${bookingUrl}`,
+  });
+}
+
+// Verschickt ans Heim, wenn die Familie eine neue Nachricht in einer
+// Buchung schreibt (booking.sendBookingMessage).
+export async function sendNewBookingMessageToFacilityEmail({
+  to,
+  operatorName,
+  guestName,
+}: {
+  to: string;
+  operatorName: string;
+  guestName: string;
+}) {
+  const dashboardUrl = `${appUrl()}/betreiber/dashboard/buchungen`;
+  const safeOperatorName = escapeHtml(operatorName);
+  const safeGuestName = escapeHtml(guestName);
+
+  await sendEmail({
+    to,
+    subject: `Neue Nachricht von ${guestName}`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${safeOperatorName},</p>
+      <p><strong>${safeGuestName}</strong> hat euch zu einer Buchung geschrieben.</p>
+      <p>Nachricht lesen und antworten: <a href="${dashboardUrl}">${dashboardUrl}</a></p>
+    `,
+    text: `Hallo ${operatorName},
+
+${guestName} hat euch zu einer Buchung geschrieben.
+
+Nachricht lesen und antworten: ${dashboardUrl}`,
+  });
+}

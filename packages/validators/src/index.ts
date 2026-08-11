@@ -542,6 +542,15 @@ export const CreateResidentNoteInput = z.object({
 });
 export type CreateResidentNoteInput = z.infer<typeof CreateResidentNoteInput>;
 
+// Same shape sent by both operator.sendBookingMessage and
+// booking.sendBookingMessage - the sender side (FACILITY vs FAMILY) is
+// implicit from which router the call goes through, not part of the input.
+export const SendBookingMessageInput = z.object({
+  bookingId: z.string().min(1),
+  body: z.string().trim().min(1).max(2000),
+});
+export type SendBookingMessageInput = z.infer<typeof SendBookingMessageInput>;
+
 export const CreateFacilityTaskInput = z.object({
   title: z.string().trim().min(1).max(500),
 });

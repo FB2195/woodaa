@@ -15,6 +15,7 @@ import {
   ReplyToReviewInput,
   RequestFacilityChangeInput,
   RequestPhotoUploadInput,
+  SendBookingMessageInput,
   SetPflegegradPricingInput,
   SetUnitCountInput,
   UpdateEmployeeInput,
@@ -26,7 +27,11 @@ import {
 } from "@woodaa/validators";
 import { z } from "zod";
 import { cancelBooking, createBooking, setUnitCount } from "../availability";
-import { resolveBookingRecipient, sendBookingFacilityDecisionEmail } from "../email";
+import {
+  resolveBookingRecipient,
+  sendBookingFacilityDecisionEmail,
+  sendNewBookingMessageToFamilyEmail,
+} from "../email";
 import { createFacilityForOperator } from "../lib/facility";
 import { cheapestMonthlyEquivalentCents } from "../pricing";
 import {
@@ -856,6 +861,69 @@ export const operatorRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       await ctx.db.facilityAppointment.delete({ where: { id: input.appointmentId } });
+      return { success: true };
+    }),
+
+  // Nachrichten-Thread mit der Familie - siehe BookingMessage in
+  // schema.prisma. Nur für Buchungen mit userId (Telefon-/Vor-Ort-Buchungen
+  // ohne Account haben niemanden, der auf der anderen Seite mitliest).
+  bookingMessages: operatorProcedure
+    .input(z.object({ bookingId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return ctx.db.bookingMessage.findMany({
+        where: { bookingId: input.bookingId },
+        orderBy: { createdAt: "asc" },
+      });
+    }),
+
+  sendBookingMessage: operatorProcedure
+    .input(SendBookingMessageInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const booking = await ctx.db.booking.findUnique({
+        where: { id: input.bookingId },
+        include: { user: true },
+      });
+      if (!booking || booking.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      if (!booking.user) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Diese Buchung wurde ohne woodaa-Konto erfasst (Telefon/vor Ort) - es gibt niemanden, der eine Nachricht empfangen könnte.",
+        });
+      }
+      const message = await ctx.db.bookingMessage.create({
+        data: { bookingId: input.bookingId, senderType: "FACILITY", body: input.body },
+      });
+      const { to, recipientName } = resolveBookingRecipient(booking.user);
+      await sendNewBookingMessageToFamilyEmail({
+        to,
+        recipientName,
+        facilityName: facility.name,
+        bookingId: booking.id,
+      });
+      return message;
+    }),
+
+  markBookingMessagesRead: operatorProcedure
+    .input(z.object({ bookingId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.bookingMessage.updateMany({
+        where: { bookingId: input.bookingId, senderType: "FAMILY", readAt: null },
+        data: { readAt: new Date() },
+      });
       return { success: true };
     }),
 });

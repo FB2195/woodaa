@@ -15,6 +15,7 @@ import {
   MAX_DOCUMENT_BYTES,
   paymentMethodsRequiringStripe,
   RequestKostenuebernahmeUploadInput,
+  SendBookingMessageInput,
 } from "@woodaa/validators";
 import { z } from "zod";
 import { cancelBooking, createBooking } from "../availability";
@@ -23,6 +24,7 @@ import {
   resolveBookingRecipient,
   sendAdminPendingBookingApprovalEmail,
   sendBookingConfirmationEmail,
+  sendNewBookingMessageToFacilityEmail,
   sendOperatorNewBookingEmail,
 } from "../email";
 import { chargeAmountCents } from "../pricing";
@@ -383,4 +385,59 @@ export const bookingRouter = router({
     await refundBookingPayment(ctx.db, booking);
     return booking;
   }),
+
+  // Nachrichten-Thread mit dem Heim - siehe BookingMessage in schema.prisma
+  // und operator.bookingMessages für die Gegenseite.
+  bookingMessages: protectedProcedure
+    .input(z.object({ bookingId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return ctx.db.bookingMessage.findMany({
+        where: { bookingId: input.bookingId },
+        orderBy: { createdAt: "asc" },
+      });
+    }),
+
+  sendBookingMessage: protectedProcedure
+    .input(SendBookingMessageInput)
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findUnique({
+        where: { id: input.bookingId },
+        include: {
+          facility: { select: { name: true, operatorName: true, operatorEmail: true } },
+          user: { select: { name: true } },
+        },
+      });
+      if (!booking || booking.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      const message = await ctx.db.bookingMessage.create({
+        data: { bookingId: input.bookingId, senderType: "FAMILY", body: input.body },
+      });
+      const guestName =
+        booking.guestFirstName && `${booking.guestFirstName} ${booking.guestLastName ?? ""}`.trim();
+      await sendNewBookingMessageToFacilityEmail({
+        to: booking.facility.operatorEmail,
+        operatorName: booking.facility.operatorName,
+        guestName: guestName || booking.user?.name || "Ein Mitglied",
+      });
+      return message;
+    }),
+
+  markBookingMessagesRead: protectedProcedure
+    .input(z.object({ bookingId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const booking = await ctx.db.booking.findUnique({ where: { id: input.bookingId } });
+      if (!booking || booking.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.bookingMessage.updateMany({
+        where: { bookingId: input.bookingId, senderType: "FACILITY", readAt: null },
+        data: { readAt: new Date() },
+      });
+      return { success: true };
+    }),
 });

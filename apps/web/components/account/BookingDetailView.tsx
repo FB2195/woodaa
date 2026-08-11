@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { KostenuebernahmeUpload } from "@/components/booking/KostenuebernahmeUpload";
+import { BookingMessagesThread } from "./BookingMessagesThread";
 import { PlaceholderPhoto } from "@/components/PlaceholderPhoto";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { formatDate } from "@/lib/format";
@@ -58,10 +59,7 @@ export function BookingDetailView({ booking }: { booking: MyBooking }) {
 
   return (
     <div>
-      <Link
-        href="/konto/buchungen"
-        className="text-sm text-brand-text-muted hover:text-brand-text"
-      >
+      <Link href="/konto/buchungen" className="text-sm text-brand-text-muted hover:text-brand-text">
         ← Zurück zu meinen Buchungen
       </Link>
 
@@ -129,12 +127,11 @@ export function BookingDetailView({ booking }: { booking: MyBooking }) {
               />
             )}
             {booking.desiredStartDate && (
-              <DetailRow
-                label="Gewünschter Einzug"
-                value={formatDate(booking.desiredStartDate)}
-              />
+              <DetailRow label="Gewünschter Einzug" value={formatDate(booking.desiredStartDate)} />
             )}
-            {booking.hoursPerDay && <DetailRow label="Stunden pro Tag" value={booking.hoursPerDay} />}
+            {booking.hoursPerDay && (
+              <DetailRow label="Stunden pro Tag" value={booking.hoursPerDay} />
+            )}
             {guestName && <DetailRow label="Für" value={guestName} />}
             {booking.pflegegrad !== null && (
               <DetailRow
@@ -142,7 +139,9 @@ export function BookingDetailView({ booking }: { booking: MyBooking }) {
                 value={pflegegradLabels[booking.pflegegrad as 0 | 1 | 2 | 3 | 4 | 5]}
               />
             )}
-            {booking.krankenkasse && <DetailRow label="Krankenkasse" value={booking.krankenkasse} />}
+            {booking.krankenkasse && (
+              <DetailRow label="Krankenkasse" value={booking.krankenkasse} />
+            )}
             {booking.paymentMethod && (
               <DetailRow label="Zahlungsart" value={paymentMethodLabels[booking.paymentMethod]} />
             )}
@@ -164,6 +163,11 @@ export function BookingDetailView({ booking }: { booking: MyBooking }) {
               <p className="mt-1 text-sm text-brand-text-muted">{booking.note}</p>
             </div>
           )}
+
+          <div className="mt-6 border-t border-brand-border pt-4">
+            <p className="mb-2 text-sm font-medium text-brand-text">Nachrichten</p>
+            <BookingMessagesThread bookingId={booking.id} />
+          </div>
 
           {!isCancelled && booking.paymentMethod === "KOSTENUEBERNAHME_KASSE" && (
             <KostenuebernahmeUpload bookingId={booking.id} />
