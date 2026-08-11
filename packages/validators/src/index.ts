@@ -458,11 +458,12 @@ export const SetUnitCountInput = z.object({
 });
 export type SetUnitCountInput = z.infer<typeof SetUnitCountInput>;
 
-export const RenameUnitInput = z.object({
+export const UpdateUnitInput = z.object({
   unitId: z.string().min(1),
   label: z.string().trim().min(1).max(100),
+  isIntensivpflege: z.boolean().optional(),
 });
-export type RenameUnitInput = z.infer<typeof RenameUnitInput>;
+export type UpdateUnitInput = z.infer<typeof UpdateUnitInput>;
 
 // The public instant-booking flow - requires login (see booking.ts:
 // protectedProcedure), so guestEmail/guestName aren't collected here

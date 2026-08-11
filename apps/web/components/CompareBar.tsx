@@ -12,8 +12,17 @@ export function CompareBar() {
   const { ids, clear } = useCompareList();
 
   // Already on the comparison view itself - the bar would just be a
-  // redundant "Vergleichen" button pointing at the page you're on.
-  if (ids.length === 0 || pathname?.startsWith("/vergleichen")) return null;
+  // redundant "Vergleichen" button pointing at the page you're on. Also
+  // hidden on /betreiber: a Bevollmächtigte/r who both compares facilities
+  // as a family member AND runs their own Einrichtung on the same account
+  // would otherwise see this consumer-search leftover float over their
+  // operator dashboard.
+  if (
+    ids.length === 0 ||
+    pathname?.startsWith("/vergleichen") ||
+    pathname?.startsWith("/betreiber")
+  )
+    return null;
 
   return (
     <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">

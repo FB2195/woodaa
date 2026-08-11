@@ -1,11 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "@/lib/i18n/LocaleProvider";
 
 export function Footer() {
+  const pathname = usePathname();
   const t = useTranslations("footer");
   const tHeader = useTranslations("header");
+
+  // Mounted globally in app/providers.tsx - the entire /betreiber tree has
+  // its own minimal footer-free shell (OperatorHeader/OperatorSidebar), see
+  // app/betreiber/layout.tsx. This consumer marketing footer (Impressum,
+  // Datenschutz, "Über uns", ...) leaking in there would undercut the whole
+  // point of business.woodaa.de reading as its own exclusive product.
+  if (pathname?.startsWith("/betreiber")) return null;
 
   const columns = [
     {

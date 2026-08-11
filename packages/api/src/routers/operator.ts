@@ -12,7 +12,6 @@ import {
   CreateResidentNoteInput,
   MAX_FACILITY_PHOTOS,
   MAX_PHOTO_BYTES,
-  RenameUnitInput,
   ReplyToReviewInput,
   RequestFacilityChangeInput,
   RequestPhotoUploadInput,
@@ -22,6 +21,7 @@ import {
   UpdateEmployeeInput,
   UpdateFacilityInput,
   UpdatePricingInput,
+  UpdateUnitInput,
 } from "@woodaa/validators";
 import { z } from "zod";
 import { cancelBooking, createBooking, setUnitCount } from "../availability";
@@ -326,7 +326,7 @@ export const operatorRouter = router({
     return { success: true };
   }),
 
-  renameUnit: operatorProcedure.input(RenameUnitInput).mutation(async ({ ctx, input }) => {
+  updateUnit: operatorProcedure.input(UpdateUnitInput).mutation(async ({ ctx, input }) => {
     const facility = await requireOwnFacility(ctx);
     const unit = await ctx.db.facilityUnit.findUnique({ where: { id: input.unitId } });
     if (!unit || unit.facilityId !== facility.id) {
@@ -334,7 +334,12 @@ export const operatorRouter = router({
     }
     return ctx.db.facilityUnit.update({
       where: { id: input.unitId },
-      data: { label: input.label },
+      data: {
+        label: input.label,
+        ...(input.isIntensivpflege !== undefined
+          ? { isIntensivpflege: input.isIntensivpflege }
+          : {}),
+      },
     });
   }),
 
