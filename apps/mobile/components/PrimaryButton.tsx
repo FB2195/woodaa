@@ -21,8 +21,8 @@ export function PrimaryButton({
       disabled={isDisabled}
       className={
         variant === "primary"
-          ? `items-center rounded-brand-md bg-brand-accent px-6 py-3 ${isDisabled ? "opacity-50" : ""}`
-          : `items-center rounded-brand-md border border-brand-border bg-brand-surface px-6 py-3 dark:border-brand-border-dark dark:bg-brand-surface-dark ${isDisabled ? "opacity-50" : ""}`
+          ? `items-center rounded-brand-md bg-brand-accent px-6 py-3 active:opacity-80 ${isDisabled ? "opacity-50" : ""}`
+          : `items-center rounded-brand-md border border-brand-border bg-brand-surface px-6 py-3 active:opacity-70 dark:border-brand-border-dark dark:bg-brand-surface-dark ${isDisabled ? "opacity-50" : ""}`
       }
     >
       {loading ? (

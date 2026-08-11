@@ -155,9 +155,11 @@ export default function AccountScreen() {
         <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           {user.email}
         </Text>
-        <Text className="mt-1 text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
-          {roleLabels[user.role]}
-        </Text>
+        {user.role !== "SUCHENDE" && (
+          <Text className="mt-1 text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+            {roleLabels[user.role]}
+          </Text>
+        )}
         {me.data && !me.data.emailVerifiedAt && (
           <Text className="mt-2 text-xs text-red-600">E-Mail-Adresse noch nicht bestätigt.</Text>
         )}

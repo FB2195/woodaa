@@ -58,12 +58,20 @@ export default function PflegeleistungenScreen() {
       </Text>
 
       <View className="gap-3 rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
-        <Checkbox
-          checked={data.pflegegradAntragLaeuft}
-          onToggle={() => updateProfile.mutate({ pflegegradAntragLaeuft: !data.pflegegradAntragLaeuft })}
-        >
-          {pflegegradAntragLabel}
-        </Checkbox>
+        <View className={`flex-row items-center gap-2 ${updateProfile.isPending ? "opacity-50" : ""}`}>
+          <View className="flex-1">
+            <Checkbox
+              checked={data.pflegegradAntragLaeuft}
+              onToggle={() => {
+                if (updateProfile.isPending) return;
+                updateProfile.mutate({ pflegegradAntragLaeuft: !data.pflegegradAntragLaeuft });
+              }}
+            >
+              {pflegegradAntragLabel}
+            </Checkbox>
+          </View>
+          {updateProfile.isPending && <ActivityIndicator size="small" color="#2F7D4F" />}
+        </View>
       </View>
 
       {!data.krankenkasseConfigured && (
@@ -77,6 +85,7 @@ export default function PflegeleistungenScreen() {
         {bookingTypeOptions.map(({ value, label }) => {
           const application = applicationByType[value];
           const status = application?.status ?? "MUSS_BEANTRAGT_WERDEN";
+          const isRowPending = setStatus.isPending && setStatus.variables?.bookingType === value;
 
           return (
             <View
@@ -90,20 +99,26 @@ export default function PflegeleistungenScreen() {
                   Eingereicht am {application?.submittedAt ? formatDate(application.submittedAt) : "-"}
                 </Text>
               ) : (
-                <SelectField
-                  label="Status"
-                  value={status}
-                  options={[
-                    { value: "MUSS_BEANTRAGT_WERDEN", label: "Muss noch beantragt werden" },
-                    { value: "BEREITS_BEANTRAGT", label: "Bereits beantragt" },
-                  ]}
-                  onChange={(newStatus) =>
-                    setStatus.mutate({
-                      bookingType: value,
-                      status: newStatus as SettableCareApplicationStatus,
-                    })
-                  }
-                />
+                <View className={`flex-row items-center gap-2 ${isRowPending ? "opacity-50" : ""}`}>
+                  <View className="flex-1">
+                    <SelectField
+                      label="Status"
+                      value={status}
+                      options={[
+                        { value: "MUSS_BEANTRAGT_WERDEN", label: "Muss noch beantragt werden" },
+                        { value: "BEREITS_BEANTRAGT", label: "Bereits beantragt" },
+                      ]}
+                      onChange={(newStatus) => {
+                        if (setStatus.isPending) return;
+                        setStatus.mutate({
+                          bookingType: value,
+                          status: newStatus as SettableCareApplicationStatus,
+                        });
+                      }}
+                    />
+                  </View>
+                  {isRowPending && <ActivityIndicator size="small" color="#2F7D4F" />}
+                </View>
               )}
             </View>
           );

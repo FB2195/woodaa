@@ -110,6 +110,7 @@ export default function BevollmaechtigungScreen() {
           value={nameValue}
           onChangeText={setCareRecipientName}
           placeholder="z. B. Erika Musterfrau"
+          hint={updateProfile.isPending ? "Wird gespeichert…" : undefined}
           onBlur={() => {
             const value = nameValue.trim();
             if (value && value !== data.careRecipientName) {
