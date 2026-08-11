@@ -18,6 +18,11 @@ function isAuthorized(request: NextRequest): boolean {
   return suppliedPassword === password;
 }
 
+// business.woodaa.de is the Betreiber-only surface (separate from the
+// consumer-facing woodaa.de/www.woodaa.de) - see the redirects below.
+const BUSINESS_HOST = "business.woodaa.de";
+const CONSUMER_HOSTS = new Set(["woodaa.de", "www.woodaa.de"]);
+
 /**
  * The betreiber/admin-dashboard redirect below is UX-level only — the real
  * access check happens server-side via operatorProcedure's JWT
@@ -33,6 +38,26 @@ export function middleware(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
+  const hostname = request.nextUrl.hostname;
+
+  // A bare visit to business.woodaa.de lands on the Betreiber login rather
+  // than the consumer homepage - the domain exists specifically so
+  // facility operators land somewhere that doesn't read as "the same site
+  // families search on", see the comment on /betreiber/login.
+  if (hostname === BUSINESS_HOST && pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/betreiber/login";
+    return NextResponse.redirect(url);
+  }
+
+  // The reverse: reaching the Betreiber area from the consumer domain
+  // sends people across to the dedicated business domain instead of
+  // serving it there too, so there's exactly one place operators use.
+  if (CONSUMER_HOSTS.has(hostname) && pathname.startsWith("/betreiber")) {
+    const url = new URL(`https://${BUSINESS_HOST}${pathname}${request.nextUrl.search}`);
+    return NextResponse.redirect(url);
+  }
+
   const isDashboardRoute =
     pathname.startsWith("/betreiber/dashboard") ||
     pathname.startsWith("/admin/dashboard") ||
@@ -47,7 +72,9 @@ export function middleware(request: NextRequest) {
 
   if (isDashboardRoute && !request.cookies.has(ACCESS_COOKIE)) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    // Keeps operators on their own branded login rather than the generic
+    // one, same reasoning as the business.woodaa.de root redirect above.
+    url.pathname = pathname.startsWith("/betreiber") ? "/betreiber/login" : "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
