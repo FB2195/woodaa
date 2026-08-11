@@ -36,6 +36,7 @@ export const paymentMethodsRequiringStripe: PaymentMethod[] = ["KARTE", "KLARNA"
 export const Role = z.enum([
   "SUCHENDE", // Angehörige / Pflegebedürftige, die einen Platz suchen
   "BETREIBER", // Pflegeheim-Betreiber
+  "MITARBEITER", // Einzelnes Teammitglied, siehe Employee.userId in schema.prisma
   "ADMIN",
 ]);
 export type Role = z.infer<typeof Role>;

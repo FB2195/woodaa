@@ -36,68 +36,105 @@ const CATEGORY_STYLES: Record<AppointmentCategory, string> = {
     "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200",
 };
 
-const SHIFT_CHIP_STYLE =
+const SHIFT_BLOCK_STYLE =
   "border-brand-accent/40 bg-brand-accent/10 text-brand-accent dark:bg-brand-accent/20";
 
-function ShiftChip({ shift, onClick }: { shift: Shift; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full rounded-brand-md border px-2 py-1.5 text-left text-xs transition hover:shadow-sm ${SHIFT_CHIP_STYLE}`}
-    >
-      <span className="block break-words font-semibold">{shift.employee.name}</span>
-      <span className="block break-words opacity-90">
-        {shift.startTime}–{shift.endTime}
-        {shift.shiftType ? ` · ${shift.shiftType}` : ""}
-      </span>
-    </button>
-  );
+// --- time/layout helpers -----------------------------------------------
+
+function minutesFromMidnight(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
 }
 
-function AppointmentChip({
-  appointment,
-  onClick,
-}: {
-  appointment: Appointment;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full rounded-brand-md border px-2 py-1.5 text-left text-xs transition hover:shadow-sm ${CATEGORY_STYLES[appointment.category]}`}
-    >
-      <span className="block break-words font-semibold">{appointment.title}</span>
-      <span className="block break-words opacity-90">
-        {appointment.startTime
-          ? `${appointment.startTime}${appointment.endTime ? `–${appointment.endTime}` : ""} · `
-          : ""}
-        {CATEGORY_LABELS[appointment.category]}
-      </span>
-    </button>
-  );
+const HOUR_HEIGHT = 44; // px per hour row in the grid
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const MIN_BLOCK_HEIGHT = 26; // px - keeps very short appointments legible
+
+type PositionedBlock<T> = {
+  item: T;
+  top: number;
+  height: number;
+  lane: number;
+  laneCount: number;
+};
+
+// Greedy lane assignment for same-day overlapping blocks (e.g. two
+// employees both scheduled 08:00-16:00) - sorted by start, each block
+// takes the first lane whose last block already ended, or opens a new one.
+// Every block then knows its own lane and the day's total lane count, so
+// the caller can render them side by side instead of stacked on top of
+// each other.
+function assignLanes<T>(entries: { item: T; start: number; end: number }[]): PositionedBlock<T>[] {
+  const sorted = [...entries].sort((a, b) => a.start - b.start);
+  const laneEnds: number[] = [];
+  const withLane = sorted.map((entry) => {
+    let lane = laneEnds.findIndex((end) => end <= entry.start);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(entry.end);
+    } else {
+      laneEnds[lane] = entry.end;
+    }
+    return { ...entry, lane };
+  });
+  const laneCount = Math.max(1, laneEnds.length);
+  return withLane.map(({ item, start, end, lane }) => ({
+    item,
+    top: (start / 60) * HOUR_HEIGHT,
+    height: Math.max(MIN_BLOCK_HEIGHT, ((end - start) / 60) * HOUR_HEIGHT),
+    lane,
+    laneCount,
+  }));
 }
+
+// A shift ending at/before its own start time (e.g. Nachtdienst 23:00-07:00)
+// spans into the next calendar day - split it into "tonight, until
+// midnight" on its own date and a short "since midnight" continuation
+// rendered at the top of the next day's column.
+type ShiftEntry = { start: number; end: number; shift: Shift; continuation: boolean };
+function shiftEntriesForDay(shifts: Shift[], dateKey: string): ShiftEntry[] {
+  const entries: ShiftEntry[] = [];
+  for (const shift of shifts) {
+    const start = minutesFromMidnight(shift.startTime);
+    const end = minutesFromMidnight(shift.endTime);
+    const shiftDateKey = toDateKey(shift.date);
+    const overnight = end <= start;
+
+    if (shiftDateKey === dateKey) {
+      entries.push({ start, end: overnight ? 24 * 60 : end, shift, continuation: false });
+    }
+    if (overnight && toDateKey(addDays(new Date(shift.date), 1)) === dateKey) {
+      entries.push({ start: 0, end, shift, continuation: true });
+    }
+  }
+  return entries;
+}
+
+// --- shared form/modal pieces (BETREIBER only) --------------------------
 
 type ModalState =
-  | { kind: "shift"; date: Date; shift?: Shift }
-  | { kind: "appointment"; date: Date; appointment?: Appointment };
+  | { kind: "shift"; date: Date; shift?: Shift; startTime?: string }
+  | { kind: "appointment"; date: Date; appointment?: Appointment }
+  | { kind: "view-shift"; date: Date; shift: Shift }
+  | { kind: "view-appointment"; date: Date; appointment: Appointment };
 
 function ShiftForm({
   date,
   shift,
+  startTime,
   employees,
   onClose,
 }: {
   date: Date;
   shift?: Shift;
+  startTime?: string;
   employees: Employee[];
   onClose: () => void;
 }) {
   const utils = trpc.useUtils();
   const [employeeId, setEmployeeId] = useState(shift?.employeeId ?? employees[0]?.id ?? "");
-  const [startTime, setStartTime] = useState(shift?.startTime ?? "07:00");
-  const [endTime, setEndTime] = useState(shift?.endTime ?? "15:00");
+  const [startTimeValue, setStartTimeValue] = useState(shift?.startTime ?? startTime ?? "07:00");
+  const [endTimeValue, setEndTimeValue] = useState(shift?.endTime ?? "15:00");
   const [shiftType, setShiftType] = useState(shift?.shiftType ?? "");
   const [note, setNote] = useState(shift?.note ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -137,8 +174,8 @@ function ShiftForm({
           shiftId: shift?.id,
           employeeId,
           date: date.toISOString(),
-          startTime,
-          endTime,
+          startTime: startTimeValue,
+          endTime: endTimeValue,
           shiftType: shiftType.trim() || undefined,
           note: note.trim() || undefined,
         });
@@ -165,8 +202,8 @@ function ShiftForm({
           <input
             type="time"
             required
-            value={startTime}
-            onChange={(event) => setStartTime(event.target.value)}
+            value={startTimeValue}
+            onChange={(event) => setStartTimeValue(event.target.value)}
             className="rounded-brand-md border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
         </label>
@@ -175,8 +212,8 @@ function ShiftForm({
           <input
             type="time"
             required
-            value={endTime}
-            onChange={(event) => setEndTime(event.target.value)}
+            value={endTimeValue}
+            onChange={(event) => setEndTimeValue(event.target.value)}
             className="rounded-brand-md border border-brand-border px-3 py-2 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
         </label>
@@ -354,13 +391,43 @@ function AppointmentForm({
   );
 }
 
+function ShiftDetail({ shift }: { shift: Shift }) {
+  return (
+    <div className="flex flex-col gap-1 text-sm">
+      <p className="font-semibold text-brand-text">{shift.employee.name}</p>
+      <p className="text-brand-text-muted">
+        {shift.startTime}–{shift.endTime}
+        {shift.shiftType ? ` · ${shift.shiftType}` : ""}
+      </p>
+      {shift.note && <p className="mt-1 text-brand-text-muted">{shift.note}</p>}
+    </div>
+  );
+}
+
+function AppointmentDetail({ appointment }: { appointment: Appointment }) {
+  return (
+    <div className="flex flex-col gap-1 text-sm">
+      <p className="font-semibold text-brand-text">{appointment.title}</p>
+      <p className="text-brand-text-muted">
+        {appointment.startTime
+          ? `${appointment.startTime}${appointment.endTime ? `–${appointment.endTime}` : ""} · `
+          : ""}
+        {CATEGORY_LABELS[appointment.category]}
+      </p>
+      {appointment.note && <p className="mt-1 text-brand-text-muted">{appointment.note}</p>}
+    </div>
+  );
+}
+
 function DayModal({
   state,
   employees,
+  readOnly,
   onClose,
 }: {
   state: ModalState;
   employees: Employee[];
+  readOnly: boolean;
   onClose: () => void;
 }) {
   const dateLabel = new Intl.DateTimeFormat("de-DE", {
@@ -370,18 +437,20 @@ function DayModal({
     year: "numeric",
   }).format(state.date);
 
+  const title = state.kind === "shift" || state.kind === "view-shift" ? "Schicht" : "Termin";
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={state.kind === "shift" ? "Schicht" : "Termin"}
+        aria-label={title}
         className="flex max-h-[85vh] w-full flex-col gap-4 overflow-y-auto rounded-t-brand-lg border border-brand-border bg-brand-surface p-6 shadow-xl sm:max-w-md sm:rounded-brand-lg"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-brand-text-muted">
-              {state.kind === "shift" ? "Schicht" : "Termin"}
+              {title}
             </p>
             <p className="text-lg font-bold text-brand-heading">{dateLabel}</p>
           </div>
@@ -394,25 +463,236 @@ function DayModal({
             ✕
           </button>
         </div>
-        {state.kind === "shift" ? (
+        {readOnly ? (
+          state.kind === "view-shift" ? (
+            <ShiftDetail shift={state.shift} />
+          ) : state.kind === "view-appointment" ? (
+            <AppointmentDetail appointment={state.appointment} />
+          ) : null
+        ) : state.kind === "shift" ? (
           <ShiftForm
             date={state.date}
             shift={state.shift}
+            startTime={state.startTime}
             employees={employees}
             onClose={onClose}
           />
-        ) : (
+        ) : state.kind === "appointment" ? (
           <AppointmentForm date={state.date} appointment={state.appointment} onClose={onClose} />
-        )}
+        ) : null}
       </div>
     </div>
   );
 }
 
-function DayColumn({
+// --- grid (desktop) -------------------------------------------------
+
+function GridBlock<T>({
+  block,
+  className,
+  onClick,
+  children,
+}: {
+  block: PositionedBlock<T>;
+  className: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  const widthPct = 100 / block.laneCount;
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      style={{
+        top: block.top,
+        height: block.height,
+        left: `${block.lane * widthPct}%`,
+        width: `calc(${widthPct}% - 2px)`,
+      }}
+      className={`absolute overflow-hidden rounded-brand-md border px-1.5 py-1 text-left text-[11px] leading-tight transition hover:z-10 hover:shadow-md ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function DayGridColumn({
   date,
   shifts,
   appointments,
+  readOnly,
+  onAddShift,
+  onSelectShift,
+  onSelectAppointment,
+}: {
+  date: Date;
+  shifts: Shift[];
+  appointments: Appointment[];
+  readOnly: boolean;
+  onAddShift: (startTime: string) => void;
+  onSelectShift: (shift: Shift) => void;
+  onSelectAppointment: (appointment: Appointment) => void;
+}) {
+  const dateKey = toDateKey(date);
+  const shiftBlocks = assignLanes(
+    shiftEntriesForDay(shifts, dateKey).map((entry) => ({
+      item: entry,
+      start: entry.start,
+      end: entry.end,
+    })),
+  );
+  const timedAppointments = appointments.filter((a) => a.startTime);
+  const appointmentBlocks = assignLanes(
+    timedAppointments.map((appointment) => ({
+      item: appointment,
+      start: minutesFromMidnight(appointment.startTime!),
+      end: appointment.endTime
+        ? minutesFromMidnight(appointment.endTime)
+        : minutesFromMidnight(appointment.startTime!) + 30,
+    })),
+  );
+  const untimedAppointments = appointments.filter((a) => !a.startTime);
+
+  return (
+    <div className="relative min-w-0 border-l border-brand-border">
+      {untimedAppointments.length > 0 && (
+        <div className="flex flex-col gap-0.5 border-b border-brand-border p-1">
+          {untimedAppointments.map((appointment) => (
+            <button
+              key={appointment.id}
+              type="button"
+              onClick={() => onSelectAppointment(appointment)}
+              className={`truncate rounded-brand-md border px-1.5 py-0.5 text-left text-[11px] ${CATEGORY_STYLES[appointment.category]}`}
+            >
+              {appointment.title}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="relative" style={{ height: HOUR_HEIGHT * 24 }}>
+        {HOURS.map((hour) => (
+          <div
+            key={hour}
+            style={{ top: hour * HOUR_HEIGHT, height: HOUR_HEIGHT }}
+            className="absolute inset-x-0 border-t border-brand-border/60"
+            onClick={readOnly ? undefined : () => onAddShift(`${String(hour).padStart(2, "0")}:00`)}
+            role={readOnly ? undefined : "button"}
+            aria-hidden={readOnly}
+            tabIndex={-1}
+          >
+            {!readOnly && (
+              <span className="pointer-events-none absolute inset-0 hover:bg-brand-accent/5" />
+            )}
+          </div>
+        ))}
+        {shiftBlocks.map((block) => (
+          <GridBlock
+            key={`${block.item.shift.id}-${block.item.continuation ? "cont" : "main"}`}
+            block={block}
+            className={SHIFT_BLOCK_STYLE}
+            onClick={() => onSelectShift(block.item.shift)}
+          >
+            <span className="block truncate font-semibold">{block.item.shift.employee.name}</span>
+            <span className="block truncate opacity-90">
+              {block.item.continuation
+                ? `bis ${block.item.shift.endTime}`
+                : block.item.shift.startTime}
+              {block.item.shift.shiftType ? ` · ${block.item.shift.shiftType}` : ""}
+            </span>
+          </GridBlock>
+        ))}
+        {appointmentBlocks.map((block) => (
+          <GridBlock
+            key={block.item.id}
+            block={block}
+            className={CATEGORY_STYLES[block.item.category]}
+            onClick={() => onSelectAppointment(block.item)}
+          >
+            <span className="block truncate font-semibold">{block.item.title}</span>
+            <span className="block truncate opacity-90">{block.item.startTime}</span>
+          </GridBlock>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WeekGrid({
+  days,
+  shiftsByDay,
+  appointmentsByDay,
+  readOnly,
+  onAddShift,
+  onSelectShift,
+  onSelectAppointment,
+}: {
+  days: Date[];
+  shiftsByDay: Map<string, Shift[]>;
+  appointmentsByDay: Map<string, Appointment[]>;
+  readOnly: boolean;
+  onAddShift: (day: Date, startTime: string) => void;
+  onSelectShift: (day: Date, shift: Shift) => void;
+  onSelectAppointment: (day: Date, appointment: Appointment) => void;
+}) {
+  return (
+    <div className="hidden overflow-x-auto md:block">
+      <div className="grid grid-cols-[3rem_repeat(7,minmax(9rem,1fr))]">
+        <div className="sticky top-0 z-10 bg-brand-surface" />
+        {days.map((day) => {
+          const today = isToday(day);
+          return (
+            <div
+              key={toDateKey(day)}
+              className={`sticky top-0 z-10 border-l border-brand-border bg-brand-surface px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide ${
+                today ? "text-brand-accent" : "text-brand-text-muted"
+              }`}
+            >
+              {formatDayHeader(day)}
+            </div>
+          );
+        })}
+
+        <div className="relative" style={{ height: HOUR_HEIGHT * 24 }}>
+          {HOURS.map((hour) => (
+            <div
+              key={hour}
+              style={{ top: hour * HOUR_HEIGHT, height: HOUR_HEIGHT }}
+              className="absolute inset-x-0 flex items-start justify-end pr-2 text-[11px] text-brand-text-muted"
+            >
+              <span className="-translate-y-1/2">{hour}:00</span>
+            </div>
+          ))}
+        </div>
+        {days.map((day) => {
+          const key = toDateKey(day);
+          return (
+            <DayGridColumn
+              key={key}
+              date={day}
+              shifts={shiftsByDay.get(key) ?? []}
+              appointments={appointmentsByDay.get(key) ?? []}
+              readOnly={readOnly}
+              onAddShift={(startTime) => onAddShift(day, startTime)}
+              onSelectShift={(shift) => onSelectShift(day, shift)}
+              onSelectAppointment={(appointment) => onSelectAppointment(day, appointment)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// --- mobile agenda fallback ----------------------------------------
+
+function AgendaDay({
+  date,
+  shifts,
+  appointments,
+  readOnly,
   onAddShift,
   onAddAppointment,
   onSelectShift,
@@ -421,15 +701,20 @@ function DayColumn({
   date: Date;
   shifts: Shift[];
   appointments: Appointment[];
+  readOnly: boolean;
   onAddShift: () => void;
   onAddAppointment: () => void;
   onSelectShift: (shift: Shift) => void;
   onSelectAppointment: (appointment: Appointment) => void;
 }) {
   const today = isToday(date);
+  const sortedShifts = [...shifts].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const sortedAppointments = [...appointments].sort((a, b) =>
+    (a.startTime ?? "").localeCompare(b.startTime ?? ""),
+  );
   return (
     <div
-      className={`flex min-w-0 flex-col gap-2 rounded-brand-lg border p-3 ${
+      className={`flex flex-col gap-2 rounded-brand-lg border p-3 ${
         today ? "border-brand-accent bg-brand-accent/5" : "border-brand-border bg-brand-surface"
       }`}
     >
@@ -439,47 +724,71 @@ function DayColumn({
         {formatDayHeader(date)}
       </p>
       <div className="flex flex-col gap-1.5">
-        {shifts.map((shift) => (
-          <ShiftChip key={shift.id} shift={shift} onClick={() => onSelectShift(shift)} />
+        {sortedShifts.map((shift) => (
+          <button
+            key={shift.id}
+            type="button"
+            onClick={() => onSelectShift(shift)}
+            className={`w-full rounded-brand-md border px-2 py-1.5 text-left text-xs transition hover:shadow-sm ${SHIFT_BLOCK_STYLE}`}
+          >
+            <span className="block break-words font-semibold">{shift.employee.name}</span>
+            <span className="block break-words opacity-90">
+              {shift.startTime}–{shift.endTime}
+              {shift.shiftType ? ` · ${shift.shiftType}` : ""}
+            </span>
+          </button>
         ))}
-        {appointments.map((appointment) => (
-          <AppointmentChip
+        {sortedAppointments.map((appointment) => (
+          <button
             key={appointment.id}
-            appointment={appointment}
+            type="button"
             onClick={() => onSelectAppointment(appointment)}
-          />
+            className={`w-full rounded-brand-md border px-2 py-1.5 text-left text-xs transition hover:shadow-sm ${CATEGORY_STYLES[appointment.category]}`}
+          >
+            <span className="block break-words font-semibold">{appointment.title}</span>
+            <span className="block break-words opacity-90">
+              {appointment.startTime
+                ? `${appointment.startTime}${appointment.endTime ? `–${appointment.endTime}` : ""} · `
+                : ""}
+              {CATEGORY_LABELS[appointment.category]}
+            </span>
+          </button>
         ))}
         {shifts.length === 0 && appointments.length === 0 && (
           <p className="text-xs text-brand-text-muted">Nichts geplant</p>
         )}
       </div>
-      <div className="mt-auto flex flex-col gap-1 pt-1">
-        <button
-          type="button"
-          onClick={onAddShift}
-          className="rounded-brand-md border border-dashed border-brand-border px-2 py-1 text-xs font-medium text-brand-text-muted transition hover:border-brand-accent hover:text-brand-accent"
-        >
-          + Schicht
-        </button>
-        <button
-          type="button"
-          onClick={onAddAppointment}
-          className="rounded-brand-md border border-dashed border-brand-border px-2 py-1 text-xs font-medium text-brand-text-muted transition hover:border-brand-accent hover:text-brand-accent"
-        >
-          + Termin
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="mt-auto flex flex-col gap-1 pt-1">
+          <button
+            type="button"
+            onClick={onAddShift}
+            className="rounded-brand-md border border-dashed border-brand-border px-2 py-1 text-xs font-medium text-brand-text-muted transition hover:border-brand-accent hover:text-brand-accent"
+          >
+            + Schicht
+          </button>
+          <button
+            type="button"
+            onClick={onAddAppointment}
+            className="rounded-brand-md border border-dashed border-brand-border px-2 py-1 text-xs font-medium text-brand-text-muted transition hover:border-brand-accent hover:text-brand-accent"
+          >
+            + Termin
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-export function DienstplanCalendar() {
+// --- top level --------------------------------------------------------
+
+export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean }) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [modal, setModal] = useState<ModalState | null>(null);
   const days = weekDays(weekStart);
   const rangeEnd = addDays(weekStart, 7);
 
-  const employees = trpc.operator.employees.useQuery();
+  const employees = trpc.operator.employees.useQuery(undefined, { enabled: !readOnly });
   const shifts = trpc.operator.shifts.useQuery({
     from: weekStart.toISOString(),
     to: rangeEnd.toISOString(),
@@ -493,6 +802,10 @@ export function DienstplanCalendar() {
   for (const shift of shifts.data ?? []) {
     const key = toDateKey(shift.date);
     shiftsByDay.set(key, [...(shiftsByDay.get(key) ?? []), shift]);
+    if (minutesFromMidnight(shift.endTime) <= minutesFromMidnight(shift.startTime)) {
+      const nextKey = toDateKey(addDays(new Date(shift.date), 1));
+      shiftsByDay.set(nextKey, [...(shiftsByDay.get(nextKey) ?? []), shift]);
+    }
   }
   const appointmentsByDay = new Map<string, Appointment[]>();
   for (const appointment of appointments.data ?? []) {
@@ -500,8 +813,11 @@ export function DienstplanCalendar() {
     appointmentsByDay.set(key, [...(appointmentsByDay.get(key) ?? []), appointment]);
   }
 
+  const isLoading =
+    shifts.isLoading || appointments.isLoading || (!readOnly && employees.isLoading);
+
   return (
-    <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
+    <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="font-semibold text-brand-heading">Dienstplan &amp; Termine</h3>
@@ -534,32 +850,79 @@ export function DienstplanCalendar() {
         </div>
       </div>
 
-      {shifts.isLoading || appointments.isLoading || employees.isLoading ? (
+      {isLoading ? (
         <p className="text-sm text-brand-text-muted">Lädt…</p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
-          {days.map((day) => {
-            const key = toDateKey(day);
-            return (
-              <DayColumn
-                key={key}
-                date={day}
-                shifts={shiftsByDay.get(key) ?? []}
-                appointments={appointmentsByDay.get(key) ?? []}
-                onAddShift={() => setModal({ kind: "shift", date: day })}
-                onAddAppointment={() => setModal({ kind: "appointment", date: day })}
-                onSelectShift={(shift) => setModal({ kind: "shift", date: day, shift })}
-                onSelectAppointment={(appointment) =>
-                  setModal({ kind: "appointment", date: day, appointment })
-                }
-              />
-            );
-          })}
-        </div>
+        <>
+          <WeekGrid
+            days={days}
+            shiftsByDay={shiftsByDay}
+            appointmentsByDay={appointmentsByDay}
+            readOnly={readOnly}
+            onAddShift={(day, startTime) => setModal({ kind: "shift", date: day, startTime })}
+            onSelectShift={(day, shift) =>
+              setModal(
+                readOnly
+                  ? { kind: "view-shift", date: day, shift }
+                  : { kind: "shift", date: day, shift },
+              )
+            }
+            onSelectAppointment={(day, appointment) =>
+              setModal(
+                readOnly
+                  ? { kind: "view-appointment", date: day, appointment }
+                  : { kind: "appointment", date: day, appointment },
+              )
+            }
+          />
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:hidden">
+            {days.map((day) => {
+              const key = toDateKey(day);
+              return (
+                <AgendaDay
+                  key={key}
+                  date={day}
+                  shifts={shiftsByDay.get(key) ?? []}
+                  appointments={appointmentsByDay.get(key) ?? []}
+                  readOnly={readOnly}
+                  onAddShift={() => setModal({ kind: "shift", date: day })}
+                  onAddAppointment={() => setModal({ kind: "appointment", date: day })}
+                  onSelectShift={(shift) =>
+                    setModal(
+                      readOnly
+                        ? { kind: "view-shift", date: day, shift }
+                        : { kind: "shift", date: day, shift },
+                    )
+                  }
+                  onSelectAppointment={(appointment) =>
+                    setModal(
+                      readOnly
+                        ? { kind: "view-appointment", date: day, appointment }
+                        : { kind: "appointment", date: day, appointment },
+                    )
+                  }
+                />
+              );
+            })}
+          </div>
+
+          {!readOnly && (
+            <p className="text-xs text-brand-text-muted md:hidden">
+              Tipp: auf einem größeren Bildschirm gibt es eine Stunden-für-Stunde-Ansicht der ganzen
+              Woche.
+            </p>
+          )}
+        </>
       )}
 
       {modal && (
-        <DayModal state={modal} employees={employees.data ?? []} onClose={() => setModal(null)} />
+        <DayModal
+          state={modal}
+          employees={employees.data ?? []}
+          readOnly={readOnly}
+          onClose={() => setModal(null)}
+        />
       )}
     </div>
   );

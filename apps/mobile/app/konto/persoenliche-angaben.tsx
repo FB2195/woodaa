@@ -11,6 +11,7 @@ import { trpc } from "@/lib/trpc";
 const roleLabels = {
   SUCHENDE: "Suchende",
   BETREIBER: "Pflegeeinrichtung",
+  MITARBEITER: "Team-Mitglied",
   ADMIN: "Admin",
 } as const;
 
@@ -73,7 +74,8 @@ export default function PersoenlicheAngabenScreen() {
 
   const vornameValue = vorname ?? profile.vorname;
   const nachnameValue = nachname ?? profile.nachname;
-  const geburtsdatumValue = geburtsdatum === undefined ? parseISODate(profile.geburtsdatum) : geburtsdatum;
+  const geburtsdatumValue =
+    geburtsdatum === undefined ? parseISODate(profile.geburtsdatum) : geburtsdatum;
   const streetValue = street ?? profile.street;
   const postalCodeValue = postalCode ?? profile.postalCode;
   const cityValue = city ?? profile.city;
@@ -155,7 +157,9 @@ export default function PersoenlicheAngabenScreen() {
                 try {
                   await requestEmailChange.mutateAsync({ newEmail: newEmail.trim() });
                 } catch (err) {
-                  setEmailError(err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.");
+                  setEmailError(
+                    err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.",
+                  );
                 }
               }}
             />
@@ -219,7 +223,9 @@ export default function PersoenlicheAngabenScreen() {
                     phone: phoneValue.trim() || undefined,
                   });
                 } catch (err) {
-                  setAddressError(err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.");
+                  setAddressError(
+                    err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.",
+                  );
                 }
               }}
             />

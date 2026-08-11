@@ -23,6 +23,7 @@ import { trpc } from "@/lib/trpc";
 const roleLabels = {
   SUCHENDE: "Suchende:r",
   BETREIBER: "Betreiber:in",
+  MITARBEITER: "Team-Mitglied",
   ADMIN: "Admin",
 } as const;
 
@@ -103,7 +104,13 @@ export default function AccountScreen() {
     { href: "/konto/favoriten", label: "Favoriten", icon: <HeartPulseIcon /> },
     { href: "/konto/persoenliche-angaben", label: "Persönliche Angaben", icon: <PersonIcon /> },
     ...(user.role !== "ADMIN"
-      ? [{ href: "/konto/sicherheit" as const, label: "Sicherheitseinstellungen", icon: <LockIcon /> }]
+      ? [
+          {
+            href: "/konto/sicherheit" as const,
+            label: "Sicherheitseinstellungen",
+            icon: <LockIcon />,
+          },
+        ]
       : []),
     ...(user.role !== "ADMIN"
       ? [{ href: "/konto/konto-loeschen" as const, label: "Konto löschen", icon: <TrashIcon /> }]

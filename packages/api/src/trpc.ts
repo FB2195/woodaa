@@ -51,6 +51,18 @@ const isOperator = t.middleware(({ ctx, next }) => {
 });
 export const operatorProcedure = t.procedure.use(isOperator);
 
+// BETREIBER (full facility owner) OR MITARBEITER (a single invited
+// employee, see Employee.userId in schema.prisma) - for the handful of
+// read-only endpoints both roles need (the Dienstplan calendar). Every
+// write stays on operatorProcedure/isOperator above, BETREIBER-only.
+const isStaff = t.middleware(({ ctx, next }) => {
+  if (!ctx.user || (ctx.user.role !== "BETREIBER" && ctx.user.role !== "MITARBEITER")) {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
+export const staffProcedure = t.procedure.use(isStaff);
+
 const isAdmin = t.middleware(({ ctx, next }) => {
   if (!ctx.user || ctx.user.role !== "ADMIN") {
     throw new TRPCError({ code: "FORBIDDEN" });
