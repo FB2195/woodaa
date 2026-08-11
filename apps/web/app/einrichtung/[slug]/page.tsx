@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { notFound } from "next/navigation";
 import { BookingSidebar } from "@/components/BookingSidebar";
 import { FacilityAmenities } from "@/components/FacilityAmenities";
+import { FacilityAvailability } from "@/components/FacilityAvailability";
 import { FacilityDescription } from "@/components/FacilityDescription";
 import { FacilityGalleryAndMap } from "@/components/FacilityGalleryAndMap";
 import { FacilityHighlights } from "@/components/FacilityHighlights";
@@ -13,13 +14,9 @@ import { Header } from "@/components/Header";
 import { MobileBookingBar } from "@/components/MobileBookingBar";
 import { StarRating } from "@/components/StarRating";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
-import { WaitlistRowCTA } from "@/components/WaitlistRowCTA";
-import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
-import { formatDate, formatPriceEuro } from "@/lib/format";
 import { pflegegradLabels } from "@/lib/pflegegradLabels";
 import type { Pflegegrad } from "@woodaa/validators";
 import { getTrpcServer } from "@/lib/trpc-server";
-import { PflegekassenZuschussRechner } from "@/components/PflegekassenZuschussRechner";
 
 type FacilityPageProps = {
   params: Promise<{ slug: string }>;
@@ -102,57 +99,6 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
 
           <FacilityHighlights amenities={facility.amenities} />
 
-          <h2 id="verfuegbarkeit" className="mt-10 scroll-mt-20 text-lg font-semibold text-brand-text">
-            Verfügbarkeit
-          </h2>
-          <div className="mt-3 flex flex-col gap-3">
-            {facility.capacities.map((capacity) => (
-              <div
-                key={capacity.id}
-                className="rounded-brand-md border border-brand-border px-4 py-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-brand-text">{bookingTypeLabels[capacity.bookingType]}</span>
-                  <span
-                    className={
-                      capacity.availableSlots > 0
-                        ? "font-semibold text-brand-accent"
-                        : "text-brand-text-muted"
-                    }
-                  >
-                    {capacity.availableSlots > 0
-                      ? `${capacity.availableSlots} von ${capacity.totalSlots} Plätzen frei`
-                      : "Aktuell belegt"}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-brand-text-muted">
-                  {capacity.monthlyPriceCents !== null
-                    ? `${formatPriceEuro(capacity.monthlyPriceCents)}/Monat (Heimpreis vor Pflegekassen-Zuschuss)`
-                    : "Preis auf Anfrage"}
-                </p>
-
-                {capacity.pflegegradPricing.length > 0 && (
-                  <PflegekassenZuschussRechner
-                    bookingType={capacity.bookingType}
-                    pflegegradPricing={capacity.pflegegradPricing}
-                  />
-                )}
-
-                {capacity.bookingType === "STATIONAERE_AUFNAHME" &&
-                  capacity.availableSlots === 0 &&
-                  capacity.availableFrom && (
-                    <p className="mt-1 text-sm text-brand-text-muted">
-                      Nächster freier Platz voraussichtlich ab {formatDate(capacity.availableFrom)}
-                    </p>
-                  )}
-
-                {capacity.availableSlots === 0 && (
-                  <WaitlistRowCTA facilityId={facility.id} bookingType={capacity.bookingType} />
-                )}
-              </div>
-            ))}
-          </div>
-
           <FacilityReviews
             facilitySlug={facility.slug}
             facilityName={facility.name}
@@ -164,6 +110,8 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
           <FacilityNeighborhood latitude={facility.latitude} longitude={facility.longitude} />
 
           <FacilityAmenities amenities={facility.amenities} />
+
+          <FacilityAvailability facilityId={facility.id} capacities={facility.capacities} />
 
           <FacilityDescription description={facility.description} />
 
