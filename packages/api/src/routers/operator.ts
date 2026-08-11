@@ -15,13 +15,14 @@ import {
   ReplyToReviewInput,
   RequestFacilityChangeInput,
   RequestPhotoUploadInput,
-  SetEmployeeShiftInput,
   SetPflegegradPricingInput,
   SetUnitCountInput,
   UpdateEmployeeInput,
   UpdateFacilityInput,
   UpdatePricingInput,
   UpdateUnitInput,
+  UpsertAppointmentInput,
+  UpsertShiftInput,
 } from "@woodaa/validators";
 import { z } from "zod";
 import { cancelBooking, createBooking, setUnitCount } from "../availability";
@@ -693,14 +694,16 @@ export const operatorRouter = router({
       });
     }),
 
-  // "Personal" area (apps/desktop) - see the comment on Employee in
+  // "Personal & Dienstplan" area - see the comment on Employee in
   // schema.prisma for why this stays a roster the one facility login
-  // manages, not individual staff accounts.
+  // manages, not individual staff accounts. Roster only, no shifts - a
+  // facility running for months would otherwise mean this call returns
+  // every shift ever worked. The calendar (see `shifts` below) fetches its
+  // own date-bounded slice.
   employees: operatorProcedure.query(async ({ ctx }) => {
     const facility = await requireOwnFacility(ctx);
     return ctx.db.employee.findMany({
       where: { facilityId: facility.id },
-      include: { shifts: true },
       orderBy: { createdAt: "asc" },
     });
   }),
@@ -748,34 +751,111 @@ export const operatorRouter = router({
       return { success: true };
     }),
 
-  // Upsert by design (@@unique([employeeId, weekday])) - setting a day that
-  // already has a label just overwrites it, rather than needing a separate
-  // "edit" mutation.
-  setShift: operatorProcedure.input(SetEmployeeShiftInput).mutation(async ({ ctx, input }) => {
+  // Date-bounded so the weekly calendar (DienstplanCalendar.tsx) can pull
+  // exactly the week it's showing rather than every shift ever entered.
+  shifts: operatorProcedure
+    .input(z.object({ from: z.string().datetime(), to: z.string().datetime() }))
+    .query(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      return ctx.db.employeeShift.findMany({
+        where: {
+          facilityId: facility.id,
+          date: { gte: new Date(input.from), lte: new Date(input.to) },
+        },
+        include: { employee: { select: { id: true, name: true, active: true } } },
+        orderBy: [{ date: "asc" }, { startTime: "asc" }],
+      });
+    }),
+
+  upsertShift: operatorProcedure.input(UpsertShiftInput).mutation(async ({ ctx, input }) => {
     const facility = await requireOwnFacility(ctx);
     const employee = await ctx.db.employee.findUnique({ where: { id: input.employeeId } });
     if (!employee || employee.facilityId !== facility.id) {
       throw new TRPCError({ code: "NOT_FOUND" });
     }
-    return ctx.db.employeeShift.upsert({
-      where: { employeeId_weekday: { employeeId: input.employeeId, weekday: input.weekday } },
-      create: { employeeId: input.employeeId, weekday: input.weekday, label: input.label },
-      update: { label: input.label },
-    });
+    const data = {
+      employeeId: input.employeeId,
+      facilityId: facility.id,
+      date: new Date(input.date),
+      startTime: input.startTime,
+      endTime: input.endTime,
+      shiftType: input.shiftType,
+      note: input.note,
+    };
+    if (input.shiftId) {
+      const existing = await ctx.db.employeeShift.findUnique({ where: { id: input.shiftId } });
+      if (!existing || existing.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return ctx.db.employeeShift.update({ where: { id: input.shiftId }, data });
+    }
+    return ctx.db.employeeShift.create({ data });
   }),
 
   removeShift: operatorProcedure
     .input(z.object({ shiftId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const facility = await requireOwnFacility(ctx);
-      const shift = await ctx.db.employeeShift.findUnique({
-        where: { id: input.shiftId },
-        include: { employee: { select: { facilityId: true } } },
-      });
-      if (!shift || shift.employee.facilityId !== facility.id) {
+      const shift = await ctx.db.employeeShift.findUnique({ where: { id: input.shiftId } });
+      if (!shift || shift.facilityId !== facility.id) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       await ctx.db.employeeShift.delete({ where: { id: input.shiftId } });
+      return { success: true };
+    }),
+
+  appointments: operatorProcedure
+    .input(z.object({ from: z.string().datetime(), to: z.string().datetime() }))
+    .query(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      return ctx.db.facilityAppointment.findMany({
+        where: {
+          facilityId: facility.id,
+          date: { gte: new Date(input.from), lte: new Date(input.to) },
+        },
+        orderBy: [{ date: "asc" }, { startTime: "asc" }],
+      });
+    }),
+
+  upsertAppointment: operatorProcedure
+    .input(UpsertAppointmentInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const data = {
+        facilityId: facility.id,
+        date: new Date(input.date),
+        startTime: input.startTime,
+        endTime: input.endTime,
+        title: input.title,
+        category: input.category,
+        note: input.note,
+      };
+      if (input.appointmentId) {
+        const existing = await ctx.db.facilityAppointment.findUnique({
+          where: { id: input.appointmentId },
+        });
+        if (!existing || existing.facilityId !== facility.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        return ctx.db.facilityAppointment.update({
+          where: { id: input.appointmentId },
+          data,
+        });
+      }
+      return ctx.db.facilityAppointment.create({ data });
+    }),
+
+  removeAppointment: operatorProcedure
+    .input(z.object({ appointmentId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const appointment = await ctx.db.facilityAppointment.findUnique({
+        where: { id: input.appointmentId },
+      });
+      if (!appointment || appointment.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.facilityAppointment.delete({ where: { id: input.appointmentId } });
       return { success: true };
     }),
 });
