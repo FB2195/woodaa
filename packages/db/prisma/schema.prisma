@@ -462,14 +462,14 @@ model Favorite {
 // resulting alerts noisier rather than more useful. city is required since
 // an alert with no location filter would match too broadly to be useful.
 model SavedSearch {
-  id          String       @id @default(cuid())
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      String
-  city        String
-  bookingType BookingType?
-  pflegegrad  Int?
-  createdAt   DateTime     @default(now())
-  lastCheckedAt DateTime?
+  id                     String       @id @default(cuid())
+  user                   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                 String
+  city                   String
+  bookingType            BookingType?
+  pflegegrad             Int?
+  createdAt              DateTime     @default(now())
+  lastCheckedAt          DateTime?
   // Facility ids that already matched as of the last check - the alert
   // email only ever reports ids NOT in this set, so a still-matching
   // facility isn't re-emailed on every run, only once when it first
@@ -477,7 +477,7 @@ model SavedSearch {
   // (including on the very first run, so a search that already has matches
   // at creation time doesn't immediately spam an email for pre-existing
   // results - only for what's NEW since the last check).
-  lastMatchedFacilityIds String[] @default([])
+  lastMatchedFacilityIds String[]     @default([])
 
   @@index([userId])
 }
@@ -549,13 +549,20 @@ model CapacityPflegegradPricing {
 // können. label ist auto-generiert ("Platz 1", ...) und vom Betreiber
 // umbenennbar (z.B. "Zimmer 4").
 model FacilityUnit {
-  id          String      @id @default(cuid())
-  facility    Facility    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  facilityId  String
-  bookingType BookingType
-  label       String
-  createdAt   DateTime    @default(now())
-  bookings    Booking[]
+  id               String      @id @default(cuid())
+  facility         Facility    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId       String
+  bookingType      BookingType
+  label            String
+  // Flags a place as equipped/staffed for Intensivpflege (Beatmung,
+  // Monitoring, ...) - a property of the physical room, cutting across
+  // bookingType rather than being one, since a facility might offer it
+  // within STATIONAERE_AUFNAHME as well as KURZZEITPFLEGE. Purely
+  // informational/filterable in the operator's own Belegungskarte for now,
+  // not (yet) surfaced in public search.
+  isIntensivpflege Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  bookings         Booking[]
 
   @@index([facilityId, bookingType])
 }
@@ -733,16 +740,16 @@ model HandoverNote {
 // below is just "which weekdays, with a free-text label" rather than a
 // modeled shift system.
 model Employee {
-  id         String         @id @default(cuid())
-  facility   Facility       @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  id         String          @id @default(cuid())
+  facility   Facility        @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   facilityId String
   name       String
   role       String
   phone      String?
   email      String?
-  active     Boolean        @default(true)
+  active     Boolean         @default(true)
   shifts     EmployeeShift[]
-  createdAt  DateTime       @default(now())
+  createdAt  DateTime        @default(now())
 
   @@index([facilityId])
 }
