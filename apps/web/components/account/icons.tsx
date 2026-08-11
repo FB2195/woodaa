@@ -137,3 +137,21 @@ export function HomeIcon() {
     </>,
   );
 }
+
+export function SmartphoneIcon() {
+  return base(
+    <>
+      <rect x="7" y="3" width="10" height="18" rx="2" />
+      <path strokeLinecap="round" d="M11 18h2" />
+    </>,
+  );
+}
+
+export function GlobeIcon() {
+  return base(
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path strokeLinecap="round" d="M3 12h18M12 3c2.5 2.5 3.8 5.8 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.8-3.8-9s1.3-6.5 3.8-9z" />
+    </>,
+  );
+}
