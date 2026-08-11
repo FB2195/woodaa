@@ -1,7 +1,7 @@
 import type { BookingType, Weekday } from "@woodaa/validators";
 import { router } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -33,6 +33,11 @@ const radiusOptions = [
   { value: 100, label: "100 km Umkreis" },
 ];
 
+function formatShortDate(date: Date | null): string | null {
+  if (!date) return null;
+  return date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 const weekdayOptions: { value: Weekday; label: string }[] = [
   { value: 1, label: "Mo" },
   { value: 2, label: "Di" },
@@ -59,6 +64,7 @@ export default function SearchScreen() {
   const [availableFromDate, setAvailableFromDate] = useState<Date | null>(null);
   const [rangeStart, setRangeStart] = useState<Date | null>(null);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
+  const [rangeCalendarOpen, setRangeCalendarOpen] = useState(true);
   const [weekdays, setWeekdays] = useState<Weekday[]>([]);
   const [hoursPerDay, setHoursPerDay] = useState("");
   const [onlyAvailable, setOnlyAvailable] = useState(true);
@@ -106,6 +112,15 @@ export default function SearchScreen() {
   // bottom nav, so "land on a homepage" means the Suche tab starts here
   // rather than adding a 4th tab.
   const hasInteracted = city !== "" || bookingType !== null;
+
+  // Collapse the advanced filter panel the moment results actually come
+  // into view (not just on the Suchen button press - selecting a
+  // Betreuungsart pill alone also triggers hasInteracted) - otherwise it
+  // keeps eating screen space and results only show far down the page.
+  useEffect(() => {
+    if (hasInteracted) setShowFilters(false);
+  }, [hasInteracted]);
+
   const allResults = search.data?.results ?? [];
   const popularCities = buildPopularCities(allResults);
   const cityCount = new Set(allResults.map((f) => f.city)).size;
@@ -132,8 +147,13 @@ export default function SearchScreen() {
             onPress={() => {
               Keyboard.dismiss();
               setCity(cityInput.trim());
+              // Collapse the expanded filter panel/calendar once a search
+              // is actually triggered - otherwise these keep eating screen
+              // space and the results only show far down the page.
+              setShowFilters(false);
+              setRangeCalendarOpen(false);
             }}
-            className="items-center justify-center rounded-brand-md bg-brand-accent px-4"
+            className="items-center justify-center rounded-brand-md bg-brand-accent px-4 active:opacity-80"
           >
             <Text className="font-semibold text-white">Suchen</Text>
           </Pressable>
@@ -142,7 +162,7 @@ export default function SearchScreen() {
         <View className="flex-row flex-wrap gap-2">
           <Pressable
             onPress={() => setBookingType(null)}
-            className={`rounded-brand-full border px-3 py-1.5 ${
+            className={`rounded-brand-full border px-3 py-1.5 active:opacity-70 ${
               bookingType === null
                 ? "border-brand-accent bg-brand-accent"
                 : "border-brand-border bg-brand-background dark:border-brand-border-dark dark:bg-brand-background-dark"
@@ -158,7 +178,7 @@ export default function SearchScreen() {
             <Pressable
               key={option.value}
               onPress={() => setBookingType(option.value)}
-              className={`rounded-brand-full border px-3 py-1.5 ${
+              className={`rounded-brand-full border px-3 py-1.5 active:opacity-70 ${
                 bookingType === option.value
                   ? "border-brand-accent bg-brand-accent"
                   : "border-brand-border bg-brand-background dark:border-brand-border-dark dark:bg-brand-background-dark"
@@ -181,16 +201,39 @@ export default function SearchScreen() {
           <DateField label="Verfügbar ab" value={availableFromDate} onChange={setAvailableFromDate} />
         )}
 
-        {bookingType === "KURZZEITPFLEGE" && (
-          <DateRangeCalendar
-            startDate={rangeStart}
-            endDate={rangeEnd}
-            onChange={(newStart, newEnd) => {
-              setRangeStart(newStart);
-              setRangeEnd(newEnd);
-            }}
-          />
-        )}
+        {bookingType === "KURZZEITPFLEGE" &&
+          (rangeCalendarOpen ? (
+            <View className="gap-2">
+              <DateRangeCalendar
+                startDate={rangeStart}
+                endDate={rangeEnd}
+                onChange={(newStart, newEnd) => {
+                  setRangeStart(newStart);
+                  setRangeEnd(newEnd);
+                }}
+              />
+              <Pressable
+                disabled={!rangeStart || !rangeEnd}
+                onPress={() => setRangeCalendarOpen(false)}
+                className={`items-center rounded-brand-md px-4 py-2.5 ${
+                  rangeStart && rangeEnd
+                    ? "bg-brand-accent active:opacity-80"
+                    : "bg-brand-border dark:bg-brand-border-dark"
+                }`}
+              >
+                <Text className="font-semibold text-white">Bestätigen</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => setRangeCalendarOpen(true)}
+              className="rounded-brand-md border border-brand-border bg-brand-background px-3 py-2.5 active:opacity-70 dark:border-brand-border-dark dark:bg-brand-background-dark"
+            >
+              <Text className="text-base text-brand-text dark:text-brand-text-dark">
+                Von {formatShortDate(rangeStart)} – Bis {formatShortDate(rangeEnd)}
+              </Text>
+            </Pressable>
+          ))}
 
         {(bookingType === "TAGESPFLEGE" || bookingType === "NACHTPFLEGE") && (
           <View className="gap-2">
@@ -199,7 +242,7 @@ export default function SearchScreen() {
                 <Pressable
                   key={day.value}
                   onPress={() => toggleWeekday(day.value)}
-                  className={`rounded-brand-full border px-3 py-1.5 ${
+                  className={`rounded-brand-full border px-3 py-1.5 active:opacity-70 ${
                     weekdays.includes(day.value)
                       ? "border-brand-accent bg-brand-accent"
                       : "border-brand-border bg-brand-background dark:border-brand-border-dark dark:bg-brand-background-dark"
@@ -217,14 +260,30 @@ export default function SearchScreen() {
                 </Pressable>
               ))}
             </View>
-            <TextInput
-              value={hoursPerDay}
-              onChangeText={setHoursPerDay}
-              keyboardType="number-pad"
-              placeholder="Stunden pro Tag"
-              placeholderTextColor={colorScheme === "dark" ? "#B7C2A8" : "#6B6F62"}
-              className="rounded-brand-md border border-brand-border bg-brand-background px-3 py-2.5 text-base text-brand-text dark:border-brand-border-dark dark:bg-brand-background-dark dark:text-brand-text-dark"
-            />
+            <View className="flex-row gap-2">
+              <TextInput
+                value={hoursPerDay}
+                onChangeText={(text) => {
+                  const digitsOnly = text.replace(/[^0-9]/g, "");
+                  if (digitsOnly === "") {
+                    setHoursPerDay("");
+                    return;
+                  }
+                  const clamped = Math.min(24, Number(digitsOnly));
+                  setHoursPerDay(String(clamped));
+                }}
+                keyboardType="number-pad"
+                placeholder="Stunden pro Tag (max. 24)"
+                placeholderTextColor={colorScheme === "dark" ? "#B7C2A8" : "#6B6F62"}
+                className="flex-1 rounded-brand-md border border-brand-border bg-brand-background px-3 py-2.5 text-base text-brand-text dark:border-brand-border-dark dark:bg-brand-background-dark dark:text-brand-text-dark"
+              />
+              <Pressable
+                onPress={() => Keyboard.dismiss()}
+                className="items-center justify-center rounded-brand-md border border-brand-border px-4 active:opacity-70 dark:border-brand-border-dark"
+              >
+                <Text className="font-semibold text-brand-accent">Fertig</Text>
+              </Pressable>
+            </View>
           </View>
         )}
 
@@ -248,7 +307,7 @@ export default function SearchScreen() {
           </Pressable>
         )}
 
-        <Pressable onPress={() => setShowFilters((v) => !v)}>
+        <Pressable onPress={() => setShowFilters((v) => !v)} className="active:opacity-60">
           <Text className="text-sm font-medium text-brand-accent">
             {showFilters ? "Weniger Filter" : "Mehr Filter"}
           </Text>
@@ -311,7 +370,7 @@ export default function SearchScreen() {
             </Text>
             <Pressable
               onPress={() => setResultsView("list")}
-              className="rounded-brand-full border border-brand-border bg-brand-background px-3 py-1.5 dark:border-brand-border-dark dark:bg-brand-background-dark"
+              className="rounded-brand-full border border-brand-border bg-brand-background px-3 py-1.5 active:opacity-70 dark:border-brand-border-dark dark:bg-brand-background-dark"
             >
               <Text className="text-xs font-medium text-brand-text dark:text-brand-text-dark">
                 📋 Liste
@@ -337,7 +396,7 @@ export default function SearchScreen() {
                 {googleMapsApiKey() && (
                   <Pressable
                     onPress={() => setResultsView("map")}
-                    className="rounded-brand-full border border-brand-border bg-brand-background px-3 py-1.5 dark:border-brand-border-dark dark:bg-brand-background-dark"
+                    className="rounded-brand-full border border-brand-border bg-brand-background px-3 py-1.5 active:opacity-70 dark:border-brand-border-dark dark:bg-brand-background-dark"
                   >
                     <Text className="text-xs font-medium text-brand-text dark:text-brand-text-dark">
                       🗺️ Karte

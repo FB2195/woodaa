@@ -22,7 +22,7 @@ export function SelectField<T extends string | number>({
       <Text className="text-sm text-brand-text dark:text-brand-text-dark">{label}</Text>
       <Pressable
         onPress={() => setOpen(true)}
-        className="rounded-brand-md border border-brand-border bg-brand-surface px-3 py-2.5 dark:border-brand-border-dark dark:bg-brand-surface-dark"
+        className="flex-row items-center justify-between rounded-brand-md border border-brand-border bg-brand-surface px-3 py-2.5 active:opacity-70 dark:border-brand-border-dark dark:bg-brand-surface-dark"
       >
         <Text
           className={
@@ -33,6 +33,7 @@ export function SelectField<T extends string | number>({
         >
           {selected?.label ?? placeholder}
         </Text>
+        <Text className="text-brand-text-muted dark:text-brand-text-muted-dark">▾</Text>
       </Pressable>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
@@ -55,7 +56,7 @@ export function SelectField<T extends string | number>({
                   onChange(item.value);
                   setOpen(false);
                 }}
-                className="border-b border-brand-border px-4 py-3 dark:border-brand-border-dark"
+                className="border-b border-brand-border px-4 py-3 active:bg-brand-background dark:border-brand-border-dark dark:active:bg-brand-background-dark"
               >
                 <Text
                   className={

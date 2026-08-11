@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 import { useState } from "react";
-import { Image, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, Text, View } from "react-native";
 import { FormField } from "@/components/FormField";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { trpc } from "@/lib/trpc";
@@ -42,8 +42,16 @@ export default function SicherheitScreen() {
 
   // Title is static, so render it even in the loading/no-data case - the
   // previous bare `return null` left no Stack.Screen mounted, so the header
-  // briefly fell back to showing the raw route path.
-  if (!meQuery.data) return <Stack.Screen options={{ title: "Sicherheit (2FA)" }} />;
+  // briefly fell back to showing the raw route path. Also show a spinner
+  // instead of a blank screen while the query is still loading.
+  if (!meQuery.data) {
+    return (
+      <View className="flex-1 items-center justify-center bg-brand-background dark:bg-brand-background-dark">
+        <Stack.Screen options={{ title: "Sicherheit (2FA)" }} />
+        <ActivityIndicator color="#2F7D4F" />
+      </View>
+    );
+  }
   const enabled = meQuery.data.twoFactorEnabled;
 
   if (enabled && step === "idle") {

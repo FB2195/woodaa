@@ -45,7 +45,7 @@ export function FacilityCard({
   return (
     <Pressable
       onPress={onPress}
-      className="mb-4 overflow-hidden rounded-brand-lg border border-brand-border bg-brand-surface dark:border-brand-border-dark dark:bg-brand-surface-dark"
+      className="mb-4 overflow-hidden rounded-brand-lg border border-brand-border bg-brand-surface active:opacity-80 dark:border-brand-border-dark dark:bg-brand-surface-dark"
     >
       <View>
         {coverPhoto ? (
