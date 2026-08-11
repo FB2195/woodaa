@@ -33,9 +33,23 @@ einen simplen React-State-Timer (kein natives Modul, siehe Kommentar
 dort) eine Mindestanzeigezeit ein, damit das Logo nicht nur kurz
 aufblitzt.
 
-`icon.png` (App-Icon) und `adaptive-icon-foreground.png`
-(Android-Adaptive-Icon-Vordergrund) sind noch vom **alten** Wordmark
-(Lupe mit Weltkugel statt Kreuz) generiert - der Nutzer schickt fuer
-das eigentliche App-Icon (Homescreen-Kachel) ein separates, dediziertes
-Design, das diese beiden Dateien ersetzen wird. Bis dahin unveraendert
-gelassen, um dem nicht vorzugreifen.
+`icon.png` und `adaptive-icon-foreground.png` sind das dedizierte
+Homescreen-Icon-Design (separat vom Wordmark oben abgestimmt): der
+volle "woodaa"-Schriftzug (ohne "Wo? Da!"-Tagline) in Weiss, fett
+(via ImageFilter.MaxFilter-Dilation auf der Alpha-Maske vor dem
+Hochskalieren, danach UnsharpMask fuer scharfe statt verwaschene
+Kanten), auf dunklem Olivgruen (#3E4A2B, Marken-Token primaryDark).
+Quellaufloesung der Wordmark-Grafik ist relativ klein (~466x130px
+im Originalfoto) - fuer ein noch schaerferes Ergebnis bei Gelegenheit
+eine hoeher aufgeloeste/vektorisierte Quelle besorgen.
+
+`icon.png` ist deckend (kein Alphakanal, volles 1024x1024-Quadrat
+ohne eingebackene Rundung - iOS/Android wenden ihre eigene
+Icon-Maske an) und dient als iOS-Icon sowie als Android-Fallback.
+`adaptive-icon-foreground.png` ist nur die weisse Wordmark auf
+transparentem Grund, deutlich kleiner skaliert (62% statt 88% Breite)
+als in icon.png - Androids Adaptive-Icon-Sicherheitsbereich schneidet
+je nach Launcher-Form (Kreis, Squircle, ...) recht aggressiv, das
+kleinere Sizing haelt den Schriftzug auch im engsten Fall (Kreismaske)
+komplett sichtbar (siehe android.adaptiveIcon.backgroundColor
+in app.json, auf denselben Olivgruenton gesetzt).
