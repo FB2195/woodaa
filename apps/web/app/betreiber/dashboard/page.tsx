@@ -1,6 +1,6 @@
 import { CreateFacilityForm } from "@/components/CreateFacilityForm";
 import { FacilityDashboard } from "@/components/dashboard/FacilityDashboard";
-import { Header } from "@/components/Header";
+import { OperatorHeader } from "@/components/OperatorHeader";
 import { VerificationBanner } from "@/components/VerificationBanner";
 import { getTrpcServer } from "@/lib/trpc-server";
 
@@ -14,7 +14,7 @@ export default async function OperatorDashboardPage() {
 
   return (
     <main className="min-h-screen">
-      <Header />
+      <OperatorHeader />
       <section className="mx-auto max-w-5xl px-6 py-12">
         {!verified && (
           <div className="mb-8">
@@ -22,11 +22,7 @@ export default async function OperatorDashboardPage() {
           </div>
         )}
 
-        {facility ? (
-          <FacilityDashboard facility={facility} />
-        ) : (
-          <CreateFacilityForm />
-        )}
+        {facility ? <FacilityDashboard facility={facility} /> : <CreateFacilityForm />}
       </section>
     </main>
   );

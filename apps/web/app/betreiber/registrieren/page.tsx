@@ -1,5 +1,5 @@
+import Image from "next/image";
 import Link from "next/link";
-import { Header } from "@/components/Header";
 import { RegisterBetreiberForm } from "@/components/RegisterBetreiberForm";
 
 const benefits = [
@@ -28,7 +28,23 @@ const benefits = [
 export default function OperatorRegisterPage() {
   return (
     <main className="min-h-screen">
-      <Header />
+      <div className="border-b border-white/10 bg-brand-heading px-6 py-4">
+        <div className="mx-auto flex max-w-5xl items-center gap-2.5">
+          <Link href="/betreiber/login" className="flex items-center gap-2.5">
+            <Image
+              src="/logo.png"
+              alt="woodaa"
+              width={478}
+              height={142}
+              priority
+              className="h-7 w-auto brightness-0 invert"
+            />
+            <span className="rounded-brand-full border border-white/30 px-2.5 py-0.5 text-xs font-medium text-white/90">
+              Für Pflegeeinrichtungen
+            </span>
+          </Link>
+        </div>
+      </div>
 
       <section className="relative overflow-hidden bg-brand-primary-dark px-6 py-16 text-white">
         <div
@@ -46,9 +62,8 @@ export default function OperatorRegisterPage() {
             Das kostenlose Verfügbarkeits-Tool für euer Pflegeheim
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-white/80">
-            Behaltet in Sekunden den Überblick, wo wirklich noch ein Platz
-            frei ist - statt Excel-Tabellen und Telefonnotizen. Kostenlos,
-            ohne Verpflichtung, sofort einsatzbereit.
+            Behaltet in Sekunden den Überblick, wo wirklich noch ein Platz frei ist - statt
+            Excel-Tabellen und Telefonnotizen. Kostenlos, ohne Verpflichtung, sofort einsatzbereit.
           </p>
         </div>
       </section>
@@ -61,9 +76,7 @@ export default function OperatorRegisterPage() {
               className="rounded-brand-lg border border-brand-border bg-brand-surface p-5 shadow-sm"
             >
               <span className="text-2xl">{b.icon}</span>
-              <h3 className="mt-3 text-base font-semibold text-brand-heading">
-                {b.title}
-              </h3>
+              <h3 className="mt-3 text-base font-semibold text-brand-heading">{b.title}</h3>
               <p className="mt-2 text-sm text-brand-text-muted">{b.text}</p>
             </div>
           ))}

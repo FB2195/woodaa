@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { establishSession, redirectFor } from "@/lib/authSession";
 import { trpc } from "@/lib/trpc";
+import type { LoginAudience } from "@woodaa/validators";
 
 type Mode = "login" | "bootstrap-admin";
 
@@ -16,7 +17,7 @@ const copy: Record<Mode, { title: string; submit: string }> = {
   },
 };
 
-export function AuthForm({ mode }: { mode: Mode }) {
+export function AuthForm({ mode, audience }: { mode: Mode; audience?: LoginAudience }) {
   const router = useRouter();
   const utils = trpc.useUtils();
   const [error, setError] = useState<string | null>(null);
@@ -48,12 +49,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
           }
         }}
       >
-        <h1 className="text-lg font-semibold text-brand-heading">
-          Bestätigungscode
-        </h1>
+        <h1 className="text-lg font-semibold text-brand-heading">Bestätigungscode</h1>
         <p className="text-sm text-brand-text-muted">
-          Gib den 6-stelligen Code aus deiner Authenticator-App ein, oder
-          verwende einen deiner Wiederherstellungscodes.
+          Gib den 6-stelligen Code aus deiner Authenticator-App ein, oder verwende einen deiner
+          Wiederherstellungscodes.
         </p>
         <label className="flex flex-col gap-1 text-sm text-brand-text">
           Code
@@ -90,7 +89,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
         try {
           if (mode === "login") {
-            const result = await login.mutateAsync({ email, password });
+            const result = await login.mutateAsync({ email, password, audience });
             if (result.twoFactorRequired) {
               setChallengeToken(result.challengeToken);
               return;
@@ -109,15 +108,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
           router.push(redirectFor(result.user.role));
           router.refresh();
         } catch (err) {
-          setError(
-            err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.",
-          );
+          setError(err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.");
         }
       }}
     >
-      <h1 className="text-lg font-semibold text-brand-heading">
-        {copy[mode].title}
-      </h1>
+      <h1 className="text-lg font-semibold text-brand-heading">{copy[mode].title}</h1>
 
       {mode === "bootstrap-admin" && (
         <label className="flex flex-col gap-1 text-sm text-brand-text">

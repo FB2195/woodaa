@@ -7,7 +7,7 @@ export default function LoginPage() {
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-md px-6 py-16">
-        <AuthForm mode="login" />
+        <AuthForm mode="login" audience="consumer" />
         <p className="mt-4 text-center text-xs text-brand-text-muted">
           Noch kein Konto?{" "}
           <Link href="/registrieren" className="text-brand-accent underline">

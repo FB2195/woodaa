@@ -282,9 +282,18 @@ export const RegisterInput = z
   });
 export type RegisterInput = z.infer<typeof RegisterInput>;
 
+// Which portal this login attempt came through - "operator" (business.
+// woodaa.de) only ever accepts BETREIBER accounts, "consumer" (woodaa.de's
+// generic /login, also used by ADMIN) only ever accepts everyone else. See
+// auth.login for the actual enforcement; omitted entirely accepts any role
+// (kept optional so other/future callers aren't forced to pick one).
+export const LoginAudience = z.enum(["consumer", "operator"]);
+export type LoginAudience = z.infer<typeof LoginAudience>;
+
 export const LoginInput = z.object({
   email: z.string().trim().email(),
   password: z.string().min(1),
+  audience: LoginAudience.optional(),
 });
 export type LoginInput = z.infer<typeof LoginInput>;
 
