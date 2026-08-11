@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
+import bcrypt from "bcryptjs";
 import {
   AllowedPhotoContentType,
   BookingPaymentApprovalInput,
@@ -26,10 +28,12 @@ import {
   UpsertShiftInput,
 } from "@woodaa/validators";
 import { z } from "zod";
+import { signEmployeeInviteToken } from "../auth";
 import { cancelBooking, createBooking, setUnitCount } from "../availability";
 import {
   resolveBookingRecipient,
   sendBookingFacilityDecisionEmail,
+  sendEmployeeInviteEmail,
   sendNewBookingMessageToFamilyEmail,
 } from "../email";
 import { createFacilityForOperator } from "../lib/facility";
@@ -43,14 +47,51 @@ import {
   withPhotoUrl,
 } from "../r2";
 import { refundBookingPayment } from "../stripe";
-import { operatorProcedure, router } from "../trpc";
+import { hashToken } from "../tokenHash";
+import { operatorProcedure, router, staffProcedure } from "../trpc";
 import type { Context } from "../trpc";
+
+// Länger als der "Passwort vergessen"-Link (1h, siehe PASSWORD_RESET_TOKEN_
+// EXPIRY_MS in routers/auth.ts) - eine Team-Einladung ist keine akute
+// Selbstbedienung, ein Mitarbeiter checkt seine Mails vielleicht erst tags
+// darauf. Selber Mechanismus (PasswordResetToken + resetPassword), nur
+// andere Gültigkeitsdauer und ein anderes Anschreiben.
+const EMPLOYEE_INVITE_TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 
 const PHOTO_CONTENT_TYPE_EXTENSION: Record<AllowedPhotoContentType, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
 };
+
+// staffProcedure-only: resolves the facility for either a BETREIBER (the
+// owning account) or a MITARBEITER (via their Employee.userId link) - see
+// requireOwnFacility below for the BETREIBER-only, write-side equivalent.
+async function requireFacilityForStaffView(ctx: Context & { user: NonNullable<Context["user"]> }) {
+  if (ctx.user.role === "BETREIBER") {
+    const facility = await ctx.db.facility.findUnique({
+      where: { operatorUserId: ctx.user.id },
+    });
+    if (!facility) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Du hast noch keine Einrichtung angelegt.",
+      });
+    }
+    return facility;
+  }
+  const employee = await ctx.db.employee.findUnique({
+    where: { userId: ctx.user.id },
+    include: { facility: true },
+  });
+  if (!employee) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Dieser Zugang ist nicht mehr aktiv.",
+    });
+  }
+  return employee.facility;
+}
 
 async function requireOwnFacility(ctx: Context & { user: NonNullable<Context["user"]> }) {
   const facility = await ctx.db.facility.findUnique({
@@ -756,12 +797,118 @@ export const operatorRouter = router({
       return { success: true };
     }),
 
+  // Erste Einrichtung eines Mitarbeiter-Logins - siehe Employee.userId und
+  // Role.MITARBEITER in schema.prisma für die Berechtigungslogik dahinter.
+  // Das User-Konto bekommt ein nie kommuniziertes Zufallspasswort; statt
+  // dessen geht ein Link zum Passwort-Setzen raus (derselbe Mechanismus wie
+  // "Passwort vergessen", siehe EMPLOYEE_INVITE_TOKEN_EXPIRY_MS oben) - der
+  // Chef sieht das Passwort selbst nie.
+  inviteEmployeeAccess: operatorProcedure
+    .input(z.object({ employeeId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const employee = await ctx.db.employee.findUnique({ where: { id: input.employeeId } });
+      if (!employee || employee.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      if (employee.userId) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Dieses Teammitglied hat bereits einen Zugang.",
+        });
+      }
+      if (!employee.email) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Bitte zuerst eine E-Mail-Adresse für dieses Teammitglied hinterlegen.",
+        });
+      }
+      const existingUser = await ctx.db.user.findUnique({
+        where: { email: employee.email },
+        include: { employeeProfile: true },
+      });
+      // A revoked access (operator.revokeEmployeeAccess) unlinks
+      // Employee.userId but deliberately doesn't delete the User row - so
+      // re-inviting the same person just re-links it and sends a fresh
+      // token, rather than failing with "email already taken" against an
+      // account this same facility created in the first place.
+      const reusableUser =
+        existingUser && existingUser.role === "MITARBEITER" && !existingUser.employeeProfile
+          ? existingUser
+          : null;
+      if (existingUser && !reusableUser) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "Diese E-Mail-Adresse gehört bereits zu einem woodaa-Konto - bitte eine andere E-Mail für den Mitarbeiter-Zugang hinterlegen.",
+        });
+      }
+
+      const user =
+        reusableUser ??
+        (await ctx.db.user.create({
+          data: {
+            email: employee.email,
+            passwordHash: await bcrypt.hash(randomUUID(), 12),
+            name: employee.name,
+            role: "MITARBEITER",
+            emailVerifiedAt: new Date(),
+          },
+        }));
+      await ctx.db.employee.update({ where: { id: employee.id }, data: { userId: user.id } });
+
+      const token = signEmployeeInviteToken({ sub: user.id, jti: randomUUID() });
+      await ctx.db.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashToken(token),
+          expiresAt: new Date(Date.now() + EMPLOYEE_INVITE_TOKEN_EXPIRY_MS),
+        },
+      });
+      await sendEmployeeInviteEmail({
+        to: employee.email,
+        name: employee.name,
+        facilityName: facility.name,
+        token,
+      });
+
+      return { success: true };
+    }),
+
+  // Trennt den Login vom Roster-Eintrag (Employee.userId = null), löscht
+  // aber weder den Mitarbeiter noch das User-Konto - erneutes Einladen
+  // braucht dann kein neues Konto. Bestehende Sessions werden sofort
+  // widerrufen, damit ein bereits eingeloggtes Gerät nicht einfach
+  // weiterläuft.
+  revokeEmployeeAccess: operatorProcedure
+    .input(z.object({ employeeId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const employee = await ctx.db.employee.findUnique({ where: { id: input.employeeId } });
+      if (!employee || employee.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      if (!employee.userId) {
+        return { success: true };
+      }
+      await ctx.db.$transaction([
+        ctx.db.employee.update({ where: { id: employee.id }, data: { userId: null } }),
+        ctx.db.refreshToken.updateMany({
+          where: { userId: employee.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        }),
+      ]);
+      return { success: true };
+    }),
+
   // Date-bounded so the weekly calendar (DienstplanCalendar.tsx) can pull
   // exactly the week it's showing rather than every shift ever entered.
-  shifts: operatorProcedure
+  // staffProcedure: a MITARBEITER reads their facility's Dienstplan too,
+  // not just the BETREIBER.
+  shifts: staffProcedure
     .input(z.object({ from: z.string().datetime(), to: z.string().datetime() }))
     .query(async ({ ctx, input }) => {
-      const facility = await requireOwnFacility(ctx);
+      const facility = await requireFacilityForStaffView(ctx);
       return ctx.db.employeeShift.findMany({
         where: {
           facilityId: facility.id,
@@ -809,10 +956,10 @@ export const operatorRouter = router({
       return { success: true };
     }),
 
-  appointments: operatorProcedure
+  appointments: staffProcedure
     .input(z.object({ from: z.string().datetime(), to: z.string().datetime() }))
     .query(async ({ ctx, input }) => {
-      const facility = await requireOwnFacility(ctx);
+      const facility = await requireFacilityForStaffView(ctx);
       return ctx.db.facilityAppointment.findMany({
         where: {
           facilityId: facility.id,

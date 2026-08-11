@@ -797,3 +797,45 @@ ${guestName} hat euch zu einer Buchung geschrieben.
 Nachricht lesen und antworten: ${dashboardUrl}`,
   });
 }
+
+// Verschickt, wenn eine Einrichtung einem Teammitglied Dienstplan-Zugang
+// einrichtet (operator.inviteEmployeeAccess) - derselbe Link/Token-
+// Mechanismus wie sendPasswordResetEmail, nur mit anderem Anschreiben und
+// (per EMPLOYEE_INVITE_TOKEN_EXPIRY_MS in operator.ts) längerer Gültigkeit.
+export async function sendEmployeeInviteEmail({
+  to,
+  name,
+  facilityName,
+  token,
+}: {
+  to: string;
+  name: string;
+  facilityName: string;
+  token: string;
+}) {
+  const setPasswordUrl = `${appUrl()}/passwort-zuruecksetzen?token=${encodeURIComponent(token)}`;
+  const safeName = escapeHtml(name);
+  const safeFacilityName = escapeHtml(facilityName);
+
+  await sendEmail({
+    to,
+    subject: `Dein Dienstplan-Zugang bei ${facilityName}`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${safeName},</p>
+      <p><strong>${safeFacilityName}</strong> hat dir Zugang zum Dienstplan eingerichtet. Lege
+      zuerst dein Passwort fest:</p>
+      <p><a href="${setPasswordUrl}">${setPasswordUrl}</a></p>
+      <p>Danach kannst du dich mit dieser E-Mail-Adresse einloggen und den Dienstplan einsehen.</p>
+      <p>Der Link ist 7 Tage gültig und nur einmal verwendbar.</p>
+    `,
+    text: `Hallo ${name},
+
+${facilityName} hat dir Zugang zum Dienstplan eingerichtet. Lege zuerst dein Passwort fest:
+${setPasswordUrl}
+
+Danach kannst du dich mit dieser E-Mail-Adresse einloggen und den Dienstplan einsehen.
+
+Der Link ist 7 Tage gültig und nur einmal verwendbar.`,
+  });
+}

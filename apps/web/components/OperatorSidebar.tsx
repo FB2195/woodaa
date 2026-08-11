@@ -104,6 +104,21 @@ function TeamIcon({ className }: { className?: string }) {
   );
 }
 
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5.5l3.5 2" />
+    </svg>
+  );
+}
+
 function StarIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -147,6 +162,7 @@ const navItems: NavItem[] = [
   { href: "/betreiber/dashboard/buchungen", label: "Buchungen", icon: CalendarIcon },
   { href: "/betreiber/dashboard/zahlungen", label: "Zahlungen", icon: EuroIcon },
   { href: "/betreiber/dashboard/team", label: "Team", icon: TeamIcon },
+  { href: "/betreiber/dashboard/dienstplan", label: "Dienstplan", icon: ClockIcon },
   { href: "/betreiber/dashboard/bewertungen", label: "Bewertungen", icon: StarIcon },
   { href: "/betreiber/dashboard/einstellungen", label: "Einstellungen", icon: SettingsIcon },
 ];

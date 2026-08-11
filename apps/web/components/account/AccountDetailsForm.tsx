@@ -4,9 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 
-const roleLabels: Record<"SUCHENDE" | "BETREIBER" | "ADMIN", string> = {
+const roleLabels: Record<"SUCHENDE" | "BETREIBER" | "MITARBEITER" | "ADMIN", string> = {
   SUCHENDE: "Suchende",
   BETREIBER: "Pflegeeinrichtung",
+  MITARBEITER: "Team-Mitglied",
   ADMIN: "Admin",
 };
 
@@ -17,7 +18,7 @@ export function AccountDetailsForm({
 }: {
   name: string;
   email: string;
-  role: "SUCHENDE" | "BETREIBER" | "ADMIN";
+  role: "SUCHENDE" | "BETREIBER" | "MITARBEITER" | "ADMIN";
 }) {
   const router = useRouter();
   const [nameValue, setNameValue] = useState(name);
@@ -85,8 +86,8 @@ export function AccountDetailsForm({
         </button>
       ) : requestEmailChange.isSuccess ? (
         <p className="mt-3 text-sm text-brand-text-muted">
-          Wir haben eine Bestätigungs-E-Mail an {email} geschickt. Bitte bestätige dort die
-          Änderung - danach schicken wir eine zweite Bestätigung an die neue Adresse.
+          Wir haben eine Bestätigungs-E-Mail an {email} geschickt. Bitte bestätige dort die Änderung
+          - danach schicken wir eine zweite Bestätigung an die neue Adresse.
         </p>
       ) : (
         <form

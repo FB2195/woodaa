@@ -10,9 +10,10 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTranslations } from "@/lib/i18n/LocaleProvider";
 import { trpc } from "@/lib/trpc";
 
-const dashboardFor: Record<"SUCHENDE" | "BETREIBER" | "ADMIN", string | null> = {
+const dashboardFor: Record<"SUCHENDE" | "BETREIBER" | "MITARBEITER" | "ADMIN", string | null> = {
   SUCHENDE: null,
   BETREIBER: "/betreiber/dashboard",
+  MITARBEITER: "/betreiber/dashboard",
   ADMIN: "/admin/dashboard",
 };
 

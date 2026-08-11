@@ -68,7 +68,7 @@ async function getDummyHash(): Promise<string> {
   return dummyHash;
 }
 
-type AuthedUser = { id: string; role: "SUCHENDE" | "BETREIBER" | "ADMIN" };
+type AuthedUser = { id: string; role: "SUCHENDE" | "BETREIBER" | "MITARBEITER" | "ADMIN" };
 
 // Persists (and, on rotation, revokes the predecessor of) a refresh token so
 // it can later be looked up/revoked from the DB - the JWT signature alone
@@ -252,14 +252,24 @@ export const authRouter = router({
       // (so failed-attempt tracking still only reflects actually-wrong
       // passwords) but before the 2FA branch, so a mismatched account
       // never gets that far either.
-      if (input.audience === "operator" && user.role !== "BETREIBER") {
+      // MITARBEITER also belongs on the operator side - it's a facility
+      // team member's own login (see Employee.userId in schema.prisma),
+      // just with a read-only Dienstplan instead of the full dashboard.
+      if (
+        input.audience === "operator" &&
+        user.role !== "BETREIBER" &&
+        user.role !== "MITARBEITER"
+      ) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message:
             "Dieser Zugang ist nur für Pflegeeinrichtungen. Bitte nutze den normalen Login auf woodaa.de.",
         });
       }
-      if (input.audience === "consumer" && user.role === "BETREIBER") {
+      if (
+        input.audience === "consumer" &&
+        (user.role === "BETREIBER" || user.role === "MITARBEITER")
+      ) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Bitte nutze den Betreiber-Login für Pflegeeinrichtungen.",

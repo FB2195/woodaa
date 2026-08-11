@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 
 export type AccessTokenPayload = {
   sub: string;
-  role: "SUCHENDE" | "BETREIBER" | "ADMIN";
+  role: "SUCHENDE" | "BETREIBER" | "MITARBEITER" | "ADMIN";
 };
 
 export type RefreshTokenPayload = {
@@ -26,6 +26,10 @@ const PASSWORD_RESET_TOKEN_TTL = "1h";
 // Same reasoning as password reset - a leaked link risks hijacking where
 // account notifications/logins go.
 const EMAIL_CHANGE_TOKEN_TTL = "1h";
+// Longer than PASSWORD_RESET_TOKEN_TTL above - a team invite isn't acute
+// self-service, an employee might not check their mail until the next
+// shift. Signed with the same secret as the password-reset token below.
+const EMPLOYEE_INVITE_TOKEN_TTL = "7d";
 
 type SecretName =
   | "JWT_ACCESS_SECRET"
@@ -116,9 +120,7 @@ export function signPasswordResetToken(payload: { sub: string; jti: string }): s
   });
 }
 
-export function verifyPasswordResetToken(
-  token: string,
-): { sub: string; jti: string } | null {
+export function verifyPasswordResetToken(token: string): { sub: string; jti: string } | null {
   try {
     return jwt.verify(token, requireSecret("JWT_PASSWORD_RESET_SECRET")) as {
       sub: string;
@@ -127,6 +129,16 @@ export function verifyPasswordResetToken(
   } catch {
     return null;
   }
+}
+
+// Same secret/payload shape as signPasswordResetToken above (so
+// verifyPasswordResetToken/routers/auth.ts's resetPassword handle both
+// without any change), just a longer expiresIn - see
+// operator.inviteEmployeeAccess for where this is issued.
+export function signEmployeeInviteToken(payload: { sub: string; jti: string }): string {
+  return jwt.sign(payload, requireSecret("JWT_PASSWORD_RESET_SECRET"), {
+    expiresIn: EMPLOYEE_INVITE_TOKEN_TTL,
+  });
 }
 
 // Hybrid like password reset: `sub` is the EmailChangeRequest id (not the
@@ -140,9 +152,7 @@ export function signEmailChangeToken(payload: { sub: string; jti: string }): str
   });
 }
 
-export function verifyEmailChangeToken(
-  token: string,
-): { sub: string; jti: string } | null {
+export function verifyEmailChangeToken(token: string): { sub: string; jti: string } | null {
   try {
     return jwt.verify(token, requireSecret("JWT_EMAIL_CHANGE_SECRET")) as {
       sub: string;

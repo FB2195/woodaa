@@ -124,6 +124,12 @@ enum SupportRequestStatus {
 enum Role {
   SUCHENDE
   BETREIBER
+  // Ein einzelnes Teammitglied mit eigenem Login, verknüpft über
+  // Employee.userId - siehe dort. Kann sich einloggen und den Dienstplan
+  // seiner Einrichtung lesen, sonst nichts (kein Zugriff auf Belegung,
+  // Buchungen, Zahlungen, ...). Eingerichtet von der Einrichtung selbst
+  // (operator.inviteEmployeeAccess), nicht selbst registrierbar.
+  MITARBEITER
   ADMIN
 }
 
@@ -179,6 +185,9 @@ model User {
   twoFactorSecret              String?
   twoFactorEnabled             Boolean                @default(false)
   facility                     Facility?              @relation("FacilityOperator")
+  // Only set for role=MITARBEITER - the Employee roster entry this login is
+  // tied to, see Employee.userId above.
+  employeeProfile              Employee?
   refreshTokens                RefreshToken[]
   recoveryCodes                RecoveryCode[]
   favorites                    Favorite[]
@@ -778,6 +787,15 @@ model Employee {
   active     Boolean         @default(true)
   shifts     EmployeeShift[]
   createdAt  DateTime        @default(now())
+  // Set once the facility invites this employee to their own Dienstplan
+  // login (operator.inviteEmployeeAccess) - null means "roster entry only,
+  // no login yet", the state every Employee starts in. Revoking access
+  // (operator.revokeEmployeeAccess) clears this back to null rather than
+  // deleting the User outright, so re-inviting later doesn't need a new
+  // account. onDelete: SetNull so removing the employee from the roster
+  // doesn't also nuke the User row underneath a still-valid session.
+  userId     String?         @unique
+  user       User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([facilityId])
 }

@@ -62,7 +62,11 @@ function MenuSection({
   );
 }
 
-export async function AccountMenu({ role }: { role: "SUCHENDE" | "BETREIBER" | "ADMIN" }) {
+export async function AccountMenu({
+  role,
+}: {
+  role: "SUCHENDE" | "BETREIBER" | "MITARBEITER" | "ADMIN";
+}) {
   const userAgent = (await headers()).get("user-agent") ?? "";
   const appDownloadUrl = appStoreUrlFor(detectAppPlatform(userAgent));
 

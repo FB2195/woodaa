@@ -1,13 +1,13 @@
-export function redirectFor(role: "SUCHENDE" | "BETREIBER" | "ADMIN"): string {
+export function redirectFor(role: "SUCHENDE" | "BETREIBER" | "MITARBEITER" | "ADMIN"): string {
   if (role === "ADMIN") return "/admin/dashboard";
-  if (role === "BETREIBER") return "/betreiber/dashboard";
+  // Both land on /betreiber/dashboard - the layout itself branches on role,
+  // showing a MITARBEITER only their read-only Dienstplan (see
+  // app/betreiber/dashboard/layout.tsx) instead of the full BETREIBER shell.
+  if (role === "BETREIBER" || role === "MITARBEITER") return "/betreiber/dashboard";
   return "/";
 }
 
-export async function establishSession(tokens: {
-  accessToken: string;
-  refreshToken: string;
-}) {
+export async function establishSession(tokens: { accessToken: string; refreshToken: string }) {
   const res = await fetch("/api/auth/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
