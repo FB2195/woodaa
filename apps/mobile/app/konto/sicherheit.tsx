@@ -40,7 +40,10 @@ export default function SicherheitScreen() {
     onError: (err) => setError(err.message),
   });
 
-  if (!meQuery.data) return null;
+  // Title is static, so render it even in the loading/no-data case - the
+  // previous bare `return null` left no Stack.Screen mounted, so the header
+  // briefly fell back to showing the raw route path.
+  if (!meQuery.data) return <Stack.Screen options={{ title: "Sicherheit (2FA)" }} />;
   const enabled = meQuery.data.twoFactorEnabled;
 
   if (enabled && step === "idle") {

@@ -222,9 +222,15 @@ export default function BookingScreen() {
       ? `${facility.cancellationPolicyDays} ${facility.cancellationPolicyDays === 1 ? "Tag" : "Tage"}`
       : "48 Std.";
 
+  // Title is static (doesn't depend on loaded data), so render it
+  // unconditionally on every branch below - otherwise the header briefly
+  // shows the raw route path while the queries are loading.
+  const screenTitle = <Stack.Screen options={{ title: "Pflegeplatz buchen" }} />;
+
   if (facilityQuery.isLoading || profileQuery.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-brand-background dark:bg-brand-background-dark">
+        {screenTitle}
         <ActivityIndicator color="#2F7D4F" />
       </View>
     );
@@ -233,6 +239,7 @@ export default function BookingScreen() {
   if (!facility) {
     return (
       <View className="flex-1 items-center justify-center bg-brand-background px-6 dark:bg-brand-background-dark">
+        {screenTitle}
         <Text className="text-center text-base text-brand-text dark:text-brand-text-dark">
           Diese Einrichtung wurde nicht gefunden.
         </Text>
@@ -246,6 +253,7 @@ export default function BookingScreen() {
     if (stripeClientSecret && !paymentConfirmed) {
       return (
         <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark" contentContainerClassName="gap-4 p-6">
+          {screenTitle}
           <Text className="text-lg font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
             Dein Platz ist reserviert - jetzt bezahlen
           </Text>
@@ -260,6 +268,7 @@ export default function BookingScreen() {
 
     return (
       <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark" contentContainerClassName="gap-3 p-6">
+        {screenTitle}
         <Text className="text-lg font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
           Platz gebucht!
         </Text>
@@ -290,6 +299,7 @@ export default function BookingScreen() {
   if (capacities.length === 0) {
     return (
       <View className="flex-1 items-center justify-center bg-brand-background px-6 dark:bg-brand-background-dark">
+        {screenTitle}
         <Text className="text-center text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
           Diese Einrichtung hat aktuell keine freien Plätze.
         </Text>
@@ -347,7 +357,7 @@ export default function BookingScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Pflegeplatz buchen" }} />
+      {screenTitle}
       <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark" contentContainerClassName="gap-4 p-6">
         <View>
           <Text className="text-xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">

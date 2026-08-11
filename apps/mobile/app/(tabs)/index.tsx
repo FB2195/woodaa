@@ -5,6 +5,9 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   Text,
   TextInput,
@@ -108,13 +111,16 @@ export default function SearchScreen() {
   const cityCount = new Set(allResults.map((f) => f.city)).size;
 
   return (
-    <View className="flex-1 bg-brand-background dark:bg-brand-background-dark">
+    <KeyboardAvoidingView
+      className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <View className="gap-3 border-b border-brand-border bg-brand-surface px-6 pb-4 pt-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
         <Text className="text-xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">
           Pflegeplatz finden
         </Text>
 
-        <View className="flex-row gap-2">
+        <View className="z-20 flex-row gap-2">
           <View className="flex-1">
             <LocationAutocomplete
               value={cityInput}
@@ -123,7 +129,10 @@ export default function SearchScreen() {
             />
           </View>
           <Pressable
-            onPress={() => setCity(cityInput.trim())}
+            onPress={() => {
+              Keyboard.dismiss();
+              setCity(cityInput.trim());
+            }}
             className="items-center justify-center rounded-brand-md bg-brand-accent px-4"
           >
             <Text className="font-semibold text-white">Suchen</Text>
@@ -314,6 +323,7 @@ export default function SearchScreen() {
       ) : (
         <FlatList
           className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+          keyboardDismissMode="on-drag"
           data={search.data?.results ?? []}
           keyExtractor={(item) => item.id}
           contentContainerClassName="p-6"
@@ -350,6 +360,6 @@ export default function SearchScreen() {
           )}
         />
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
