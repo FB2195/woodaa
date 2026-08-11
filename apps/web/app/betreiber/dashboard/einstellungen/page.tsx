@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { AmenitiesEditor } from "@/components/dashboard/AmenitiesEditor";
 import { FacilityContactForm } from "@/components/dashboard/FacilityContactForm";
 import { HouseRulesForm } from "@/components/dashboard/HouseRulesForm";
 import { PflegegradSuitabilityForm } from "@/components/dashboard/PflegegradSuitabilityForm";
 import { PhotoManager } from "@/components/dashboard/PhotoManager";
 import { getMyFacility } from "@/lib/operatorData";
+
+export const metadata: Metadata = { title: "Einstellungen" };
 
 export default async function OperatorEinstellungenPage() {
   const facility = await getMyFacility();

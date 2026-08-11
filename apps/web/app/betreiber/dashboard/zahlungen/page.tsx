@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { PaymentApprovals } from "@/components/dashboard/PaymentApprovals";
 import { getMyFacility } from "@/lib/operatorData";
+
+export const metadata: Metadata = { title: "Zahlungen" };
 
 export default async function OperatorZahlungenPage() {
   const facility = await getMyFacility();

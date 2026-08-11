@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { OperatorReviews } from "@/components/dashboard/OperatorReviews";
 import { getMyFacility } from "@/lib/operatorData";
+
+export const metadata: Metadata = { title: "Bewertungen" };
 
 export default async function OperatorBewertungenPage() {
   const facility = await getMyFacility();

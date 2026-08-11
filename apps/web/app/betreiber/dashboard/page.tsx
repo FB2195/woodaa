@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import type { BookingType } from "@woodaa/validators";
 import { PublicListingPrompt } from "@/components/dashboard/PublicListingPrompt";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { getMyFacility } from "@/lib/operatorData";
 import { getTrpcServer } from "@/lib/trpc-server";
+
+export const metadata: Metadata = { title: "Übersicht" };
 
 const allBookingTypes: BookingType[] = [
   "STATIONAERE_AUFNAHME",

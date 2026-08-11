@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { BookingApprovalModeForm } from "@/components/dashboard/BookingApprovalModeForm";
 import { BookingApprovals } from "@/components/dashboard/BookingApprovals";
 import { WaitlistEntries } from "@/components/dashboard/WaitlistEntries";
 import { getMyFacility } from "@/lib/operatorData";
+
+export const metadata: Metadata = { title: "Buchungen" };
 
 export default async function OperatorBuchungenPage() {
   const facility = await getMyFacility();

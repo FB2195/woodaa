@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { AuthForm } from "@/components/AuthForm";
+
+export const metadata: Metadata = { title: "Login" };
 
 // Deliberately its own minimal layout, not the shared consumer <Header/> -
 // business.woodaa.de is meant to read as its own, exclusive environment for
