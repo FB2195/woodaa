@@ -243,6 +243,29 @@ export const authRouter = router({
         data: { failedLoginAttempts: 0, lockedUntil: null },
       });
 
+      // business.woodaa.de (audience "operator") and the consumer /login
+      // (audience "consumer") are meant to be exclusive to their own
+      // account type - without this, a correct password for the *wrong*
+      // kind of account still logged in fine and just got redirect-ed
+      // elsewhere by redirectFor(role), defeating the whole point of
+      // separate portals. Checked after the password/lockout checks above
+      // (so failed-attempt tracking still only reflects actually-wrong
+      // passwords) but before the 2FA branch, so a mismatched account
+      // never gets that far either.
+      if (input.audience === "operator" && user.role !== "BETREIBER") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Dieser Zugang ist nur für Pflegeeinrichtungen. Bitte nutze den normalen Login auf woodaa.de.",
+        });
+      }
+      if (input.audience === "consumer" && user.role === "BETREIBER") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Bitte nutze den Betreiber-Login für Pflegeeinrichtungen.",
+        });
+      }
+
       if (user.twoFactorEnabled) {
         return {
           twoFactorRequired: true as const,
