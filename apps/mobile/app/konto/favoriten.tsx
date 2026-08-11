@@ -6,9 +6,12 @@ import { trpc } from "@/lib/trpc";
 export default function FavoritenScreen() {
   const favoritesQuery = trpc.favorite.list.useQuery();
 
+  // Title is static, so render it unconditionally before any early return -
+  // otherwise the header briefly shows the raw route path while loading.
   if (favoritesQuery.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-brand-background dark:bg-brand-background-dark">
+        <Stack.Screen options={{ title: "Favoriten" }} />
         <ActivityIndicator color="#2F7D4F" />
       </View>
     );

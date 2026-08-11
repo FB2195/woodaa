@@ -29,9 +29,15 @@ export default function ReviewScreen() {
 
   const facility = facilityQuery.data;
 
+  // Title is static (doesn't depend on loaded data), so render it
+  // unconditionally before any early return - otherwise the header briefly
+  // shows the raw route path while the queries are loading.
+  const screenTitle = <Stack.Screen options={{ title: "Bewerten" }} />;
+
   if (facilityQuery.isLoading || eligibilityQuery.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-brand-background dark:bg-brand-background-dark">
+        {screenTitle}
         <ActivityIndicator color="#2F7D4F" />
       </View>
     );
@@ -40,6 +46,7 @@ export default function ReviewScreen() {
   if (!facility) {
     return (
       <View className="flex-1 items-center justify-center bg-brand-background px-6 dark:bg-brand-background-dark">
+        {screenTitle}
         <Text className="text-center text-base text-brand-text dark:text-brand-text-dark">
           Diese Einrichtung wurde nicht gefunden.
         </Text>
@@ -51,7 +58,7 @@ export default function ReviewScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Bewerten" }} />
+      {screenTitle}
       <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark" contentContainerClassName="gap-4 p-6">
         <View>
           <Text className="text-xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">

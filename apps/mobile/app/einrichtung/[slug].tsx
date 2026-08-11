@@ -10,8 +10,10 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/lib/AuthContext";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { formatPriceEuro } from "@/lib/format";
+import { pflegegradLabels } from "@/lib/pflegegradLabels";
 import { resolvePhotoUrl } from "@/lib/photoUrl";
 import { trpc } from "@/lib/trpc";
+import type { Pflegegrad } from "@woodaa/validators";
 
 export default function FacilityDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -21,6 +23,10 @@ export default function FacilityDetailScreen() {
   if (facilityQuery.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-brand-background dark:bg-brand-background-dark">
+        {/* Title depends on the loaded facility name - show a sensible
+            static fallback until it's available, instead of the raw route
+            path (e.g. "einrichtung/[slug]"). */}
+        <Stack.Screen options={{ title: "Einrichtung" }} />
         <ActivityIndicator color="#2F7D4F" />
       </View>
     );
@@ -30,6 +36,7 @@ export default function FacilityDetailScreen() {
   if (!facility) {
     return (
       <View className="flex-1 items-center justify-center bg-brand-background px-6 dark:bg-brand-background-dark">
+        <Stack.Screen options={{ title: "Einrichtung" }} />
         <Text className="text-center text-base text-brand-text dark:text-brand-text-dark">
           Diese Einrichtung wurde nicht gefunden.
         </Text>
@@ -41,17 +48,6 @@ export default function FacilityDetailScreen() {
     <>
       <Stack.Screen options={{ title: facility.name }} />
       <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark">
-        {facility.photos.length > 0 && (
-          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
-            {facility.photos.map((photo) => {
-              const uri = resolvePhotoUrl(photo.url);
-              return uri ? (
-                <Image key={photo.id} source={{ uri }} className="h-56 w-screen" resizeMode="cover" />
-              ) : null;
-            })}
-          </ScrollView>
-        )}
-
         <View className="gap-4 p-6">
           <View className="flex-row items-start justify-between gap-2">
             <View className="flex-1">
@@ -64,15 +60,43 @@ export default function FacilityDetailScreen() {
               <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
                 {facility.street}, {facility.postalCode} {facility.city}
               </Text>
+              {(facility.minPflegegrad !== null || facility.maxPflegegrad !== null) && (
+                <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
+                  Geeignet für{" "}
+                  {facility.minPflegegrad !== null && facility.maxPflegegrad !== null
+                    ? `Pflegegrad ${facility.minPflegegrad}–${facility.maxPflegegrad}`
+                    : pflegegradLabels[
+                        (facility.minPflegegrad ?? facility.maxPflegegrad) as Pflegegrad
+                      ]}
+                </Text>
+              )}
               {facility.avgRating != null && (
                 <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
                   ★ {facility.avgRating.toFixed(1)} ({facility.reviewCount} Bewertungen)
                 </Text>
               )}
+              {facility.responseTimeBadge && (
+                <Text className="mt-2 self-start rounded-brand-full border border-brand-border px-3 py-1 text-xs font-medium text-brand-text-muted dark:border-brand-border-dark dark:text-brand-text-muted-dark">
+                  ⏱ {facility.responseTimeBadge}
+                </Text>
+              )}
             </View>
             <FavoriteButton facilityId={facility.id} />
           </View>
+        </View>
 
+        {facility.photos.length > 0 && (
+          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+            {facility.photos.map((photo) => {
+              const uri = resolvePhotoUrl(photo.url);
+              return uri ? (
+                <Image key={photo.id} source={{ uri }} className="h-56 w-screen" resizeMode="cover" />
+              ) : null;
+            })}
+          </ScrollView>
+        )}
+
+        <View className="gap-4 p-6">
           <FacilityLocationMap
             latitude={facility.latitude}
             longitude={facility.longitude}
@@ -84,6 +108,28 @@ export default function FacilityDetailScreen() {
               {facility.description}
             </Text>
           )}
+
+          {facility.amenities.length > 0 && (
+            <View className="gap-2">
+              <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
+                Ausstattung
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {facility.amenities.map((amenity) => (
+                  <View
+                    key={amenity}
+                    className="rounded-brand-full border border-brand-border px-3 py-1 dark:border-brand-border-dark"
+                  >
+                    <Text className="text-xs text-brand-text dark:text-brand-text-dark">
+                      {amenity}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          <FacilityNeighborhood latitude={facility.latitude} longitude={facility.longitude} />
 
           <View className="gap-3">
             <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
@@ -125,26 +171,6 @@ export default function FacilityDetailScreen() {
                 </View>
               ))}
           </View>
-
-          {facility.amenities.length > 0 && (
-            <View className="gap-2">
-              <Text className="text-base font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
-                Ausstattung
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                {facility.amenities.map((amenity) => (
-                  <View
-                    key={amenity}
-                    className="rounded-brand-full border border-brand-border px-3 py-1 dark:border-brand-border-dark"
-                  >
-                    <Text className="text-xs text-brand-text dark:text-brand-text-dark">
-                      {amenity}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
 
           {(facility.checkInTime ||
             facility.checkOutTime ||
@@ -233,8 +259,6 @@ export default function FacilityDetailScreen() {
               </View>
             </View>
           )}
-
-          <FacilityNeighborhood latitude={facility.latitude} longitude={facility.longitude} />
 
           <PrimaryButton
             label="Pflegeplatz buchen"

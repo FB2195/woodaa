@@ -42,9 +42,15 @@ export default function BookingDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const cancel = trpc.booking.myCancel.useMutation();
 
+  // Title is static (doesn't depend on loaded data), so render it
+  // unconditionally on every branch below - otherwise the header briefly
+  // shows the raw route path while the query is loading.
+  const screenTitle = <Stack.Screen options={{ title: "Buchung" }} />;
+
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-brand-background dark:bg-brand-background-dark">
+        {screenTitle}
         <ActivityIndicator color="#2F7D4F" />
       </View>
     );
@@ -53,6 +59,7 @@ export default function BookingDetailScreen() {
   if (!booking) {
     return (
       <View className="flex-1 items-center justify-center bg-brand-background px-6 dark:bg-brand-background-dark">
+        {screenTitle}
         <Text className="text-center text-base text-brand-text dark:text-brand-text-dark">
           Diese Buchung wurde nicht gefunden.
         </Text>
@@ -82,7 +89,7 @@ export default function BookingDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Buchung" }} />
+      {screenTitle}
       <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark">
         {coverPhoto ? (
           <Image source={{ uri: coverPhoto }} className="h-48 w-full" resizeMode="cover" />

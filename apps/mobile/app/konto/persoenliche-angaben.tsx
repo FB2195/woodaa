@@ -62,8 +62,11 @@ export default function PersoenlicheAngabenScreen() {
   const [versicherungsnummerVisible, setVersicherungsnummerVisible] = useState(false);
   const [careError, setCareError] = useState<string | null>(null);
 
+  // Title is static, so render it even in the loading/no-data case - the
+  // previous bare `return null` left no Stack.Screen mounted, so the header
+  // briefly fell back to showing the raw route path.
   if (!me || !profile) {
-    return null;
+    return <Stack.Screen options={{ title: "Persönliche Angaben" }} />;
   }
 
   const currentName = nameValue ?? me.name;
