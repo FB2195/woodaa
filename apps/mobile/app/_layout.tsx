@@ -63,7 +63,14 @@ export default function RootLayout() {
                 screenOptions={{
                   headerStyle: { backgroundColor: "#3E4A2B" },
                   headerTintColor: "#FFFFFF",
-                  headerBackTitle: "",
+                  // headerBackTitle: "" alone does NOT hide the back button
+                  // label on @react-navigation/native-stack v6 (bundled with
+                  // Expo SDK 51) - it still falls back to the previous
+                  // screen's title (here, the "(tabs)" route's literal
+                  // folder name, since that screen has headerShown: false
+                  // but no `title`). headerBackTitleVisible: false is the
+                  // documented v6 way to hide the label entirely.
+                  headerBackTitleVisible: false,
                 }}
               >
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

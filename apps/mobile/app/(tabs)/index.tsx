@@ -5,6 +5,8 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   Text,
   TextInput,
@@ -108,7 +110,10 @@ export default function SearchScreen() {
   const cityCount = new Set(allResults.map((f) => f.city)).size;
 
   return (
-    <View className="flex-1 bg-brand-background dark:bg-brand-background-dark">
+    <KeyboardAvoidingView
+      className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <View className="gap-3 border-b border-brand-border bg-brand-surface px-6 pb-4 pt-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
         <Text className="text-xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">
           Pflegeplatz finden
@@ -350,6 +355,6 @@ export default function SearchScreen() {
           )}
         />
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
