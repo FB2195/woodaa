@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { RegisterBetreiberForm } from "@/components/RegisterBetreiberForm";
+
+export const metadata: Metadata = { title: "Kostenlos registrieren" };
 
 const benefits = [
   {

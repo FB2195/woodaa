@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import type { BookingType } from "@woodaa/validators";
 import { CategoryPanel } from "@/components/dashboard/CategoryPanel";
 import { getMyFacility } from "@/lib/operatorData";
+
+export const metadata: Metadata = { title: "Belegung" };
 
 const allBookingTypes: BookingType[] = [
   "STATIONAERE_AUFNAHME",

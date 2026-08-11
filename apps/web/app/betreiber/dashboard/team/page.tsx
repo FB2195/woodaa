@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { HandoverNotes } from "@/components/dashboard/HandoverNotes";
 import { StaffSchedule } from "@/components/dashboard/StaffSchedule";
 import { TeamTasks } from "@/components/dashboard/TeamTasks";
+
+export const metadata: Metadata = { title: "Team" };
 
 export default function OperatorTeamPage() {
   return (
