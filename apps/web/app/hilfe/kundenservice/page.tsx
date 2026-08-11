@@ -1,57 +1,55 @@
 import { Header } from "@/components/Header";
-import { FAQAccordion } from "@/components/support/FAQAccordion";
 import { AIChatWidget } from "@/components/support/AIChatWidget";
+import { FAQAccordion } from "@/components/support/FAQAccordion";
 import { OperatorSupportChannels } from "@/components/support/OperatorSupportChannels";
 import { SupportRequestForm } from "@/components/support/SupportRequestForm";
+import { getServerTranslations } from "@/lib/i18n/server";
 
-export default function KundenservicePage() {
+export default async function KundenservicePage() {
+  const t = await getServerTranslations("hilfe");
+  const tHeader = await getServerTranslations("header");
+
   return (
     <main className="min-h-screen">
       <Header />
       <section className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-2xl font-bold text-brand-heading">Kundenservice</h1>
-        <p className="mt-2 text-brand-text-muted">
-          Häufige Fragen, Telefon, Chat oder eine persönliche Nachricht - so erreichst du uns.
-        </p>
+        <h1 className="text-2xl font-bold text-brand-heading">{tHeader("customerService")}</h1>
+        <p className="mt-2 text-brand-text-muted">{t("kundenserviceIntro")}</p>
 
-        <h2 className="mt-10 text-lg font-semibold text-brand-text">Häufige Fragen</h2>
+        <h2 className="mt-10 text-lg font-semibold text-brand-text">{t("faqSectionTitle")}</h2>
         <div className="mt-4">
           <FAQAccordion />
         </div>
 
-        <h2 className="mt-10 text-lg font-semibold text-brand-text">Telefon (24/7)</h2>
+        <h2 className="mt-10 text-lg font-semibold text-brand-text">{t("phoneSectionTitle")}</h2>
         <div className="mt-4 rounded-brand-lg border border-brand-border bg-brand-surface p-6">
           <p className="text-brand-text">
             {/* Platzhalter - vor Live-Gang durch echte Hotline-Nummer ersetzen */}
-            [Telefonnummer] - rund um die Uhr erreichbar
+            {t("phonePlaceholder")}
           </p>
-          <p className="mt-2 text-sm text-brand-text-muted">
-            Lieber zurückgerufen werden? Nutze das Rückruf-Formular weiter unten.
-          </p>
+          <p className="mt-2 text-sm text-brand-text-muted">{t("phoneCallbackHint")}</p>
         </div>
 
-        <h2 className="mt-10 text-lg font-semibold text-brand-text">KI-Chat</h2>
-        <p className="mt-1 text-sm text-brand-text-muted">
-          Für schnelle Fragen rund um woodaa - jederzeit verfügbar.
-        </p>
+        <h2 className="mt-10 text-lg font-semibold text-brand-text">{t("aiChatSectionTitle")}</h2>
+        <p className="mt-1 text-sm text-brand-text-muted">{t("aiChatSectionText")}</p>
         <div className="mt-4">
           <AIChatWidget />
         </div>
 
-        <h2 className="mt-10 text-lg font-semibold text-brand-text">Rückruf anfordern</h2>
-        <p className="mt-1 text-sm text-brand-text-muted">
-          Wir rufen dich unter der angegebenen Nummer zurück.
-        </p>
+        <h2 className="mt-10 text-lg font-semibold text-brand-text">{t("callbackSectionTitle")}</h2>
+        <p className="mt-1 text-sm text-brand-text-muted">{t("callbackSectionText")}</p>
         <div className="mt-4">
-          <SupportRequestForm type="RUECKRUF" submitLabel="Rückruf anfordern" phoneRequired />
+          <SupportRequestForm
+            type="RUECKRUF"
+            submitLabel={t("callbackSubmitLabel")}
+            phoneRequired
+          />
         </div>
 
-        <h2 className="mt-10 text-lg font-semibold text-brand-text">Nachricht schreiben</h2>
-        <p className="mt-1 text-sm text-brand-text-muted">
-          Für alles, was etwas ausführlicher ist.
-        </p>
+        <h2 className="mt-10 text-lg font-semibold text-brand-text">{t("messageSectionTitle")}</h2>
+        <p className="mt-1 text-sm text-brand-text-muted">{t("messageSectionText")}</p>
         <div className="mt-4">
-          <SupportRequestForm type="KONTAKT" submitLabel="Nachricht senden" />
+          <SupportRequestForm type="KONTAKT" submitLabel={t("messageSubmitLabel")} />
         </div>
 
         <OperatorSupportChannels />

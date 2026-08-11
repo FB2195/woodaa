@@ -57,9 +57,7 @@ export function HowItWorksSection() {
             <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-brand-accent">
               {t(step.labelKey)}
             </p>
-            <h3 className="mt-1 text-lg font-semibold text-brand-heading">
-              {t(step.titleKey)}
-            </h3>
+            <h3 className="mt-1 text-lg font-semibold text-brand-heading">{t(step.titleKey)}</h3>
             <p className="mt-2 text-sm text-brand-text-muted">{t(step.textKey)}</p>
           </div>
         ))}
@@ -79,7 +77,7 @@ export function OperatorCtaSection() {
           <p className="mt-1 text-white/80">{t("operatorCtaText")}</p>
         </div>
         <Link
-          href="/betreiber/registrieren"
+          href="/betreiber/login"
           className="shrink-0 rounded-brand-md bg-white px-6 py-3 font-semibold text-brand-primary-dark transition hover:opacity-90"
         >
           {t("operatorCtaButton")}

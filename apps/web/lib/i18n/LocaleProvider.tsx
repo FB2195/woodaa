@@ -2,9 +2,8 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { messagesByLocale } from "./messages";
-import { DEFAULT_LOCALE, isLocale, type Locale, type Messages } from "./types";
+import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, type Locale, type Messages } from "./types";
 
-const LOCALE_COOKIE = "woodaa_locale";
 const LOCALE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
 function readLocaleCookie(): Locale | null {
