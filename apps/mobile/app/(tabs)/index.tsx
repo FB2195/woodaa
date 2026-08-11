@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -119,7 +120,7 @@ export default function SearchScreen() {
           Pflegeplatz finden
         </Text>
 
-        <View className="flex-row gap-2">
+        <View className="z-20 flex-row gap-2">
           <View className="flex-1">
             <LocationAutocomplete
               value={cityInput}
@@ -128,7 +129,10 @@ export default function SearchScreen() {
             />
           </View>
           <Pressable
-            onPress={() => setCity(cityInput.trim())}
+            onPress={() => {
+              Keyboard.dismiss();
+              setCity(cityInput.trim());
+            }}
             className="items-center justify-center rounded-brand-md bg-brand-accent px-4"
           >
             <Text className="font-semibold text-white">Suchen</Text>
@@ -319,6 +323,7 @@ export default function SearchScreen() {
       ) : (
         <FlatList
           className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+          keyboardDismissMode="on-drag"
           data={search.data?.results ?? []}
           keyExtractor={(item) => item.id}
           contentContainerClassName="p-6"

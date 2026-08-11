@@ -58,7 +58,11 @@ export function HomeContent({
   onSelectBookingType: (type: BookingType) => void;
 }) {
   return (
-    <ScrollView className="flex-1" contentContainerClassName="gap-8 p-6">
+    <ScrollView
+      className="flex-1"
+      contentContainerClassName="gap-8 p-6"
+      keyboardDismissMode="on-drag"
+    >
       <View>
         <Text className="text-2xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">
           Pflegeplatz online buchen
