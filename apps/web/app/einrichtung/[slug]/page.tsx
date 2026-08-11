@@ -1,11 +1,17 @@
 import { TRPCError } from "@trpc/server";
 import { notFound } from "next/navigation";
 import { BookingSidebar } from "@/components/BookingSidebar";
+import { FacilityAmenities } from "@/components/FacilityAmenities";
+import { FacilityDescription } from "@/components/FacilityDescription";
 import { FacilityGalleryAndMap } from "@/components/FacilityGalleryAndMap";
+import { FacilityHighlights } from "@/components/FacilityHighlights";
 import { FacilityNeighborhood } from "@/components/FacilityNeighborhood";
+import { FacilityPolicyLinks } from "@/components/FacilityPolicyLinks";
 import { FacilityReviews } from "@/components/FacilityReviews";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { Header } from "@/components/Header";
+import { MobileBookingBar } from "@/components/MobileBookingBar";
+import { StarRating } from "@/components/StarRating";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { WaitlistRowCTA } from "@/components/WaitlistRowCTA";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
@@ -44,7 +50,7 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
     <main className="min-h-screen">
       <Header />
 
-      <section className="mx-auto grid max-w-6xl gap-10 px-6 py-12 lg:grid-cols-3">
+      <section className="mx-auto grid max-w-6xl gap-10 px-6 py-12 pb-24 lg:grid-cols-3 lg:pb-12">
         <div className="min-w-0 lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -53,6 +59,20 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
             </div>
             <FavoriteButton facilityId={facility.id} initialFavorited={isFavorited} />
           </div>
+
+          {facility.reviewCount > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <StarRating rating={facility.avgRating ?? 0} size="sm" />
+              <span className="text-sm font-semibold text-brand-heading">
+                {facility.avgRating!.toLocaleString("de-DE", { maximumFractionDigits: 1 })}
+              </span>
+              <span className="text-sm text-brand-text-muted">
+                ({facility.reviewCount}{" "}
+                {facility.reviewCount === 1 ? "Bewertung" : "Bewertungen"})
+              </span>
+            </div>
+          )}
+
           <p className="mt-1 text-brand-text-muted">
             {facility.street}, {facility.postalCode} {facility.city}, {facility.state}
           </p>
@@ -80,22 +100,11 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
             name={facility.name}
           />
 
-          <p className="mt-6 text-brand-text">{facility.description}</p>
+          <FacilityHighlights amenities={facility.amenities} />
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            {facility.amenities.map((amenity) => (
-              <span
-                key={amenity}
-                className="rounded-brand-full border border-brand-border px-3 py-1 text-xs text-brand-text-muted"
-              >
-                {amenity}
-              </span>
-            ))}
-          </div>
-
-          <FacilityNeighborhood latitude={facility.latitude} longitude={facility.longitude} />
-
-          <h2 className="mt-10 text-lg font-semibold text-brand-text">Verfügbarkeit</h2>
+          <h2 id="verfuegbarkeit" className="mt-10 scroll-mt-20 text-lg font-semibold text-brand-text">
+            Verfügbarkeit
+          </h2>
           <div className="mt-3 flex flex-col gap-3">
             {facility.capacities.map((capacity) => (
               <div
@@ -144,68 +153,6 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
             ))}
           </div>
 
-          {(facility.checkInTime ||
-            facility.checkOutTime ||
-            facility.visitingHours ||
-            facility.wifiInfo ||
-            facility.parkingInfo ||
-            facility.petsPolicy ||
-            facility.cancellationPolicyDays !== null) && (
-            <>
-              <h2 className="mt-10 text-lg font-semibold text-brand-text">
-                Unterkunftsrichtlinien
-              </h2>
-              <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-                {facility.checkInTime && (
-                  <div>
-                    <dt className="text-sm text-brand-text-muted">Check-in</dt>
-                    <dd className="text-brand-text">{facility.checkInTime}</dd>
-                  </div>
-                )}
-                {facility.checkOutTime && (
-                  <div>
-                    <dt className="text-sm text-brand-text-muted">Check-out</dt>
-                    <dd className="text-brand-text">{facility.checkOutTime}</dd>
-                  </div>
-                )}
-                {facility.visitingHours && (
-                  <div>
-                    <dt className="text-sm text-brand-text-muted">Besuchszeiten</dt>
-                    <dd className="text-brand-text">{facility.visitingHours}</dd>
-                  </div>
-                )}
-                {facility.wifiInfo && (
-                  <div>
-                    <dt className="text-sm text-brand-text-muted">Internetzugang</dt>
-                    <dd className="text-brand-text">{facility.wifiInfo}</dd>
-                  </div>
-                )}
-                {facility.parkingInfo && (
-                  <div>
-                    <dt className="text-sm text-brand-text-muted">Parkmöglichkeiten</dt>
-                    <dd className="text-brand-text">{facility.parkingInfo}</dd>
-                  </div>
-                )}
-                {facility.petsPolicy && (
-                  <div>
-                    <dt className="text-sm text-brand-text-muted">Haustiere</dt>
-                    <dd className="text-brand-text">{facility.petsPolicy}</dd>
-                  </div>
-                )}
-                {facility.cancellationPolicyDays !== null && (
-                  <div>
-                    <dt className="text-sm text-brand-text-muted">Stornierung</dt>
-                    <dd className="text-brand-text">
-                      Bis {facility.cancellationPolicyDays}{" "}
-                      {facility.cancellationPolicyDays === 1 ? "Tag" : "Tage"} vorher kostenlos
-                      stornierbar
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            </>
-          )}
-
           <FacilityReviews
             facilitySlug={facility.slug}
             facilityName={facility.name}
@@ -214,12 +161,29 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
             reviewCount={facility.reviewCount}
           />
 
+          <FacilityNeighborhood latitude={facility.latitude} longitude={facility.longitude} />
+
+          <FacilityAmenities amenities={facility.amenities} />
+
+          <FacilityDescription description={facility.description} />
+
+          <FacilityPolicyLinks
+            name={facility.name}
+            checkInTime={facility.checkInTime}
+            checkOutTime={facility.checkOutTime}
+            visitingHours={facility.visitingHours}
+            wifiInfo={facility.wifiInfo}
+            parkingInfo={facility.parkingInfo}
+            petsPolicy={facility.petsPolicy}
+            cancellationPolicyDays={facility.cancellationPolicyDays}
+          />
+
           <p className="mt-10 border-t border-brand-border pt-4 text-sm text-brand-text-muted">
             Verwaltet von {facility.operatorName}
           </p>
         </div>
 
-        <div>
+        <div className="lg:sticky lg:top-24 lg:self-start">
           <BookingSidebar
             facilityId={facility.id}
             slug={slug}
@@ -228,6 +192,8 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
           />
         </div>
       </section>
+
+      <MobileBookingBar />
     </main>
   );
 }

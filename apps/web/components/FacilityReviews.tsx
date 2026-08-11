@@ -3,6 +3,42 @@ import type { Review } from "@woodaa/api";
 import { StarRating } from "@/components/StarRating";
 import { formatDate } from "@/lib/format";
 
+const CATEGORY_LABELS = {
+  careRating: "Pflege",
+  cleanlinessRating: "Sauberkeit",
+  foodRating: "Verpflegung",
+  staffRating: "Personal",
+} as const;
+
+function categoryAverages(reviews: Review[]): { label: string; avg: number }[] {
+  return (Object.keys(CATEGORY_LABELS) as (keyof typeof CATEGORY_LABELS)[]).flatMap((key) => {
+    const values = reviews
+      .map((r) => r[key])
+      .filter((v): v is number => v !== null && v !== undefined);
+    if (values.length === 0) return [];
+    return [{ label: CATEGORY_LABELS[key], avg: values.reduce((a, b) => a + b, 0) / values.length }];
+  });
+}
+
+function CategoryBar({ label, avg }: { label: string; avg: number }) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between text-sm">
+        <span className="text-brand-text">{label}</span>
+        <span className="font-semibold text-brand-heading">
+          {avg.toLocaleString("de-DE", { maximumFractionDigits: 1 })}
+        </span>
+      </div>
+      <div className="mt-1 h-1.5 rounded-full bg-brand-border">
+        <div
+          className="h-1.5 rounded-full bg-brand-accent"
+          style={{ width: `${(avg / 5) * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function FacilityReviews({
   facilitySlug,
   facilityName,
@@ -16,6 +52,16 @@ export function FacilityReviews({
   avgRating: number | null;
   reviewCount: number;
 }) {
+  const categories = categoryAverages(reviews);
+  // Best-rated reviews with an actual comment, most recent first among
+  // ties - same "what guests liked most" idea as Booking.com's curated
+  // quote strip, just picked from the reviews we already have rather than
+  // a separate editorial process.
+  const highlighted = [...reviews]
+    .filter((r) => r.comment)
+    .sort((a, b) => b.rating - a.rating || b.createdAt.valueOf() - a.createdAt.valueOf())
+    .slice(0, 3);
+
   return (
     <div className="mt-10">
       <h2 className="text-lg font-semibold text-brand-text">Bewertungen</h2>
@@ -32,6 +78,35 @@ export function FacilityReviews({
         </div>
       ) : (
         <p className="mt-3 text-sm text-brand-text-muted">Noch keine Bewertungen.</p>
+      )}
+
+      {categories.length > 0 && (
+        <div className="mt-5 grid gap-4 rounded-brand-lg border border-brand-border p-5 sm:grid-cols-2">
+          {categories.map((c) => (
+            <CategoryBar key={c.label} label={c.label} avg={c.avg} />
+          ))}
+        </div>
+      )}
+
+      {highlighted.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-sm font-semibold text-brand-text-muted">
+            Was Gästen am besten gefallen hat
+          </h3>
+          <div className="mt-3 flex gap-4 overflow-x-auto pb-2">
+            {highlighted.map((review) => (
+              <div
+                key={review.id}
+                className="w-64 shrink-0 rounded-brand-md border border-brand-border p-4"
+              >
+                <p className="font-medium text-brand-text">{review.reviewerName}</p>
+                <p className="mt-2 line-clamp-4 text-sm text-brand-text-muted">
+                  „{review.comment}“
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="mt-6 flex flex-col gap-4">
