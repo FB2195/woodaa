@@ -570,16 +570,37 @@ export const UpdateEmployeeInput = z.object({
 });
 export type UpdateEmployeeInput = z.infer<typeof UpdateEmployeeInput>;
 
-// One label per (employee, weekday) - see EmployeeShift in schema.prisma.
-// An empty/omitted label just clears the day back to "not scheduled" via
-// operator.removeShift instead, so there's no separate "unset" input shape
-// needed here.
-export const SetEmployeeShiftInput = z.object({
+const ShiftTime = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Uhrzeit muss im Format HH:mm sein");
+
+// shiftId omitted = create; set = update that row (see EmployeeShift in
+// schema.prisma - a Vertretung is just reassigning employeeId on the
+// existing shift, not a separate swap-request flow).
+export const UpsertShiftInput = z.object({
+  shiftId: z.string().min(1).optional(),
   employeeId: z.string().min(1),
-  weekday: Weekday,
-  label: z.string().trim().max(200).optional(),
+  date: z.string().datetime(),
+  startTime: ShiftTime,
+  endTime: ShiftTime,
+  shiftType: z.string().trim().max(100).optional(),
+  note: z.string().trim().max(500).optional(),
 });
-export type SetEmployeeShiftInput = z.infer<typeof SetEmployeeShiftInput>;
+export type UpsertShiftInput = z.infer<typeof UpsertShiftInput>;
+
+export const AppointmentCategory = z.enum(["ARZTTERMIN", "BESUCH", "INTERN", "SONSTIGES"]);
+export type AppointmentCategory = z.infer<typeof AppointmentCategory>;
+
+export const UpsertAppointmentInput = z.object({
+  appointmentId: z.string().min(1).optional(),
+  date: z.string().datetime(),
+  startTime: ShiftTime.optional(),
+  endTime: ShiftTime.optional(),
+  title: z.string().trim().min(1).max(200),
+  category: AppointmentCategory,
+  note: z.string().trim().max(500).optional(),
+});
+export type UpsertAppointmentInput = z.infer<typeof UpsertAppointmentInput>;
 
 export const CancelBookingInput = z.object({
   bookingId: z.string().min(1),
