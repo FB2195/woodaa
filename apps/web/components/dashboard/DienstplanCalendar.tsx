@@ -37,8 +37,36 @@ const CATEGORY_STYLES: Record<AppointmentCategory, string> = {
     "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200",
 };
 
-const SHIFT_BLOCK_STYLE =
-  "border-brand-accent/40 bg-brand-accent/10 text-brand-accent dark:bg-brand-accent/20";
+// Eine Farbe pro Mitarbeiter:in statt einer einzigen geteilten Akzentfarbe -
+// bei überlappenden, nebeneinander dargestellten Schichten (siehe
+// assignLanes) war sonst nicht erkennbar, welcher Block zu wem gehört, und
+// der brand-accent-Ton war auf hellem Grund kaum vom Hintergrund zu
+// unterscheiden. Bewusst kein Weiß/Grau in der Palette. Reihenfolge ist der
+// "Wert" pro Hash-Treffer - die Klassen müssen als vollständige, wörtliche
+// Strings im Quelltext stehen, damit Tailwind sie beim Scannen findet.
+const EMPLOYEE_COLOR_PALETTE = [
+  "border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-200",
+  "border-purple-300 bg-purple-50 text-purple-800 dark:border-purple-700 dark:bg-purple-950/40 dark:text-purple-200",
+  "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200",
+  "border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-700 dark:bg-orange-950/40 dark:text-orange-200",
+  "border-cyan-300 bg-cyan-50 text-cyan-800 dark:border-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-200",
+  "border-fuchsia-300 bg-fuchsia-50 text-fuchsia-800 dark:border-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-200",
+  "border-lime-300 bg-lime-50 text-lime-800 dark:border-lime-700 dark:bg-lime-950/40 dark:text-lime-200",
+  "border-indigo-300 bg-indigo-50 text-indigo-800 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200",
+  "border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-950/40 dark:text-red-200",
+  "border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-200",
+];
+
+// Stabiler Hash statt Index-in-employees-Array - die Farbe eines
+// Teammitglieds soll sich nicht ändern, nur weil sich die Sortierung/Anzahl
+// der Roster-Liste ändert.
+function employeeColorClass(employeeId: string): string {
+  let hash = 0;
+  for (let i = 0; i < employeeId.length; i++) {
+    hash = (hash * 31 + employeeId.charCodeAt(i)) >>> 0;
+  }
+  return EMPLOYEE_COLOR_PALETTE[hash % EMPLOYEE_COLOR_PALETTE.length]!;
+}
 
 export const ABSENCE_TYPE_LABELS: Record<AbsenceType, string> = {
   URLAUB: "Urlaub",
@@ -733,7 +761,7 @@ function DayGridColumn({
           <GridBlock
             key={`${block.item.shift.id}-${block.item.continuation ? "cont" : "main"}`}
             block={block}
-            className={SHIFT_BLOCK_STYLE}
+            className={employeeColorClass(block.item.shift.employeeId)}
             onClick={() => onSelectShift(block.item.shift)}
           >
             <span className="block truncate font-semibold">{block.item.shift.employee.name}</span>
@@ -908,7 +936,7 @@ function AgendaDay({
             key={shift.id}
             type="button"
             onClick={() => onSelectShift(shift)}
-            className={`w-full rounded-brand-md border px-2 py-1.5 text-left text-xs transition hover:shadow-sm ${SHIFT_BLOCK_STYLE}`}
+            className={`w-full rounded-brand-md border px-2 py-1.5 text-left text-xs transition hover:shadow-sm ${employeeColorClass(shift.employeeId)}`}
           >
             <span className="block break-words font-semibold">{shift.employee.name}</span>
             <span className="block break-words opacity-90">
@@ -1281,6 +1309,14 @@ export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean })
     absences.isLoading ||
     (!readOnly && employees.isLoading);
 
+  // Legende für die Farbzuordnung - aus den tatsächlich in dieser Woche
+  // eingeplanten Schichten abgeleitet (nicht aus dem vollen Roster), damit
+  // sie auch für die MITARBEITER-Ansicht funktioniert, die employees.data
+  // gar nicht lädt (siehe employees-Query oben, enabled: !readOnly).
+  const legendEmployees = Array.from(
+    new Map((shifts.data ?? []).map((shift) => [shift.employeeId, shift.employee])).values(),
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
   return (
     <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1319,6 +1355,18 @@ export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean })
         <p className="text-sm text-brand-text-muted">Lädt…</p>
       ) : (
         <>
+          {legendEmployees.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              {legendEmployees.map((employee) => (
+                <span
+                  key={employee.id}
+                  className={`flex items-center gap-1.5 rounded-brand-full border px-2 py-0.5 text-xs ${employeeColorClass(employee.id)}`}
+                >
+                  {employee.name}
+                </span>
+              ))}
+            </div>
+          )}
           <WeekGrid
             days={days}
             shiftsByDay={shiftsByDay}
