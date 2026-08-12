@@ -1,10 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { weekdayOptions } from "@/lib/weekdayLabels";
 import type { RouterOutputs } from "@/lib/trpc-server";
 import { trpc } from "@/lib/trpc";
 
 type Employee = RouterOutputs["operator"]["employees"][number];
+
+const employmentTypeLabels: Record<string, string> = {
+  VOLLZEIT: "Vollzeit",
+  TEILZEIT: "Teilzeit",
+  MINIJOB: "Minijob",
+};
 
 // Team-Roster - see the comment on Employee in schema.prisma: das Heim
 // bleibt der eine, gemeinsame Zugang; ein Teammitglied kann aber zusätzlich
@@ -124,6 +131,9 @@ function EmployeeRow({
 }) {
   const [email, setEmail] = useState(employee.email ?? "");
   const [confirmingRevoke, setConfirmingRevoke] = useState(false);
+  const [weeklyHours, setWeeklyHours] = useState(
+    employee.weeklyHoursTarget != null ? String(employee.weeklyHoursTarget) : "",
+  );
 
   const updateEmployee = trpc.operator.updateEmployee.useMutation({
     onSuccess: onChange,
@@ -144,6 +154,10 @@ function EmployeeRow({
     },
     onError,
   });
+  const setAvailability = trpc.operator.setEmployeeAvailability.useMutation({
+    onSuccess: onChange,
+    onError,
+  });
 
   function saveEmail() {
     const trimmed = email.trim();
@@ -155,6 +169,38 @@ function EmployeeRow({
       phone: employee.phone ?? undefined,
       email: trimmed || undefined,
       active: employee.active,
+      employmentType: employee.employmentType ?? undefined,
+      weeklyHoursTarget: employee.weeklyHoursTarget ?? undefined,
+    });
+  }
+
+  function saveWeeklyHours() {
+    const trimmed = weeklyHours.trim();
+    const parsed = trimmed ? Number(trimmed) : undefined;
+    if (parsed !== undefined && (Number.isNaN(parsed) || parsed < 0)) return;
+    if ((parsed ?? null) === employee.weeklyHoursTarget) return;
+    updateEmployee.mutate({
+      employeeId: employee.id,
+      name: employee.name,
+      role: employee.role,
+      phone: employee.phone ?? undefined,
+      email: employee.email ?? undefined,
+      active: employee.active,
+      employmentType: employee.employmentType ?? undefined,
+      weeklyHoursTarget: parsed,
+    });
+  }
+
+  function availabilityFor(weekday: number) {
+    return employee.availabilities.find((a) => a.weekday === weekday);
+  }
+
+  function toggleAvailability(weekday: number) {
+    const current = availabilityFor(weekday);
+    setAvailability.mutate({
+      employeeId: employee.id,
+      weekday: weekday as 1 | 2 | 3 | 4 | 5 | 6 | 7,
+      available: current ? !current.available : false,
     });
   }
 
@@ -201,6 +247,74 @@ function EmployeeRow({
             ✕
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 border-t border-brand-border pt-3 text-xs">
+        <label className="flex items-center gap-1.5 text-brand-text-muted">
+          Beschäftigung
+          <select
+            value={employee.employmentType ?? ""}
+            disabled={updateEmployee.isPending}
+            onChange={(event) =>
+              updateEmployee.mutate({
+                employeeId: employee.id,
+                name: employee.name,
+                role: employee.role,
+                phone: employee.phone ?? undefined,
+                email: employee.email ?? undefined,
+                active: employee.active,
+                employmentType:
+                  (event.target.value as "VOLLZEIT" | "TEILZEIT" | "MINIJOB" | "") || undefined,
+                weeklyHoursTarget: employee.weeklyHoursTarget ?? undefined,
+              })
+            }
+            className="rounded-brand-md border border-brand-border bg-brand-surface px-2 py-1 text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          >
+            <option value="">–</option>
+            {Object.entries(employmentTypeLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-1.5 text-brand-text-muted">
+          Std./Woche (Soll)
+          <input
+            type="number"
+            min={0}
+            max={80}
+            step={0.5}
+            value={weeklyHours}
+            onChange={(event) => setWeeklyHours(event.target.value)}
+            onBlur={saveWeeklyHours}
+            className="w-16 rounded-brand-md border border-brand-border px-2 py-1 text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          />
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5 border-t border-brand-border pt-3">
+        <span className="mr-1 text-xs text-brand-text-muted">Verfügbar:</span>
+        {weekdayOptions.map(({ value, label }) => {
+          const availability = availabilityFor(value);
+          const isAvailable = availability ? availability.available : true;
+          return (
+            <button
+              key={value}
+              type="button"
+              title={label}
+              disabled={setAvailability.isPending}
+              onClick={() => toggleAvailability(value)}
+              className={
+                isAvailable
+                  ? "rounded-brand-md border border-brand-accent bg-brand-accent/10 px-2 py-1 text-xs font-medium text-brand-accent disabled:opacity-50"
+                  : "rounded-brand-md border border-brand-border px-2 py-1 text-xs text-brand-text-muted line-through disabled:opacity-50"
+              }
+            >
+              {label.slice(0, 2)}
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-brand-border pt-3">

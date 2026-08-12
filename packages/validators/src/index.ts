@@ -562,11 +562,16 @@ export const CreateHandoverNoteInput = z.object({
 });
 export type CreateHandoverNoteInput = z.infer<typeof CreateHandoverNoteInput>;
 
+export const EmploymentType = z.enum(["VOLLZEIT", "TEILZEIT", "MINIJOB"]);
+export type EmploymentType = z.infer<typeof EmploymentType>;
+
 export const CreateEmployeeInput = z.object({
   name: z.string().trim().min(1).max(200),
   role: z.string().trim().min(1).max(200),
   phone: z.string().trim().max(50).optional(),
   email: z.string().trim().email().optional(),
+  employmentType: EmploymentType.optional(),
+  weeklyHoursTarget: z.number().min(0).max(80).optional(),
 });
 export type CreateEmployeeInput = z.infer<typeof CreateEmployeeInput>;
 
@@ -577,8 +582,53 @@ export const UpdateEmployeeInput = z.object({
   phone: z.string().trim().max(50).optional(),
   email: z.string().trim().email().optional(),
   active: z.boolean(),
+  employmentType: EmploymentType.optional(),
+  weeklyHoursTarget: z.number().min(0).max(80).optional(),
 });
 export type UpdateEmployeeInput = z.infer<typeof UpdateEmployeeInput>;
+
+// weekday: siehe Weekday oben (1=Montag...7=Sonntag) - kein eigener Typ,
+// da EmployeeAvailability dasselbe Nummernschema wie EmployeeShift nutzt.
+export const SetAvailabilityInput = z.object({
+  employeeId: z.string().min(1),
+  weekday: Weekday,
+  available: z.boolean(),
+  note: z.string().trim().max(200).optional(),
+});
+export type SetAvailabilityInput = z.infer<typeof SetAvailabilityInput>;
+
+// Gleiche Form für operator.setMyAvailability (Mitarbeiter-Selbstbedienung)
+// - dort ohne employeeId, die ergibt sich aus dem eingeloggten Konto.
+export const SetMyAvailabilityInput = SetAvailabilityInput.omit({ employeeId: true });
+export type SetMyAvailabilityInput = z.infer<typeof SetMyAvailabilityInput>;
+
+export const AbsenceType = z.enum(["URLAUB", "KRANKHEIT", "SONSTIGES"]);
+export type AbsenceType = z.infer<typeof AbsenceType>;
+
+export const AbsenceStatus = z.enum(["AUSSTEHEND", "GENEHMIGT", "ABGELEHNT"]);
+export type AbsenceStatus = z.infer<typeof AbsenceStatus>;
+
+// Vom Betreiber direkt erfasst (operator.createAbsence) - startet bereits
+// als GENEHMIGT, siehe Absence in schema.prisma.
+export const CreateAbsenceInput = z.object({
+  employeeId: z.string().min(1),
+  type: AbsenceType,
+  startDate: z.string().datetime(),
+  endDate: z.string().datetime(),
+  note: z.string().trim().max(500).optional(),
+});
+export type CreateAbsenceInput = z.infer<typeof CreateAbsenceInput>;
+
+// Von der Mitarbeiterin selbst gestellt (operator.requestAbsence) - startet
+// als AUSSTEHEND und muss vom Betreiber entschieden werden.
+export const RequestAbsenceInput = CreateAbsenceInput.omit({ employeeId: true });
+export type RequestAbsenceInput = z.infer<typeof RequestAbsenceInput>;
+
+export const DecideAbsenceInput = z.object({
+  absenceId: z.string().min(1),
+  status: z.enum(["GENEHMIGT", "ABGELEHNT"]),
+});
+export type DecideAbsenceInput = z.infer<typeof DecideAbsenceInput>;
 
 const ShiftTime = z
   .string()
