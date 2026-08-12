@@ -6,18 +6,23 @@ import {
   BookingPaymentApprovalInput,
   CancelBookingInput,
   ConfirmPhotoUploadInput,
+  CreateAbsenceInput,
   CreateFacilityInput,
   CreateEmployeeInput,
   CreateFacilityTaskInput,
   CreateHandoverNoteInput,
   CreateManualBookingInput,
   CreateResidentNoteInput,
+  DecideAbsenceInput,
   MAX_FACILITY_PHOTOS,
   MAX_PHOTO_BYTES,
   ReplyToReviewInput,
+  RequestAbsenceInput,
   RequestFacilityChangeInput,
   RequestPhotoUploadInput,
   SendBookingMessageInput,
+  SetAvailabilityInput,
+  SetMyAvailabilityInput,
   SetPflegegradPricingInput,
   SetUnitCountInput,
   UpdateEmployeeInput,
@@ -48,7 +53,7 @@ import {
 } from "../r2";
 import { refundBookingPayment } from "../stripe";
 import { hashToken } from "../tokenHash";
-import { operatorProcedure, router, staffProcedure } from "../trpc";
+import { mitarbeiterProcedure, operatorProcedure, router, staffProcedure } from "../trpc";
 import type { Context } from "../trpc";
 
 // Länger als der "Passwort vergessen"-Link (1h, siehe PASSWORD_RESET_TOKEN_
@@ -104,6 +109,25 @@ async function requireOwnFacility(ctx: Context & { user: NonNullable<Context["us
     });
   }
   return facility;
+}
+
+// mitarbeiterProcedure-only: the Employee row this MITARBEITER login is
+// linked to, for the self-service endpoints below (myEmployeeProfile,
+// setMyAvailability, requestAbsence, ...). Mirrors the MITARBEITER branch
+// of requireFacilityForStaffView, but returns the Employee itself rather
+// than just its facility.
+async function requireOwnEmployeeProfile(ctx: Context & { user: NonNullable<Context["user"]> }) {
+  const employee = await ctx.db.employee.findUnique({
+    where: { userId: ctx.user.id },
+    include: { facility: true },
+  });
+  if (!employee) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Dieser Zugang ist nicht mehr aktiv.",
+    });
+  }
+  return employee;
 }
 
 export const operatorRouter = router({
@@ -750,6 +774,7 @@ export const operatorRouter = router({
     const facility = await requireOwnFacility(ctx);
     return ctx.db.employee.findMany({
       where: { facilityId: facility.id },
+      include: { availabilities: true },
       orderBy: { createdAt: "asc" },
     });
   }),
@@ -763,6 +788,8 @@ export const operatorRouter = router({
         role: input.role,
         phone: input.phone,
         email: input.email,
+        employmentType: input.employmentType,
+        weeklyHoursTarget: input.weeklyHoursTarget,
       },
     });
   }),
@@ -781,9 +808,35 @@ export const operatorRouter = router({
         phone: input.phone ?? null,
         email: input.email ?? null,
         active: input.active,
+        employmentType: input.employmentType ?? null,
+        weeklyHoursTarget: input.weeklyHoursTarget ?? null,
       },
     });
   }),
+
+  // Chef legt/ändert das wöchentliche Verfügbarkeitsmuster eines
+  // Teammitglieds fest (EmployeeAvailability, wiederkehrend nach Wochentag -
+  // im Gegensatz zu EmployeeShift, das echte datierte Schichten sind). Ein
+  // Klick pro Wochentag in StaffSchedule.tsx, daher upsert statt Formular.
+  setEmployeeAvailability: operatorProcedure
+    .input(SetAvailabilityInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const employee = await ctx.db.employee.findUnique({ where: { id: input.employeeId } });
+      if (!employee || employee.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      return ctx.db.employeeAvailability.upsert({
+        where: { employeeId_weekday: { employeeId: input.employeeId, weekday: input.weekday } },
+        create: {
+          employeeId: input.employeeId,
+          weekday: input.weekday,
+          available: input.available,
+          note: input.note,
+        },
+        update: { available: input.available, note: input.note },
+      });
+    }),
 
   removeEmployee: operatorProcedure
     .input(z.object({ employeeId: z.string().min(1) }))
@@ -1008,6 +1061,149 @@ export const operatorRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       await ctx.db.facilityAppointment.delete({ where: { id: input.appointmentId } });
+      return { success: true };
+    }),
+
+  // Date-bounded wie `shifts`/`appointments` oben - für die Abwesenheits-
+  // Blöcke im Dienstplan-Kalender. staffProcedure: das ganze Team sieht die
+  // Abwesenheiten der Kolleg:innen (auch ein MITARBEITER-Login), nicht nur
+  // der Chef. Nur GENEHMIGT wird im Kalender geblockt dargestellt - das
+  // Filtern nach Status übernimmt die UI, hier kommt alles für diesen
+  // Zeitraum (auch AUSSTEHEND/ABGELEHNT, für die Verwaltungsansicht).
+  absences: staffProcedure
+    .input(z.object({ from: z.string().datetime(), to: z.string().datetime() }))
+    .query(async ({ ctx, input }) => {
+      const facility = await requireFacilityForStaffView(ctx);
+      return ctx.db.absence.findMany({
+        where: {
+          facilityId: facility.id,
+          startDate: { lte: new Date(input.to) },
+          endDate: { gte: new Date(input.from) },
+        },
+        include: { employee: { select: { id: true, name: true } } },
+        orderBy: [{ startDate: "asc" }],
+      });
+    }),
+
+  // Vom Chef direkt eingetragene Abwesenheit (z.B. genehmigter Urlaub schon
+  // im Voraus) - startet direkt GENEHMIGT, im Unterschied zu requestAbsence
+  // unten, das ein MITARBEITER-Login für sich selbst stellt (AUSSTEHEND).
+  createAbsence: operatorProcedure.input(CreateAbsenceInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    const employee = await ctx.db.employee.findUnique({ where: { id: input.employeeId } });
+    if (!employee || employee.facilityId !== facility.id) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+    return ctx.db.absence.create({
+      data: {
+        employeeId: input.employeeId,
+        facilityId: facility.id,
+        type: input.type,
+        startDate: new Date(input.startDate),
+        endDate: new Date(input.endDate),
+        note: input.note,
+        status: "GENEHMIGT",
+        decidedAt: new Date(),
+      },
+    });
+  }),
+
+  // Genehmigt/lehnt eine von einem MITARBEITER-Login gestellte Anfrage ab.
+  decideAbsence: operatorProcedure.input(DecideAbsenceInput).mutation(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    const absence = await ctx.db.absence.findUnique({ where: { id: input.absenceId } });
+    if (!absence || absence.facilityId !== facility.id) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+    return ctx.db.absence.update({
+      where: { id: input.absenceId },
+      data: { status: input.status, decidedAt: new Date() },
+    });
+  }),
+
+  removeAbsence: operatorProcedure
+    .input(z.object({ absenceId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const absence = await ctx.db.absence.findUnique({ where: { id: input.absenceId } });
+      if (!absence || absence.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.absence.delete({ where: { id: input.absenceId } });
+      return { success: true };
+    }),
+
+  // Selbstbedienung für ein MITARBEITER-Login: der eigene Roster-Eintrag
+  // inkl. Verfügbarkeitsmuster, für die "Meine Verfügbarkeit"/"Abwesenheit
+  // beantragen"-Bereiche im Dashboard-Layout.
+  myEmployeeProfile: mitarbeiterProcedure.query(async ({ ctx }) => {
+    const employee = await requireOwnEmployeeProfile(ctx);
+    return ctx.db.employee.findUniqueOrThrow({
+      where: { id: employee.id },
+      include: { availabilities: true },
+    });
+  }),
+
+  setMyAvailability: mitarbeiterProcedure
+    .input(SetMyAvailabilityInput)
+    .mutation(async ({ ctx, input }) => {
+      const employee = await requireOwnEmployeeProfile(ctx);
+      return ctx.db.employeeAvailability.upsert({
+        where: { employeeId_weekday: { employeeId: employee.id, weekday: input.weekday } },
+        create: {
+          employeeId: employee.id,
+          weekday: input.weekday,
+          available: input.available,
+          note: input.note,
+        },
+        update: { available: input.available, note: input.note },
+      });
+    }),
+
+  myAbsences: mitarbeiterProcedure.query(async ({ ctx }) => {
+    const employee = await requireOwnEmployeeProfile(ctx);
+    return ctx.db.absence.findMany({
+      where: { employeeId: employee.id },
+      orderBy: [{ startDate: "desc" }],
+    });
+  }),
+
+  // Stellt eine Abwesenheitsanfrage für sich selbst - startet immer
+  // AUSSTEHEND, der Chef entscheidet über decideAbsence oben.
+  requestAbsence: mitarbeiterProcedure
+    .input(RequestAbsenceInput)
+    .mutation(async ({ ctx, input }) => {
+      const employee = await requireOwnEmployeeProfile(ctx);
+      return ctx.db.absence.create({
+        data: {
+          employeeId: employee.id,
+          facilityId: employee.facilityId,
+          type: input.type,
+          startDate: new Date(input.startDate),
+          endDate: new Date(input.endDate),
+          note: input.note,
+          status: "AUSSTEHEND",
+        },
+      });
+    }),
+
+  // Nur solange sie noch AUSSTEHEND ist - einmal entschieden, ist eine
+  // Rücknahme Sache des Chefs (removeAbsence).
+  cancelMyAbsenceRequest: mitarbeiterProcedure
+    .input(z.object({ absenceId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const employee = await requireOwnEmployeeProfile(ctx);
+      const absence = await ctx.db.absence.findUnique({ where: { id: input.absenceId } });
+      if (!absence || absence.employeeId !== employee.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      if (absence.status !== "AUSSTEHEND") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Diese Anfrage wurde bereits entschieden.",
+        });
+      }
+      await ctx.db.absence.delete({ where: { id: input.absenceId } });
       return { success: true };
     }),
 

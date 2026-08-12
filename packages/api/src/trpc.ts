@@ -63,6 +63,17 @@ const isStaff = t.middleware(({ ctx, next }) => {
 });
 export const staffProcedure = t.procedure.use(isStaff);
 
+// MITARBEITER only - self-service endpoints (setting own availability,
+// requesting own absences). Kept separate from isStaff/staffProcedure
+// above since a BETREIBER has no "own Employee row" to act on.
+const isEmployee = t.middleware(({ ctx, next }) => {
+  if (!ctx.user || ctx.user.role !== "MITARBEITER") {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
+export const mitarbeiterProcedure = t.procedure.use(isEmployee);
+
 const isAdmin = t.middleware(({ ctx, next }) => {
   if (!ctx.user || ctx.user.role !== "ADMIN") {
     throw new TRPCError({ code: "FORBIDDEN" });

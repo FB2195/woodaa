@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { AppointmentCategory } from "@woodaa/validators";
+import type { AbsenceType, AppointmentCategory } from "@woodaa/validators";
 import type { RouterOutputs } from "@/lib/trpc-server";
 import { trpc } from "@/lib/trpc";
 import {
@@ -17,6 +17,7 @@ import {
 type Employee = RouterOutputs["operator"]["employees"][number];
 type Shift = RouterOutputs["operator"]["shifts"][number];
 type Appointment = RouterOutputs["operator"]["appointments"][number];
+type Absence = RouterOutputs["operator"]["absences"][number];
 
 const CATEGORY_LABELS: Record<AppointmentCategory, string> = {
   ARZTTERMIN: "Arzttermin",
@@ -38,6 +39,40 @@ const CATEGORY_STYLES: Record<AppointmentCategory, string> = {
 
 const SHIFT_BLOCK_STYLE =
   "border-brand-accent/40 bg-brand-accent/10 text-brand-accent dark:bg-brand-accent/20";
+
+export const ABSENCE_TYPE_LABELS: Record<AbsenceType, string> = {
+  URLAUB: "Urlaub",
+  KRANKHEIT: "Krankheit",
+  SONSTIGES: "Sonstiges",
+};
+
+const ABSENCE_STYLES: Record<AbsenceType, string> = {
+  URLAUB:
+    "border-teal-300 bg-teal-50 text-teal-800 dark:border-teal-700 dark:bg-teal-950/40 dark:text-teal-200",
+  KRANKHEIT:
+    "border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-200",
+  SONSTIGES:
+    "border-slate-300 bg-slate-50 text-slate-800 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200",
+};
+
+// AUSSTEHEND-Anfragen bleiben im Kalender sichtbar (gestrichelt), damit man
+// bei der Schichtplanung sieht "hier ist evtl. jemand raus", auch bevor der
+// Chef entschieden hat - abgelehnte werden gar nicht erst mitgegeben (siehe
+// absencesForDay unten).
+function absenceBlockStyle(absence: Absence): string {
+  return absence.status === "AUSSTEHEND"
+    ? `border-dashed opacity-80 ${ABSENCE_STYLES[absence.type]}`
+    : ABSENCE_STYLES[absence.type];
+}
+
+function absencesForDay(absences: Absence[], dateKey: string): Absence[] {
+  return absences.filter(
+    (absence) =>
+      absence.status !== "ABGELEHNT" &&
+      toDateKey(absence.startDate) <= dateKey &&
+      toDateKey(absence.endDate) >= dateKey,
+  );
+}
 
 // --- time/layout helpers -----------------------------------------------
 
@@ -116,7 +151,8 @@ type ModalState =
   | { kind: "shift"; date: Date; shift?: Shift; startTime?: string }
   | { kind: "appointment"; date: Date; appointment?: Appointment }
   | { kind: "view-shift"; date: Date; shift: Shift }
-  | { kind: "view-appointment"; date: Date; appointment: Appointment };
+  | { kind: "view-appointment"; date: Date; appointment: Appointment }
+  | { kind: "view-absence"; date: Date; absence: Absence };
 
 function ShiftForm({
   date,
@@ -419,6 +455,88 @@ function AppointmentDetail({ appointment }: { appointment: Appointment }) {
   );
 }
 
+function AbsenceDetail({
+  absence,
+  readOnly,
+  onClose,
+}: {
+  absence: Absence;
+  readOnly: boolean;
+  onClose: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const invalidate = () => utils.operator.absences.invalidate();
+  const decideAbsence = trpc.operator.decideAbsence.useMutation({
+    onSuccess: async () => {
+      await invalidate();
+      onClose();
+    },
+  });
+  const removeAbsence = trpc.operator.removeAbsence.useMutation({
+    onSuccess: async () => {
+      await invalidate();
+      onClose();
+    },
+  });
+
+  const dateRange =
+    toDateKey(absence.startDate) === toDateKey(absence.endDate)
+      ? new Intl.DateTimeFormat("de-DE").format(new Date(absence.startDate))
+      : `${new Intl.DateTimeFormat("de-DE").format(new Date(absence.startDate))} – ${new Intl.DateTimeFormat("de-DE").format(new Date(absence.endDate))}`;
+
+  return (
+    <div className="flex flex-col gap-3 text-sm">
+      <div>
+        <p className="font-semibold text-brand-text">{absence.employee.name}</p>
+        <p className="text-brand-text-muted">
+          {ABSENCE_TYPE_LABELS[absence.type]} · {dateRange}
+        </p>
+        <p className="mt-1 text-xs text-brand-text-muted">
+          Status:{" "}
+          {absence.status === "AUSSTEHEND"
+            ? "Ausstehend"
+            : absence.status === "GENEHMIGT"
+              ? "Genehmigt"
+              : "Abgelehnt"}
+        </p>
+      </div>
+      {absence.note && <p className="text-brand-text-muted">{absence.note}</p>}
+      {!readOnly && (
+        <div className="flex flex-wrap gap-2 border-t border-brand-border pt-3">
+          {absence.status === "AUSSTEHEND" && (
+            <>
+              <button
+                type="button"
+                disabled={decideAbsence.isPending}
+                onClick={() => decideAbsence.mutate({ absenceId: absence.id, status: "GENEHMIGT" })}
+                className="rounded-brand-md bg-brand-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+              >
+                Genehmigen
+              </button>
+              <button
+                type="button"
+                disabled={decideAbsence.isPending}
+                onClick={() => decideAbsence.mutate({ absenceId: absence.id, status: "ABGELEHNT" })}
+                className="rounded-brand-md border border-brand-border px-3 py-1.5 text-xs font-medium text-brand-text transition hover:bg-brand-background disabled:opacity-50"
+              >
+                Ablehnen
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            disabled={removeAbsence.isPending}
+            onClick={() => removeAbsence.mutate({ absenceId: absence.id })}
+            className="rounded-brand-md border border-brand-border px-3 py-1.5 text-xs text-brand-text-muted transition hover:text-red-600 disabled:opacity-50"
+          >
+            Löschen
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DayModal({
   state,
   employees,
@@ -437,7 +555,12 @@ function DayModal({
     year: "numeric",
   }).format(state.date);
 
-  const title = state.kind === "shift" || state.kind === "view-shift" ? "Schicht" : "Termin";
+  const title =
+    state.kind === "shift" || state.kind === "view-shift"
+      ? "Schicht"
+      : state.kind === "view-absence"
+        ? "Abwesenheit"
+        : "Termin";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
@@ -463,7 +586,9 @@ function DayModal({
             ✕
           </button>
         </div>
-        {readOnly ? (
+        {state.kind === "view-absence" ? (
+          <AbsenceDetail absence={state.absence} readOnly={readOnly} onClose={onClose} />
+        ) : readOnly ? (
           state.kind === "view-shift" ? (
             <ShiftDetail shift={state.shift} />
           ) : state.kind === "view-appointment" ? (
@@ -523,20 +648,25 @@ function DayGridColumn({
   date,
   shifts,
   appointments,
+  absences,
   readOnly,
   onAddShift,
   onSelectShift,
   onSelectAppointment,
+  onSelectAbsence,
 }: {
   date: Date;
   shifts: Shift[];
   appointments: Appointment[];
+  absences: Absence[];
   readOnly: boolean;
   onAddShift: (startTime: string) => void;
   onSelectShift: (shift: Shift) => void;
   onSelectAppointment: (appointment: Appointment) => void;
+  onSelectAbsence: (absence: Absence) => void;
 }) {
   const dateKey = toDateKey(date);
+  const dayAbsences = absencesForDay(absences, dateKey);
   const shiftBlocks = assignLanes(
     shiftEntriesForDay(shifts, dateKey).map((entry) => ({
       item: entry,
@@ -558,8 +688,19 @@ function DayGridColumn({
 
   return (
     <div className="relative min-w-0 border-l border-brand-border">
-      {untimedAppointments.length > 0 && (
+      {(dayAbsences.length > 0 || untimedAppointments.length > 0) && (
         <div className="flex flex-col gap-0.5 border-b border-brand-border p-1">
+          {dayAbsences.map((absence) => (
+            <button
+              key={absence.id}
+              type="button"
+              onClick={() => onSelectAbsence(absence)}
+              className={`truncate rounded-brand-md border px-1.5 py-0.5 text-left text-[11px] ${absenceBlockStyle(absence)}`}
+            >
+              {absence.employee.name} · {ABSENCE_TYPE_LABELS[absence.type]}
+              {absence.status === "AUSSTEHEND" ? " (offen)" : ""}
+            </button>
+          ))}
           {untimedAppointments.map((appointment) => (
             <button
               key={appointment.id}
@@ -624,18 +765,22 @@ function WeekGrid({
   days,
   shiftsByDay,
   appointmentsByDay,
+  absences,
   readOnly,
   onAddShift,
   onSelectShift,
   onSelectAppointment,
+  onSelectAbsence,
 }: {
   days: Date[];
   shiftsByDay: Map<string, Shift[]>;
   appointmentsByDay: Map<string, Appointment[]>;
+  absences: Absence[];
   readOnly: boolean;
   onAddShift: (day: Date, startTime: string) => void;
   onSelectShift: (day: Date, shift: Shift) => void;
   onSelectAppointment: (day: Date, appointment: Appointment) => void;
+  onSelectAbsence: (absence: Absence) => void;
 }) {
   return (
     <div className="hidden overflow-x-auto md:block">
@@ -674,10 +819,12 @@ function WeekGrid({
               date={day}
               shifts={shiftsByDay.get(key) ?? []}
               appointments={appointmentsByDay.get(key) ?? []}
+              absences={absences}
               readOnly={readOnly}
               onAddShift={(startTime) => onAddShift(day, startTime)}
               onSelectShift={(shift) => onSelectShift(day, shift)}
               onSelectAppointment={(appointment) => onSelectAppointment(day, appointment)}
+              onSelectAbsence={onSelectAbsence}
             />
           );
         })}
@@ -692,22 +839,27 @@ function AgendaDay({
   date,
   shifts,
   appointments,
+  absences,
   readOnly,
   onAddShift,
   onAddAppointment,
   onSelectShift,
   onSelectAppointment,
+  onSelectAbsence,
 }: {
   date: Date;
   shifts: Shift[];
   appointments: Appointment[];
+  absences: Absence[];
   readOnly: boolean;
   onAddShift: () => void;
   onAddAppointment: () => void;
   onSelectShift: (shift: Shift) => void;
   onSelectAppointment: (appointment: Appointment) => void;
+  onSelectAbsence: (absence: Absence) => void;
 }) {
   const today = isToday(date);
+  const dayAbsences = absencesForDay(absences, toDateKey(date));
   const sortedShifts = [...shifts].sort((a, b) => a.startTime.localeCompare(b.startTime));
   const sortedAppointments = [...appointments].sort((a, b) =>
     (a.startTime ?? "").localeCompare(b.startTime ?? ""),
@@ -724,6 +876,20 @@ function AgendaDay({
         {formatDayHeader(date)}
       </p>
       <div className="flex flex-col gap-1.5">
+        {dayAbsences.map((absence) => (
+          <button
+            key={absence.id}
+            type="button"
+            onClick={() => onSelectAbsence(absence)}
+            className={`w-full rounded-brand-md border px-2 py-1.5 text-left text-xs transition hover:shadow-sm ${absenceBlockStyle(absence)}`}
+          >
+            <span className="block break-words font-semibold">{absence.employee.name}</span>
+            <span className="block break-words opacity-90">
+              {ABSENCE_TYPE_LABELS[absence.type]}
+              {absence.status === "AUSSTEHEND" ? " · offen" : ""}
+            </span>
+          </button>
+        ))}
         {sortedShifts.map((shift) => (
           <button
             key={shift.id}
@@ -754,7 +920,7 @@ function AgendaDay({
             </span>
           </button>
         ))}
-        {shifts.length === 0 && appointments.length === 0 && (
+        {shifts.length === 0 && appointments.length === 0 && dayAbsences.length === 0 && (
           <p className="text-xs text-brand-text-muted">Nichts geplant</p>
         )}
       </div>
@@ -780,6 +946,285 @@ function AgendaDay({
   );
 }
 
+// --- Soll/Ist-Stunden + Abwesenheiten (BETREIBER only) -----------------
+
+function formatHours(minutes: number): string {
+  return `${(minutes / 60).toLocaleString("de-DE", { maximumFractionDigits: 1 })} h`;
+}
+
+// Reine Stundenübersicht, bewusst ohne Stundenlohn/€-Bezug - siehe
+// employmentType/weeklyHoursTarget in schema.prisma. Ist-Stunden kommen
+// direkt aus den `shifts` der angezeigten Woche (unabhängig vom Tag-für-Tag-
+// Splitting für die Kalenderdarstellung), Soll aus Employee.weeklyHoursTarget.
+function SollIstPanel({ employees, shifts }: { employees: Employee[]; shifts: Shift[] }) {
+  const workedMinutes = new Map<string, number>();
+  for (const shift of shifts) {
+    const start = minutesFromMidnight(shift.startTime);
+    const end = minutesFromMidnight(shift.endTime);
+    const duration = end > start ? end - start : 24 * 60 - start + end;
+    workedMinutes.set(shift.employeeId, (workedMinutes.get(shift.employeeId) ?? 0) + duration);
+  }
+  const rows = employees
+    .filter((employee) => employee.active)
+    .map((employee) => ({ employee, ist: workedMinutes.get(employee.id) ?? 0 }))
+    .filter((row) => row.ist > 0 || row.employee.weeklyHoursTarget != null);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="rounded-brand-lg border border-brand-border p-4">
+      <h4 className="text-sm font-semibold text-brand-heading">Soll/Ist-Stunden diese Woche</h4>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[24rem] text-left text-sm">
+          <thead>
+            <tr className="text-xs text-brand-text-muted">
+              <th className="pb-1 pr-3 font-medium">Teammitglied</th>
+              <th className="pb-1 pr-3 font-medium">Ist</th>
+              <th className="pb-1 pr-3 font-medium">Soll</th>
+              <th className="pb-1 font-medium">Differenz</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ employee, ist }) => {
+              const sollMinutes =
+                employee.weeklyHoursTarget != null ? employee.weeklyHoursTarget * 60 : null;
+              const diff = sollMinutes != null ? ist - sollMinutes : null;
+              return (
+                <tr key={employee.id} className="border-t border-brand-border">
+                  <td className="py-1.5 pr-3 text-brand-text">{employee.name}</td>
+                  <td className="py-1.5 pr-3 text-brand-text-muted">{formatHours(ist)}</td>
+                  <td className="py-1.5 pr-3 text-brand-text-muted">
+                    {sollMinutes != null ? formatHours(sollMinutes) : "–"}
+                  </td>
+                  <td
+                    className={`py-1.5 font-medium ${
+                      diff == null
+                        ? "text-brand-text-muted"
+                        : diff < 0
+                          ? "text-amber-600 dark:text-amber-400"
+                          : diff > 0
+                            ? "text-brand-accent"
+                            : "text-brand-text-muted"
+                    }`}
+                  >
+                    {diff != null ? `${diff > 0 ? "+" : ""}${formatHours(diff)}` : "–"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CreateAbsenceForm({
+  employees,
+  onSuccess,
+  onError,
+}: {
+  employees: Employee[];
+  onSuccess: () => void;
+  onError: (err: unknown) => void;
+}) {
+  const [employeeId, setEmployeeId] = useState(employees[0]?.id ?? "");
+  const [type, setType] = useState<AbsenceType>("URLAUB");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [note, setNote] = useState("");
+  const createAbsence = trpc.operator.createAbsence.useMutation({
+    onSuccess: () => {
+      setStartDate("");
+      setEndDate("");
+      setNote("");
+      onSuccess();
+    },
+    onError,
+  });
+
+  if (employees.length === 0) {
+    return (
+      <p className="text-xs text-brand-text-muted">
+        Erst im Personal-Bereich ein Teammitglied anlegen, bevor ihr Abwesenheiten eintragt.
+      </p>
+    );
+  }
+
+  return (
+    <form
+      className="flex flex-wrap items-end gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!employeeId || !startDate || !endDate) return;
+        createAbsence.mutate({
+          employeeId,
+          type,
+          startDate: new Date(startDate).toISOString(),
+          endDate: new Date(endDate).toISOString(),
+          note: note.trim() || undefined,
+        });
+      }}
+    >
+      <label className="flex flex-col gap-1 text-xs text-brand-text-muted">
+        Teammitglied
+        <select
+          value={employeeId}
+          onChange={(event) => setEmployeeId(event.target.value)}
+          className="rounded-brand-md border border-brand-border px-2 py-1.5 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+        >
+          {employees.map((employee) => (
+            <option key={employee.id} value={employee.id}>
+              {employee.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-brand-text-muted">
+        Art
+        <select
+          value={type}
+          onChange={(event) => setType(event.target.value as AbsenceType)}
+          className="rounded-brand-md border border-brand-border px-2 py-1.5 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+        >
+          {(Object.keys(ABSENCE_TYPE_LABELS) as AbsenceType[]).map((value) => (
+            <option key={value} value={value}>
+              {ABSENCE_TYPE_LABELS[value]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-brand-text-muted">
+        Von
+        <input
+          type="date"
+          required
+          value={startDate}
+          onChange={(event) => setStartDate(event.target.value)}
+          className="rounded-brand-md border border-brand-border px-2 py-1.5 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-brand-text-muted">
+        Bis
+        <input
+          type="date"
+          required
+          value={endDate}
+          onChange={(event) => setEndDate(event.target.value)}
+          className="rounded-brand-md border border-brand-border px-2 py-1.5 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+        />
+      </label>
+      <label className="flex min-w-[8rem] flex-1 flex-col gap-1 text-xs text-brand-text-muted">
+        Notiz (optional)
+        <input
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          className="rounded-brand-md border border-brand-border px-2 py-1.5 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
+        />
+      </label>
+      <button
+        type="submit"
+        disabled={createAbsence.isPending}
+        className="rounded-brand-md bg-brand-accent px-3 py-1.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+      >
+        {createAbsence.isPending ? "…" : "Eintragen"}
+      </button>
+    </form>
+  );
+}
+
+function AbsenceManager({ employees }: { employees: Employee[] }) {
+  const utils = trpc.useUtils();
+  // Fest gewähltes, weites Fenster statt der aktuell angezeigten Kalenderwoche
+  // - offene Anfragen und geplante Abwesenheiten sollen hier auch dann
+  // auftauchen, wenn man gerade eine andere Woche im Kalender oben ansieht.
+  // useState-Lazy-Init statt `new Date()` direkt im Render, damit der
+  // Query-Key über Re-Renders stabil bleibt.
+  const [range] = useState(() => ({
+    from: addDays(new Date(), -90).toISOString(),
+    to: addDays(new Date(), 365).toISOString(),
+  }));
+  const absences = trpc.operator.absences.useQuery(range);
+  const [error, setError] = useState<string | null>(null);
+
+  const invalidate = () => utils.operator.absences.invalidate();
+  const decideAbsence = trpc.operator.decideAbsence.useMutation({
+    onSuccess: invalidate,
+    onError: (err) => setError(err.message),
+  });
+
+  const pending = (absences.data ?? []).filter((absence) => absence.status === "AUSSTEHEND");
+
+  return (
+    <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border p-4">
+      <div>
+        <h4 className="text-sm font-semibold text-brand-heading">Abwesenheiten</h4>
+        <p className="mt-1 text-xs text-brand-text-muted">
+          Urlaub, Krankheit oder Sonstiges eintragen - genehmigte Abwesenheiten werden im Kalender
+          oben geblockt angezeigt.
+        </p>
+      </div>
+
+      <CreateAbsenceForm
+        employees={employees}
+        onSuccess={invalidate}
+        onError={(err) =>
+          setError(err instanceof Error ? err.message : "Da ist etwas schiefgelaufen.")
+        }
+      />
+
+      {pending.length > 0 && (
+        <div className="flex flex-col gap-2 border-t border-brand-border pt-3">
+          <p className="text-xs font-semibold text-brand-text-muted">
+            Offene Anfragen ({pending.length})
+          </p>
+          {pending.map((absence) => (
+            <div
+              key={absence.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-brand-md border border-brand-border p-2 text-xs"
+            >
+              <div>
+                <span className="font-medium text-brand-text">{absence.employee.name}</span>
+                <span className="ml-2 text-brand-text-muted">
+                  {ABSENCE_TYPE_LABELS[absence.type]} ·{" "}
+                  {new Intl.DateTimeFormat("de-DE").format(new Date(absence.startDate))}
+                  {toDateKey(absence.startDate) !== toDateKey(absence.endDate)
+                    ? ` – ${new Intl.DateTimeFormat("de-DE").format(new Date(absence.endDate))}`
+                    : ""}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={decideAbsence.isPending}
+                  onClick={() =>
+                    decideAbsence.mutate({ absenceId: absence.id, status: "GENEHMIGT" })
+                  }
+                  className="rounded-brand-md bg-brand-accent px-2.5 py-1 font-semibold text-white disabled:opacity-50"
+                >
+                  Genehmigen
+                </button>
+                <button
+                  type="button"
+                  disabled={decideAbsence.isPending}
+                  onClick={() =>
+                    decideAbsence.mutate({ absenceId: absence.id, status: "ABGELEHNT" })
+                  }
+                  className="rounded-brand-md border border-brand-border px-2.5 py-1 text-brand-text disabled:opacity-50"
+                >
+                  Ablehnen
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 // --- top level --------------------------------------------------------
 
 export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean }) {
@@ -794,6 +1239,10 @@ export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean })
     to: rangeEnd.toISOString(),
   });
   const appointments = trpc.operator.appointments.useQuery({
+    from: weekStart.toISOString(),
+    to: rangeEnd.toISOString(),
+  });
+  const absences = trpc.operator.absences.useQuery({
     from: weekStart.toISOString(),
     to: rangeEnd.toISOString(),
   });
@@ -814,7 +1263,10 @@ export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean })
   }
 
   const isLoading =
-    shifts.isLoading || appointments.isLoading || (!readOnly && employees.isLoading);
+    shifts.isLoading ||
+    appointments.isLoading ||
+    absences.isLoading ||
+    (!readOnly && employees.isLoading);
 
   return (
     <div className="flex flex-col gap-4 rounded-brand-lg border border-brand-border bg-brand-surface p-4 sm:p-6">
@@ -858,6 +1310,7 @@ export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean })
             days={days}
             shiftsByDay={shiftsByDay}
             appointmentsByDay={appointmentsByDay}
+            absences={absences.data ?? []}
             readOnly={readOnly}
             onAddShift={(day, startTime) => setModal({ kind: "shift", date: day, startTime })}
             onSelectShift={(day, shift) =>
@@ -874,6 +1327,9 @@ export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean })
                   : { kind: "appointment", date: day, appointment },
               )
             }
+            onSelectAbsence={(absence) =>
+              setModal({ kind: "view-absence", date: new Date(absence.startDate), absence })
+            }
           />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:hidden">
@@ -885,6 +1341,7 @@ export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean })
                   date={day}
                   shifts={shiftsByDay.get(key) ?? []}
                   appointments={appointmentsByDay.get(key) ?? []}
+                  absences={absences.data ?? []}
                   readOnly={readOnly}
                   onAddShift={() => setModal({ kind: "shift", date: day })}
                   onAddAppointment={() => setModal({ kind: "appointment", date: day })}
@@ -902,6 +1359,9 @@ export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean })
                         : { kind: "appointment", date: day, appointment },
                     )
                   }
+                  onSelectAbsence={(absence) =>
+                    setModal({ kind: "view-absence", date: new Date(absence.startDate), absence })
+                  }
                 />
               );
             })}
@@ -915,6 +1375,10 @@ export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean })
           )}
         </>
       )}
+
+      {!readOnly && <SollIstPanel employees={employees.data ?? []} shifts={shifts.data ?? []} />}
+
+      {!readOnly && <AbsenceManager employees={employees.data ?? []} />}
 
       {modal && (
         <DayModal

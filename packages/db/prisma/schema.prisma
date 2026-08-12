@@ -418,6 +418,7 @@ model Facility {
   employees              Employee[]
   employeeShifts         EmployeeShift[]
   appointments           FacilityAppointment[]
+  absences               Absence[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -776,17 +777,23 @@ model HandoverNote {
 // woodaa login is a real product decision, not something to assume here),
 // and no fixed shift-type catalog (Frühdienst/Spätdienst/Nachtdienst vary
 // per Heim) - see EmployeeShift.shiftType below.
+enum EmploymentType {
+  VOLLZEIT
+  TEILZEIT
+  MINIJOB
+}
+
 model Employee {
-  id         String          @id @default(cuid())
-  facility   Facility        @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  facilityId String
-  name       String
-  role       String
-  phone      String?
-  email      String?
-  active     Boolean         @default(true)
-  shifts     EmployeeShift[]
-  createdAt  DateTime        @default(now())
+  id                String                 @id @default(cuid())
+  facility          Facility               @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId        String
+  name              String
+  role              String
+  phone             String?
+  email             String?
+  active            Boolean                @default(true)
+  shifts            EmployeeShift[]
+  createdAt         DateTime               @default(now())
   // Set once the facility invites this employee to their own Dienstplan
   // login (operator.inviteEmployeeAccess) - null means "roster entry only,
   // no login yet", the state every Employee starts in. Revoking access
@@ -794,10 +801,81 @@ model Employee {
   // deleting the User outright, so re-inviting later doesn't need a new
   // account. onDelete: SetNull so removing the employee from the roster
   // doesn't also nuke the User row underneath a still-valid session.
-  userId     String?         @unique
-  user       User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId            String?                @unique
+  user              User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // Beschäftigungsart + vertragliche Wochenstunden - beide optional/null
+  // ("nicht angegeben"), damit ein schnell angelegter Roster-Eintrag nicht
+  // sofort vollständig ausgefüllt sein muss. weeklyHoursTarget speist die
+  // Soll/Ist-Stundenübersicht auf der Dienstplan-Seite (DienstplanCalendar).
+  // Bewusst kein Stundenlohn/Personalkosten-Feld hier - das wäre
+  // Lohnabrechnung, nicht Dienstplanung, und niemand hat danach gefragt.
+  employmentType    EmploymentType?
+  weeklyHoursTarget Float?
+  availabilities    EmployeeAvailability[]
+  absences          Absence[]
 
   @@index([facilityId])
+}
+
+// Wiederkehrendes Wochenmuster ("an welchen Wochentagen kannst du
+// grundsätzlich arbeiten") - bewusst NICHT datiert wie EmployeeShift, weil
+// generelle Verfügbarkeit sich naturgemäß wiederholt; für einzelne
+// Ausnahmen (Urlaub, Krankheit, ein einmaliger Termin) gibt es Absence
+// bzw. FacilityAppointment. Sowohl der Betreiber als auch die
+// Mitarbeiterin selbst (bei eigenem Login, siehe Employee.userId) können
+// das pflegen.
+model EmployeeAvailability {
+  id         String   @id @default(cuid())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  // ISO weekday numbering (1 = Montag ... 7 = Sonntag), wie überall sonst
+  // im Dienstplan-Bereich.
+  weekday    Int
+  available  Boolean  @default(true)
+  note       String?
+  updatedAt  DateTime @updatedAt
+
+  @@unique([employeeId, weekday])
+  @@index([employeeId])
+}
+
+enum AbsenceType {
+  URLAUB
+  KRANKHEIT
+  SONSTIGES
+}
+
+enum AbsenceStatus {
+  AUSSTEHEND
+  GENEHMIGT
+  ABGELEHNT
+}
+
+// Urlaub/Krankheit/Sonstiges über einen Datumszeitraum. Vom Betreiber
+// direkt erfasst startet es als GENEHMIGT (er trägt es ja schon
+// entschieden ein); von einer Mitarbeiterin über ihren eigenen Zugang
+// gestellt startet es als AUSSTEHEND und muss erst entschieden werden -
+// beide Fälle nutzen dasselbe Modell, nur der Router-Handler setzt den
+// Start-Status unterschiedlich (siehe operator.createAbsence vs.
+// operator.requestAbsence). facilityId denormalisiert wie bei
+// EmployeeShift, aus demselben Grund (eine Query für "alle Abwesenheiten
+// dieser Einrichtung").
+model Absence {
+  id         String        @id @default(cuid())
+  employee   Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  facility   Facility      @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId String
+  type       AbsenceType
+  startDate  DateTime
+  endDate    DateTime
+  status     AbsenceStatus @default(AUSSTEHEND)
+  note       String?
+  decidedAt  DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@index([facilityId, startDate])
+  @@index([employeeId])
 }
 
 // One row per real, dated shift (not a recurring weekday pattern anymore -

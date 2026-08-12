@@ -1,5 +1,6 @@
 import { CreateFacilityForm } from "@/components/CreateFacilityForm";
 import { DienstplanCalendar } from "@/components/dashboard/DienstplanCalendar";
+import { MyScheduleSelfService } from "@/components/dashboard/MyScheduleSelfService";
 import { OperatorHeader } from "@/components/OperatorHeader";
 import { OperatorSidebar } from "@/components/OperatorSidebar";
 import { VerificationBanner } from "@/components/VerificationBanner";
@@ -33,6 +34,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               </p>
             </div>
             <DienstplanCalendar readOnly />
+            <MyScheduleSelfService />
           </div>
         </main>
       </div>
