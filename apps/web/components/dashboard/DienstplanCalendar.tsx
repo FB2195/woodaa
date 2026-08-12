@@ -768,6 +768,7 @@ function WeekGrid({
   absences,
   readOnly,
   onAddShift,
+  onQuickAddShift,
   onSelectShift,
   onSelectAppointment,
   onSelectAbsence,
@@ -778,6 +779,7 @@ function WeekGrid({
   absences: Absence[];
   readOnly: boolean;
   onAddShift: (day: Date, startTime: string) => void;
+  onQuickAddShift: (day: Date) => void;
   onSelectShift: (day: Date, shift: Shift) => void;
   onSelectAppointment: (day: Date, appointment: Appointment) => void;
   onSelectAbsence: (absence: Absence) => void;
@@ -791,11 +793,22 @@ function WeekGrid({
           return (
             <div
               key={toDateKey(day)}
-              className={`sticky top-0 z-10 border-l border-brand-border bg-brand-surface px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide ${
+              className={`sticky top-0 z-10 flex items-center justify-center gap-1.5 border-l border-brand-border bg-brand-surface px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide ${
                 today ? "text-brand-accent" : "text-brand-text-muted"
               }`}
             >
               {formatDayHeader(day)}
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => onQuickAddShift(day)}
+                  aria-label={`Schicht am ${formatDayHeader(day)} hinzufügen`}
+                  title="Weitere Schicht hinzufügen - z.B. für ein zweites Teammitglied zur gleichen Zeit"
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-current text-[10px] leading-none normal-case text-brand-text-muted transition hover:border-brand-accent hover:text-brand-accent"
+                >
+                  +
+                </button>
+              )}
             </div>
           );
         })}
@@ -1313,6 +1326,7 @@ export function DienstplanCalendar({ readOnly = false }: { readOnly?: boolean })
             absences={absences.data ?? []}
             readOnly={readOnly}
             onAddShift={(day, startTime) => setModal({ kind: "shift", date: day, startTime })}
+            onQuickAddShift={(day) => setModal({ kind: "shift", date: day })}
             onSelectShift={(day, shift) =>
               setModal(
                 readOnly
