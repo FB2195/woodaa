@@ -107,6 +107,7 @@ export function PflegekassenZuschussRechner({
                   max={365}
                   value={days}
                   onChange={(event) => setDays(Math.max(1, Number(event.target.value) || 1))}
+                  onFocus={(event) => event.target.select()}
                   className="w-16 rounded-brand-md border border-brand-border px-2 py-1 text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
                 />
               </label>
@@ -120,6 +121,7 @@ export function PflegekassenZuschussRechner({
                   onChange={(event) =>
                     setAlreadyUsedEuro(Math.max(0, Number(event.target.value) || 0))
                   }
+                  onFocus={(event) => event.target.select()}
                   className="w-20 rounded-brand-md border border-brand-border px-2 py-1 text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
                 />
                 €
@@ -188,6 +190,7 @@ export function PflegekassenZuschussRechner({
                   max={24}
                   value={hoursPerDay}
                   onChange={(event) => setHoursPerDay(Math.max(1, Number(event.target.value) || 1))}
+                  onFocus={(event) => event.target.select()}
                   className="w-14 rounded-brand-md border border-brand-border px-2 py-1 text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
                 />
               </label>
@@ -201,6 +204,7 @@ export function PflegekassenZuschussRechner({
                   onChange={(event) =>
                     setDaysPerMonth(Math.max(1, Number(event.target.value) || 1))
                   }
+                  onFocus={(event) => event.target.select()}
                   className="w-14 rounded-brand-md border border-brand-border px-2 py-1 text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-accent"
                 />
               </label>

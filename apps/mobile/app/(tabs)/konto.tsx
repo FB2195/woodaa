@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import {
   BellIcon,
+  CalculatorIcon,
   CalendarIcon,
   ChevronRightIcon,
   DownloadIcon,
@@ -125,6 +126,11 @@ export default function AccountScreen() {
             href: "/konto/pflegeleistungen",
             label: "Pflegeleistungen beantragen",
             icon: <HeartPulseIcon />,
+          },
+          {
+            href: "/konto/pflegeleistungen-berechnen",
+            label: "Pflegeleistungen berechnen",
+            icon: <CalculatorIcon />,
           },
           {
             href: "/konto/bevollmaechtigung",

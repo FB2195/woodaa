@@ -82,6 +82,7 @@ export function PflegeleistungenRechner() {
               onChange={(event) =>
                 setMonthlyPriceEuro(Math.max(0, Number(event.target.value) || 0))
               }
+              onFocus={(event) => event.target.select()}
               className="w-32 rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
             />
             €/Monat
@@ -100,6 +101,7 @@ export function PflegeleistungenRechner() {
                 step={5}
                 value={dailyRateEuro}
                 onChange={(event) => setDailyRateEuro(Math.max(0, Number(event.target.value) || 0))}
+                onFocus={(event) => event.target.select()}
                 className="w-24 rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
               €/Tag
@@ -113,6 +115,7 @@ export function PflegeleistungenRechner() {
               max={365}
               value={days}
               onChange={(event) => setDays(Math.max(1, Number(event.target.value) || 1))}
+              onFocus={(event) => event.target.select()}
               className="w-24 rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
             />
           </label>
@@ -127,6 +130,7 @@ export function PflegeleistungenRechner() {
                 onChange={(event) =>
                   setAlreadyUsedEuro(Math.max(0, Number(event.target.value) || 0))
                 }
+                onFocus={(event) => event.target.select()}
                 className="w-24 rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
               €
@@ -148,6 +152,7 @@ export function PflegeleistungenRechner() {
                 onChange={(event) =>
                   setHourlyRateEuro(Math.max(0, Number(event.target.value) || 0))
                 }
+                onFocus={(event) => event.target.select()}
                 className="w-24 rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
               €/Std.
@@ -161,6 +166,7 @@ export function PflegeleistungenRechner() {
               max={24}
               value={hoursPerDay}
               onChange={(event) => setHoursPerDay(Math.max(1, Number(event.target.value) || 1))}
+              onFocus={(event) => event.target.select()}
               className="w-20 rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
             />
           </label>
@@ -172,6 +178,7 @@ export function PflegeleistungenRechner() {
               max={31}
               value={daysPerMonth}
               onChange={(event) => setDaysPerMonth(Math.max(1, Number(event.target.value) || 1))}
+              onFocus={(event) => event.target.select()}
               className="w-20 rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
             />
           </label>
