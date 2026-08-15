@@ -18,6 +18,7 @@ export const es: Messages = {
     imprint: "Aviso legal",
     cookieInfo: "Información sobre cookies",
     reportIssue: "Notificar un problema",
+    calculateCareBenefits: "Calcular prestaciones de dependencia",
     operatorLogin: "Acceso para residencias",
     myProfile: "Mi perfil",
     openMenu: "Abrir menú",

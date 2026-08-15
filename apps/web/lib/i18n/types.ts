@@ -16,6 +16,7 @@ export type Messages = {
     imprint: string;
     cookieInfo: string;
     reportIssue: string;
+    calculateCareBenefits: string;
     operatorLogin: string;
     myProfile: string;
     openMenu: string;

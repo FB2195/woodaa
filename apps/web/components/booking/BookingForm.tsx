@@ -6,7 +6,11 @@ import { CancelBookingBox } from "@/components/CancelBookingBox";
 import { DateRangeCalendar } from "@/components/booking/DateRangeCalendar";
 import { KostenuebernahmeUpload } from "@/components/booking/KostenuebernahmeUpload";
 import { StripePaymentStep } from "@/components/booking/StripePaymentStep";
-import { bookingTypeLabels, dateRangedBookingTypes, openEndedBookingTypes } from "@/lib/bookingTypeLabels";
+import {
+  bookingTypeLabels,
+  dateRangedBookingTypes,
+  openEndedBookingTypes,
+} from "@/lib/bookingTypeLabels";
 import { formatPriceEuro } from "@/lib/format";
 import { paymentMethodLabels } from "@/lib/paymentMethodLabels";
 import {
@@ -75,12 +79,12 @@ function SubsidyHint({
   const disclaimer = (
     <>
       <p className="mt-1">
-        Meist zahlst du den Betrag zunächst vollständig und bekommst den Zuschuss
-        anschließend von deiner Pflegekasse erstattet.
+        Meist zahlst du den Betrag zunächst vollständig und bekommst den Zuschuss anschließend von
+        deiner Pflegekasse erstattet.
       </p>
       <p className="mt-1 font-semibold">
-        Alle Angaben ohne Gewähr - unverbindliche Orientierung, die tatsächliche Höhe
-        bestätigt eure Pflegekasse.
+        Alle Angaben ohne Gewähr - unverbindliche Orientierung, die tatsächliche Höhe bestätigt eure
+        Pflegekasse.
       </p>
     </>
   );
@@ -91,9 +95,9 @@ function SubsidyHint({
     return (
       <div className="rounded-brand-md bg-brand-background p-3 text-xs text-brand-text-muted">
         <p>
-          Ihre Krankenkasse beteiligt sich an den Kosten bis zu {formatPriceEuro(result.subsidyCents)}{" "}
-          pro Monat. Ihr voraussichtlicher Eigenanteil beträgt damit{" "}
-          {formatPriceEuro(result.eigenanteilCents)} pro Monat.
+          Ihre Krankenkasse beteiligt sich an den Kosten bis zu{" "}
+          {formatPriceEuro(result.subsidyCents)} pro Monat. Ihr voraussichtlicher Eigenanteil
+          beträgt damit {formatPriceEuro(result.eigenanteilCents)} pro Monat.
         </p>
         {result.note && <p className="mt-1">{result.note}</p>}
         {disclaimer}
@@ -108,11 +112,12 @@ function SubsidyHint({
       <div className="rounded-brand-md bg-brand-background p-3 text-xs text-brand-text-muted">
         <p>
           Ihre Krankenkasse beteiligt sich an den Kosten für Ihre Kurzzeitpflege. Grundsätzlich
-          verfügbar sind bis zu {formatPriceEuro(result.jahresbudgetCents)} pro Kalenderjahr. Für
+          verfügbar sind bis zu {formatPriceEuro(result.fullJahresbudgetCents)} pro Kalenderjahr.
+          Für
           {` ${days} Tage`} kostet das Heim {formatPriceEuro(result.totalCostCents)}, wovon die
-          Kasse {formatPriceEuro(result.subsidyCents)} übernimmt. Ihr voraussichtlicher
-          Eigenanteil beträgt damit {formatPriceEuro(result.eigenanteilCents)} - danach stehen
-          noch {formatPriceEuro(result.remainingBudgetCents)} Jahresbudget zur Verfügung.
+          Kasse {formatPriceEuro(result.subsidyCents)} übernimmt. Ihr voraussichtlicher Eigenanteil
+          beträgt damit {formatPriceEuro(result.eigenanteilCents)} - danach stehen noch{" "}
+          {formatPriceEuro(result.remainingBudgetCents)} Jahresbudget zur Verfügung.
         </p>
         {result.note && <p className="mt-1">{result.note}</p>}
         {disclaimer}
@@ -122,14 +127,18 @@ function SubsidyHint({
 
   // TAGESPFLEGE / NACHTPFLEGE
   if (rate.hourlyRateCents === null) return null;
-  const result = calculateTagesNachtpflegeEigenanteil(pflegegrad, rate.hourlyRateCents, hoursPerDay);
+  const result = calculateTagesNachtpflegeEigenanteil(
+    pflegegrad,
+    rate.hourlyRateCents,
+    hoursPerDay,
+  );
   return (
     <div className="rounded-brand-md bg-brand-background p-3 text-xs text-brand-text-muted">
       <p>
         Ihre Krankenkasse beteiligt sich an den Kosten mit bis zu{" "}
         {formatPriceEuro(result.dailySubsidyCents)} pro Tag. Ihr voraussichtlicher Eigenanteil
-        beträgt damit {formatPriceEuro(result.dailyEigenanteilCents)} pro Tag (bei{" "}
-        {hoursPerDay} Std./Tag).
+        beträgt damit {formatPriceEuro(result.dailyEigenanteilCents)} pro Tag (bei {hoursPerDay}{" "}
+        Std./Tag).
       </p>
       {result.note && <p className="mt-1">{result.note}</p>}
       {disclaimer}
@@ -199,7 +208,9 @@ export function BookingForm({
   const isTagesNachtpflege = bookingType === "TAGESPFLEGE" || bookingType === "NACHTPFLEGE";
   const capacity = capacities.find((c) => c.bookingType === bookingType);
   const rate =
-    pflegegrad === "" ? undefined : capacity?.pflegegradPricing.find((r) => r.pflegegrad === pflegegrad);
+    pflegegrad === ""
+      ? undefined
+      : capacity?.pflegegradPricing.find((r) => r.pflegegrad === pflegegrad);
 
   const days =
     isDateRanged && !endeOffen && startDate && endDate
@@ -218,8 +229,7 @@ export function BookingForm({
         )
       : null;
   const minStayNights = isKurzzeitpflege ? (capacity?.minStayNights ?? null) : null;
-  const belowMinStay =
-    minStayNights !== null && nights !== null && nights < minStayNights;
+  const belowMinStay = minStayNights !== null && nights !== null && nights < minStayNights;
 
   const pflegegradAntragLabel =
     pflegegrad === "" || pflegegrad === 0
@@ -244,8 +254,8 @@ export function BookingForm({
             Dein Platz ist reserviert - jetzt bezahlen
           </p>
           <p className="mt-1 text-sm text-brand-text-muted">
-            Der Platz ist für dich vorgemerkt. Schließe die Zahlung ab, um die Buchung
-            verbindlich zu machen.
+            Der Platz ist für dich vorgemerkt. Schließe die Zahlung ab, um die Buchung verbindlich
+            zu machen.
           </p>
           <div className="mt-4">
             <StripePaymentStep
@@ -261,13 +271,13 @@ export function BookingForm({
       <div className="mt-6 rounded-brand-lg border border-brand-accent bg-brand-accent/10 p-6">
         <p className="font-semibold text-brand-heading">Platz gebucht!</p>
         <p className="mt-1 text-sm text-brand-text-muted">
-          Dein Platz ist reserviert. Die Einrichtung wurde informiert und meldet sich bei
-          Rückfragen direkt bei dir.
+          Dein Platz ist reserviert. Die Einrichtung wurde informiert und meldet sich bei Rückfragen
+          direkt bei dir.
         </p>
         {booking.paymentMethod === "RECHNUNG" && (
           <p className="mt-2 text-sm text-brand-text-muted">
-            Die Einrichtung prüft die Buchung und gibt die Rechnungsstellung frei - du hörst
-            in Kürze von ihr.
+            Die Einrichtung prüft die Buchung und gibt die Rechnungsstellung frei - du hörst in
+            Kürze von ihr.
           </p>
         )}
         {booking.paymentMethod === "KOSTENUEBERNAHME_KASSE" && (
@@ -275,8 +285,8 @@ export function BookingForm({
         )}
         {booking.adminApprovalStatus === "AUSSTEHEND" && (
           <p className="mt-2 text-sm text-brand-text-muted">
-            Da du als bevollmächtigte/r Angehörige/r buchst, prüft unser Team diese
-            Buchung noch zusätzlich - du hörst in Kürze von uns.
+            Da du als bevollmächtigte/r Angehörige/r buchst, prüft unser Team diese Buchung noch
+            zusätzlich - du hörst in Kürze von uns.
           </p>
         )}
         <CancelBookingBox bookingId={booking.id} />
@@ -594,8 +604,8 @@ export function BookingForm({
         ))}
         {paymentMethod === "RECHNUNG" && (
           <p className="text-xs text-brand-text-muted">
-            Die Rechnung wird über die Einrichtung abgewickelt - sie muss diese Zahlungsart
-            für deine Buchung erst freigeben.
+            Die Rechnung wird über die Einrichtung abgewickelt - sie muss diese Zahlungsart für
+            deine Buchung erst freigeben.
           </p>
         )}
         {paymentMethod === "KOSTENUEBERNAHME_KASSE" && (

@@ -21,6 +21,7 @@ export const de: Messages = {
     imprint: "Impressum",
     cookieInfo: "Cookie-Infos",
     reportIssue: "Fehler/Problem melden",
+    calculateCareBenefits: "Pflegeleistungen berechnen",
     operatorLogin: "Login für Pflegeeinrichtungen",
     myProfile: "Mein Profil",
     openMenu: "Menü öffnen",
