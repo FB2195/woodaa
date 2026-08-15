@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import {
   BellIcon,
+  CalculatorIcon,
   CalendarIcon,
   ChevronRightIcon,
   DownloadIcon,
@@ -89,6 +90,11 @@ export async function AccountMenu({ role }: { role: "SUCHENDE" | "BETREIBER" | "
             href: "/konto/pflegeleistungen",
             label: t("requestCareBenefits"),
             icon: <HeartPulseIcon />,
+          },
+          {
+            href: "/pflegeleistungen-berechnen",
+            label: tHeader("calculateCareBenefits"),
+            icon: <CalculatorIcon />,
           },
           {
             href: "/konto/bevollmaechtigung",

@@ -174,6 +174,13 @@ export function Header() {
             >
               {t("searchFacilities")}
             </Link>
+            <Link
+              href="/pflegeleistungen-berechnen"
+              onClick={closeMenu}
+              className="rounded-brand-md px-2 py-2 hover:bg-brand-background hover:text-brand-text"
+            >
+              {t("calculateCareBenefits")}
+            </Link>
 
             {me.data && (
               <>

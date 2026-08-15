@@ -45,7 +45,12 @@ export function EigenanteilPreview({
   const [hoursPerDay, setHoursPerDay] = useState(6);
 
   const options = capacities.filter(
-    (c) => c.availableSlots > 0 && hasRate(c.pflegegradPricing.find((r) => r.pflegegrad === pflegegrad), c.bookingType),
+    (c) =>
+      c.availableSlots > 0 &&
+      hasRate(
+        c.pflegegradPricing.find((r) => r.pflegegrad === pflegegrad),
+        c.bookingType,
+      ),
   );
   const [bookingType, setBookingType] = useState<BookingType | undefined>(options[0]?.bookingType);
   const selected = options.find((c) => c.bookingType === bookingType) ?? options[0];
@@ -115,9 +120,22 @@ export function EigenanteilPreview({
               if (!result) return null;
               return (
                 <ResultBox>
-                  <Row label="Kosten/Monat" value={formatPriceEuro(rate.monthlyRateCents ?? (rate.dailyRateCents ?? 0) * 30)} />
-                  <Row label="− Zuschuss der Pflegekasse" value={`−${formatPriceEuro(result.subsidyCents)}`} accent />
-                  <Row label="Voraussichtlicher Eigenanteil" value={formatPriceEuro(result.eigenanteilCents)} bold />
+                  <Row
+                    label="Kosten/Monat"
+                    value={formatPriceEuro(
+                      rate.monthlyRateCents ?? (rate.dailyRateCents ?? 0) * 30,
+                    )}
+                  />
+                  <Row
+                    label="− Zuschuss der Pflegekasse"
+                    value={`−${formatPriceEuro(result.subsidyCents)}`}
+                    accent
+                  />
+                  <Row
+                    label="Voraussichtlicher Eigenanteil"
+                    value={formatPriceEuro(result.eigenanteilCents)}
+                    bold
+                  />
                   {result.note && <p className="text-brand-text-muted">{result.note}</p>}
                   <Disclaimer pflegegrad={pflegegrad} />
                 </ResultBox>
@@ -127,14 +145,35 @@ export function EigenanteilPreview({
           {selected.bookingType === "KURZZEITPFLEGE" &&
             rate.dailyRateCents !== null &&
             (() => {
-              const result = calculateKurzzeitpflegeEigenanteil(pflegegrad, rate.dailyRateCents!, days);
+              const result = calculateKurzzeitpflegeEigenanteil(
+                pflegegrad,
+                rate.dailyRateCents!,
+                days,
+              );
               return (
                 <ResultBox>
-                  <Row label="Verfügbares Jahresbudget" value={formatPriceEuro(result.jahresbudgetCents)} />
-                  <Row label={`Kosten (${days} Tage)`} value={formatPriceEuro(result.totalCostCents)} />
-                  <Row label="− Zuschuss der Pflegekasse" value={`−${formatPriceEuro(result.subsidyCents)}`} accent />
-                  <Row label="Voraussichtlicher Eigenanteil" value={formatPriceEuro(result.eigenanteilCents)} bold />
-                  <Row label="Danach noch verfügbares Budget" value={formatPriceEuro(result.remainingBudgetCents)} />
+                  <Row
+                    label="Verfügbares Jahresbudget"
+                    value={formatPriceEuro(result.fullJahresbudgetCents)}
+                  />
+                  <Row
+                    label={`Kosten (${days} Tage)`}
+                    value={formatPriceEuro(result.totalCostCents)}
+                  />
+                  <Row
+                    label="− Zuschuss der Pflegekasse"
+                    value={`−${formatPriceEuro(result.subsidyCents)}`}
+                    accent
+                  />
+                  <Row
+                    label="Voraussichtlicher Eigenanteil"
+                    value={formatPriceEuro(result.eigenanteilCents)}
+                    bold
+                  />
+                  <Row
+                    label="Danach noch verfügbares Budget"
+                    value={formatPriceEuro(result.remainingBudgetCents)}
+                  />
                   {result.note && <p className="text-brand-text-muted">{result.note}</p>}
                   <Disclaimer pflegegrad={pflegegrad} />
                 </ResultBox>
@@ -144,12 +183,24 @@ export function EigenanteilPreview({
           {(selected.bookingType === "TAGESPFLEGE" || selected.bookingType === "NACHTPFLEGE") &&
             rate.hourlyRateCents !== null &&
             (() => {
-              const result = calculateTagesNachtpflegeEigenanteil(pflegegrad, rate.hourlyRateCents!, hoursPerDay);
+              const result = calculateTagesNachtpflegeEigenanteil(
+                pflegegrad,
+                rate.hourlyRateCents!,
+                hoursPerDay,
+              );
               return (
                 <ResultBox>
                   <Row label="Kosten pro Tag" value={formatPriceEuro(result.dailyCostCents)} />
-                  <Row label="− Zuschuss der Pflegekasse" value={`−${formatPriceEuro(result.dailySubsidyCents)}`} accent />
-                  <Row label="Voraussichtlicher Eigenanteil pro Tag" value={formatPriceEuro(result.dailyEigenanteilCents)} bold />
+                  <Row
+                    label="− Zuschuss der Pflegekasse"
+                    value={`−${formatPriceEuro(result.dailySubsidyCents)}`}
+                    accent
+                  />
+                  <Row
+                    label="Voraussichtlicher Eigenanteil pro Tag"
+                    value={formatPriceEuro(result.dailyEigenanteilCents)}
+                    bold
+                  />
                   {result.note && <p className="text-brand-text-muted">{result.note}</p>}
                   <Disclaimer pflegegrad={pflegegrad} />
                 </ResultBox>
@@ -162,10 +213,22 @@ export function EigenanteilPreview({
 }
 
 function ResultBox({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-col gap-1 rounded-brand-md bg-brand-background p-2">{children}</div>;
+  return (
+    <div className="flex flex-col gap-1 rounded-brand-md bg-brand-background p-2">{children}</div>
+  );
 }
 
-function Row({ label, value, accent, bold }: { label: string; value: string; accent?: boolean; bold?: boolean }) {
+function Row({
+  label,
+  value,
+  accent,
+  bold,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  bold?: boolean;
+}) {
   return (
     <div
       className={`flex justify-between ${accent ? "text-brand-accent" : bold ? "border-t border-brand-border pt-1 font-semibold text-brand-heading" : "text-brand-text-muted"}`}

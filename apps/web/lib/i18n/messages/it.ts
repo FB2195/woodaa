@@ -18,6 +18,7 @@ export const it: Messages = {
     imprint: "Note legali",
     cookieInfo: "Informazioni sui cookie",
     reportIssue: "Segnala un problema",
+    calculateCareBenefits: "Calcola le prestazioni assistenziali",
     operatorLogin: "Accesso per strutture di cura",
     myProfile: "Il mio profilo",
     openMenu: "Apri il menu",

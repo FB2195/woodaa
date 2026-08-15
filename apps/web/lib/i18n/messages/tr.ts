@@ -18,6 +18,7 @@ export const tr: Messages = {
     imprint: "Yasal bilgiler",
     cookieInfo: "Çerez bilgisi",
     reportIssue: "Sorun bildir",
+    calculateCareBenefits: "Bakım yardımlarını hesapla",
     operatorLogin: "Bakım kuruluşları için giriş",
     myProfile: "Profilim",
     openMenu: "Menüyü aç",
