@@ -82,7 +82,7 @@ function SubsidyHint({
     return (
       <View className="rounded-brand-md bg-brand-background p-3 dark:bg-brand-background-dark">
         <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
-          Grundsätzlich verfügbar sind bis zu {formatPriceEuro(result.jahresbudgetCents)} pro
+          Grundsätzlich verfügbar sind bis zu {formatPriceEuro(result.fullJahresbudgetCents)} pro
           Kalenderjahr. Für {days} Tage kostet das Heim {formatPriceEuro(result.totalCostCents)},
           wovon die Kasse {formatPriceEuro(result.subsidyCents)} übernimmt. Ihr voraussichtlicher
           Eigenanteil beträgt damit {formatPriceEuro(result.eigenanteilCents)} - danach stehen
