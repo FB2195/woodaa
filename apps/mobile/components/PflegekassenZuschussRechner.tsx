@@ -31,6 +31,7 @@ export function PflegekassenZuschussRechner({
   const { colorScheme } = useColorScheme();
   const [pflegegrad, setPflegegrad] = useState<Pflegegrad | null>(null);
   const [days, setDays] = useState("14");
+  const [alreadyUsedEuro, setAlreadyUsedEuro] = useState("0");
   const [hoursPerDay, setHoursPerDay] = useState("6");
   const [daysPerMonth, setDaysPerMonth] = useState("20");
 
@@ -88,28 +89,51 @@ export function PflegekassenZuschussRechner({
         rate?.dailyRateCents !== undefined &&
         bookingType === "KURZZEITPFLEGE" && (
           <>
-            <View className="mt-3 flex-row items-center gap-2">
-              <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
-                Anzahl Tage
-              </Text>
-              <TextInput
-                value={days}
-                onChangeText={(text) => setDays(text.replace(/[^0-9]/g, ""))}
-                keyboardType="number-pad"
-                placeholderTextColor={placeholderColor}
-                className={numberInputClassName}
-              />
+            <View className="mt-3 flex-row flex-wrap gap-3">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+                  Anzahl Tage
+                </Text>
+                <TextInput
+                  value={days}
+                  onChangeText={(text) => setDays(text.replace(/[^0-9]/g, ""))}
+                  keyboardType="number-pad"
+                  placeholderTextColor={placeholderColor}
+                  className={numberInputClassName}
+                />
+              </View>
+              <View className="flex-row items-center gap-2">
+                <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+                  Dieses Jahr bereits genutzt (Kurzzeit-/Verhinderungspflege) €
+                </Text>
+                <TextInput
+                  value={alreadyUsedEuro}
+                  onChangeText={(text) => setAlreadyUsedEuro(text.replace(/[^0-9]/g, ""))}
+                  keyboardType="number-pad"
+                  placeholderTextColor={placeholderColor}
+                  className={numberInputClassName}
+                />
+              </View>
             </View>
             {(() => {
               const daysNumber = Math.max(1, Number(days) || 1);
+              const alreadyUsedCents = Math.round((Number(alreadyUsedEuro) || 0) * 100);
               const result = calculateKurzzeitpflegeEigenanteil(
                 pflegegrad,
                 rate.dailyRateCents,
                 daysNumber,
+                alreadyUsedCents,
               );
               return (
                 <View className="mt-3 gap-1">
-                  <ResultRow label="Verfügbares Jahresbudget" value={formatPriceEuro(result.jahresbudgetCents)} />
+                  <ResultRow
+                    label={
+                      result.alreadyUsedCents > 0
+                        ? `Jahresbudget (bereits ${formatPriceEuro(result.alreadyUsedCents)} genutzt)`
+                        : "Verfügbares Jahresbudget"
+                    }
+                    value={formatPriceEuro(result.availableBudgetCents)}
+                  />
                   <ResultRow label={`Kosten (${daysNumber} Tage)`} value={formatPriceEuro(result.totalCostCents)} />
                   <ResultRow
                     label="− Zuschuss der Pflegekasse"

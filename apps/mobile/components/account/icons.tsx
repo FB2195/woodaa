@@ -57,3 +57,7 @@ export function HelpCircleIcon() {
 export function ShieldIcon() {
   return base("🛡");
 }
+
+export function CalculatorIcon() {
+  return base("🧮");
+}

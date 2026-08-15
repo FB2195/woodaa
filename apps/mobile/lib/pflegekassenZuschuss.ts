@@ -71,7 +71,8 @@ export function calculateStationaerEigenanteil(
   pflegegrad: Pflegegrad,
   rates: StationaerRates,
 ): ZuschussResult | null {
-  const monthlyPriceCents = rates.monthlyRateCents ?? (rates.dailyRateCents !== null ? rates.dailyRateCents * 30 : null);
+  const monthlyPriceCents =
+    rates.monthlyRateCents ?? (rates.dailyRateCents !== null ? rates.dailyRateCents * 30 : null);
   if (monthlyPriceCents === null) return null;
 
   if (pflegegrad === 0 || pflegegrad === 1) {
@@ -90,13 +91,14 @@ export function calculateStationaerEigenanteil(
   return {
     subsidyCents,
     eigenanteilCents: Math.max(0, monthlyPriceCents - subsidyCents),
-    note:
-      "Zusätzlich zahlt die Pflegekasse einen mit der Wohndauer steigenden Leistungszuschlag (15 % ab dem 1., 30 % ab dem 13., 50 % ab dem 25., 75 % ab dem 37. Monat) auf den pflegebedingten Eigenanteil - der Eigenanteil sinkt also über die Zeit weiter, hier noch nicht eingerechnet.",
+    note: "Zusätzlich zahlt die Pflegekasse einen mit der Wohndauer steigenden Leistungszuschlag (15 % ab dem 1., 30 % ab dem 13., 50 % ab dem 25., 75 % ab dem 37. Monat) auf den pflegebedingten Eigenanteil - der Eigenanteil sinkt also über die Zeit weiter, hier noch nicht eingerechnet.",
   };
 }
 
 export type KurzzeitpflegeResult = {
-  jahresbudgetCents: number;
+  fullJahresbudgetCents: number;
+  alreadyUsedCents: number;
+  availableBudgetCents: number;
   totalCostCents: number;
   subsidyCents: number;
   remainingBudgetCents: number;
@@ -108,19 +110,31 @@ export type KurzzeitpflegeResult = {
 // monatlich - und das Jahresbudget lässt sich frei auf diesen Aufenthalt
 // anwenden, nicht nur anteilig pro Tag. dailyRateCents ist der echte, vom
 // Heim je Pflegegrad hinterlegte Tagessatz (CapacityPflegegradPricing).
+//
+// alreadyUsedCents: seit 01.07.2025 teilen sich Kurzzeit- und
+// Verhinderungspflege ein gemeinsames Jahresbudget - was im laufenden
+// Kalenderjahr bereits für andere Zeiträume (auch Verhinderungspflege)
+// verbraucht wurde, steht für diese Berechnung nicht mehr zur Verfügung
+// und muss vom Jahresbudget abgezogen werden, bevor der Zuschuss für den
+// hier geplanten Aufenthalt ermittelt wird.
 export function calculateKurzzeitpflegeEigenanteil(
   pflegegrad: Pflegegrad,
   dailyRateCents: number,
   days: number,
+  alreadyUsedCents = 0,
 ): KurzzeitpflegeResult {
   const totalCostCents = Math.round(dailyRateCents * days);
 
   if (pflegegrad === 0 || pflegegrad === 1) {
     // PG 0/1 haben keinen Anspruch auf das Kurzzeitpflege-Jahresbudget, nur
-    // auf den (hier anteilig auf die Tage umgerechneten) Entlastungsbetrag.
+    // auf den (hier anteilig auf die Tage umgerechneten) Entlastungsbetrag -
+    // alreadyUsedCents ist hier irrelevant, das Budget wird gar nicht
+    // angefasst.
     const subsidyCents = Math.round((ENTLASTUNGSBETRAG_CENTS / 30) * days);
     return {
-      jahresbudgetCents: 0,
+      fullJahresbudgetCents: 0,
+      alreadyUsedCents: 0,
+      availableBudgetCents: 0,
       totalCostCents,
       subsidyCents,
       remainingBudgetCents: 0,
@@ -132,21 +146,24 @@ export function calculateKurzzeitpflegeEigenanteil(
     };
   }
 
-  const gedeckteTage = Math.min(days, KURZZEITPFLEGE_MAX_TAGE_PRO_JAHR);
-  const subsidyCents = Math.min(
-    Math.round(dailyRateCents * gedeckteTage),
-    KURZZEITPFLEGE_JAHRESBUDGET_CENTS,
+  const availableBudgetCents = Math.max(
+    0,
+    KURZZEITPFLEGE_JAHRESBUDGET_CENTS - Math.max(0, alreadyUsedCents),
   );
+  const gedeckteTage = Math.min(days, KURZZEITPFLEGE_MAX_TAGE_PRO_JAHR);
+  const subsidyCents = Math.min(Math.round(dailyRateCents * gedeckteTage), availableBudgetCents);
   return {
-    jahresbudgetCents: KURZZEITPFLEGE_JAHRESBUDGET_CENTS,
+    fullJahresbudgetCents: KURZZEITPFLEGE_JAHRESBUDGET_CENTS,
+    alreadyUsedCents: Math.max(0, alreadyUsedCents),
+    availableBudgetCents,
     totalCostCents,
     subsidyCents,
-    remainingBudgetCents: Math.max(0, KURZZEITPFLEGE_JAHRESBUDGET_CENTS - subsidyCents),
+    remainingBudgetCents: Math.max(0, availableBudgetCents - subsidyCents),
     eigenanteilCents: Math.max(0, totalCostCents - subsidyCents),
     note:
       days > KURZZEITPFLEGE_MAX_TAGE_PRO_JAHR
         ? `Das Jahresbudget deckt nur bis zu ${KURZZEITPFLEGE_MAX_TAGE_PRO_JAHR} Tage (8 Wochen) Kurzzeitpflege pro Kalenderjahr - für die ${days - KURZZEITPFLEGE_MAX_TAGE_PRO_JAHR} Tage darüber hinaus zahlt die Kasse aus diesem Budget nichts mehr dazu.`
-        : "Das Budget lässt sich frei einteilen - es gibt keine Tages-Deckelung des Betrags, du kannst es auch komplett für einen kürzeren Aufenthalt nutzen. Ist es bereits (teilweise) für andere Zeiträume in diesem Jahr verbraucht, fällt der tatsächliche Zuschuss entsprechend niedriger aus.",
+        : "Das Budget lässt sich frei einteilen - es gibt keine Tages-Deckelung des Betrags, du kannst es auch komplett für einen kürzeren Aufenthalt nutzen.",
   };
 }
 
@@ -173,11 +190,10 @@ export function calculateTagesNachtpflegeEigenanteil(
 ): TagesNachtpflegeResult {
   const dailyCostCents = Math.round(hourlyRateCents * hoursPerDay);
   const monthlyBudgetCents =
-    pflegegrad === 0 || pflegegrad === 1 ? ENTLASTUNGSBETRAG_CENTS : (TAGES_NACHTPFLEGE_CENTS[pflegegrad] ?? 0);
-  const dailySubsidyCents = Math.min(
-    Math.round(monthlyBudgetCents / 30),
-    dailyCostCents,
-  );
+    pflegegrad === 0 || pflegegrad === 1
+      ? ENTLASTUNGSBETRAG_CENTS
+      : (TAGES_NACHTPFLEGE_CENTS[pflegegrad] ?? 0);
+  const dailySubsidyCents = Math.min(Math.round(monthlyBudgetCents / 30), dailyCostCents);
   const dailyEigenanteilCents = Math.max(0, dailyCostCents - dailySubsidyCents);
 
   return {
