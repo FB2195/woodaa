@@ -17,8 +17,10 @@ import {
   TrashIcon,
   UsersIcon,
 } from "@/components/account/icons";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { useAuth } from "@/lib/AuthContext";
+import { useTranslations } from "@/lib/i18n/LocaleContext";
 import { setTheme } from "@/lib/themeStore";
 import { trpc } from "@/lib/trpc";
 
@@ -70,6 +72,8 @@ function MenuSection({ title, items }: { title: string; items: MenuItem[] }) {
 export default function AccountScreen() {
   const { user, isLoading, logout } = useAuth();
   const { colorScheme } = useColorScheme();
+  const t = useTranslations("account");
+  const tHeader = useTranslations("header");
   // emailVerifiedAt isn't part of the AuthContext's minimal user shape (see
   // lib/AuthContext.tsx) - fetched here since only this screen needs it.
   const me = trpc.auth.me.useQuery(undefined, { enabled: !!user });
@@ -89,9 +93,9 @@ export default function AccountScreen() {
           Melde dich an oder erstelle ein Konto, um woodaa vollständig zu nutzen.
         </Text>
         <View className="w-full gap-3">
-          <PrimaryButton label="Anmelden" onPress={() => router.push("/login")} />
+          <PrimaryButton label={tHeader("login")} onPress={() => router.push("/login")} />
           <PrimaryButton
-            label="Konto erstellen"
+            label={tHeader("register")}
             variant="secondary"
             onPress={() => router.push("/registrieren")}
           />
@@ -102,13 +106,13 @@ export default function AccountScreen() {
   }
 
   const kontoItems: MenuItem[] = [
-    { href: "/konto/favoriten", label: "Favoriten", icon: <HeartPulseIcon /> },
-    { href: "/konto/persoenliche-angaben", label: "Persönliche Angaben", icon: <PersonIcon /> },
+    { href: "/konto/favoriten", label: tHeader("favorites"), icon: <HeartPulseIcon /> },
+    { href: "/konto/persoenliche-angaben", label: t("personalData"), icon: <PersonIcon /> },
     ...(user.role !== "ADMIN"
       ? [
           {
             href: "/konto/sicherheit" as const,
-            label: "Sicherheitseinstellungen",
+            label: t("securitySettings"),
             icon: <LockIcon />,
           },
         ]
@@ -117,55 +121,55 @@ export default function AccountScreen() {
       ? [
           {
             href: "/konto/benachrichtigungen" as const,
-            label: "Benachrichtigungen",
+            label: t("notifications"),
             icon: <BellIcon />,
           },
         ]
       : []),
     ...(user.role !== "ADMIN"
-      ? [{ href: "/konto/konto-loeschen" as const, label: "Konto löschen", icon: <TrashIcon /> }]
+      ? [{ href: "/konto/konto-loeschen" as const, label: t("deleteAccount"), icon: <TrashIcon /> }]
       : []),
   ];
 
   const buchungenItems: MenuItem[] =
     user.role === "SUCHENDE"
       ? [
-          { href: "/(tabs)/buchungen", label: "Meine Buchungen", icon: <CalendarIcon /> },
-          { href: "/konto/nachrichten", label: "Nachrichten", icon: <MessageIcon /> },
+          { href: "/(tabs)/buchungen", label: t("myBookings"), icon: <CalendarIcon /> },
+          { href: "/konto/nachrichten", label: t("messages"), icon: <MessageIcon /> },
           {
             href: "/konto/pflegeleistungen",
-            label: "Pflegeleistungen beantragen",
+            label: t("requestCareBenefits"),
             icon: <HeartPulseIcon />,
           },
           {
             href: "/konto/pflegeleistungen-berechnen",
-            label: "Pflegeleistungen berechnen",
+            label: tHeader("calculateCareBenefits"),
             icon: <CalculatorIcon />,
           },
           {
             href: "/konto/bevollmaechtigung",
-            label: "Bevollmächtigte/r Angehörige/r",
+            label: t("authorizedRepresentative"),
             icon: <UsersIcon />,
           },
           {
             href: "/konto/gespeicherte-suchen",
-            label: "Gespeicherte Suchen",
+            label: t("savedSearches"),
             icon: <BellIcon />,
           },
         ]
       : [];
 
   const hilfeItems: MenuItem[] = [
-    { href: "/konto/kundenservice", label: "Kundenservice", icon: <HelpCircleIcon /> },
-    { href: "/konto/hilfe", label: "Hilfe & FAQ", icon: <HelpCircleIcon /> },
-    { href: "/konto/fehler-melden", label: "Fehler/Problem melden", icon: <HelpCircleIcon /> },
+    { href: "/konto/kundenservice", label: tHeader("customerService"), icon: <HelpCircleIcon /> },
+    { href: "/konto/hilfe", label: t("helpFaq"), icon: <HelpCircleIcon /> },
+    { href: "/konto/fehler-melden", label: tHeader("reportIssue"), icon: <HelpCircleIcon /> },
   ];
 
   const rechtlichesItems: MenuItem[] = [
-    { href: "/konto/daten", label: "Meine Daten exportieren", icon: <DownloadIcon /> },
-    { href: "/konto/datenschutz", label: "Datenschutz", icon: <ShieldIcon /> },
-    { href: "/konto/nutzungsbedingungen", label: "Nutzungsbedingungen", icon: <ShieldIcon /> },
-    { href: "/konto/impressum", label: "Impressum", icon: <ShieldIcon /> },
+    { href: "/konto/daten", label: t("exportData"), icon: <DownloadIcon /> },
+    { href: "/konto/datenschutz", label: tHeader("privacy"), icon: <ShieldIcon /> },
+    { href: "/konto/nutzungsbedingungen", label: t("termsOfService"), icon: <ShieldIcon /> },
+    { href: "/konto/impressum", label: tHeader("imprint"), icon: <ShieldIcon /> },
   ];
 
   return (
@@ -188,30 +192,35 @@ export default function AccountScreen() {
         )}
       </View>
 
-      <MenuSection title="Konto verwalten" items={kontoItems} />
-      <MenuSection title="Meine Buchungen & Pflege" items={buchungenItems} />
-      <MenuSection title="Hilfe" items={hilfeItems} />
-      <MenuSection title="Rechtliches und Datenschutz" items={rechtlichesItems} />
+      <MenuSection title={t("manageAccount")} items={kontoItems} />
+      <MenuSection title={t("bookingsAndCare")} items={buchungenItems} />
+      <MenuSection title={t("help")} items={hilfeItems} />
+      <MenuSection title={t("legalAndPrivacy")} items={rechtlichesItems} />
+
+      <View className="mt-2 overflow-hidden rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
+        <LanguageSwitcher />
+      </View>
 
       <View className="mt-2">
         <ThemeToggle colorScheme={colorScheme} />
       </View>
 
-      <PrimaryButton label="Abmelden" variant="secondary" onPress={() => logout()} />
+      <PrimaryButton label={t("logout")} variant="secondary" onPress={() => logout()} />
     </ScrollView>
   );
 }
 
 function ThemeToggle({ colorScheme }: { colorScheme: "light" | "dark" | undefined }) {
+  const t = useTranslations("theme");
   const options = [
-    { value: "light" as const, label: "Hell" },
-    { value: "dark" as const, label: "Dunkel" },
+    { value: "light" as const, label: t("light") },
+    { value: "dark" as const, label: t("dark") },
   ];
 
   return (
     <View className="overflow-hidden rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark">
       <Text className="mb-2 text-sm font-medium text-brand-text dark:text-brand-text-dark">
-        Erscheinungsbild
+        {t("label")}
       </Text>
       <View className="flex-row gap-2">
         {options.map((option) => (

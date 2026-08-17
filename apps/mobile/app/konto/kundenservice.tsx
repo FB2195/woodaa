@@ -4,53 +4,53 @@ import { AIChatWidget } from "@/components/support/AIChatWidget";
 import { FAQAccordion } from "@/components/support/FAQAccordion";
 import { SupportRequestForm } from "@/components/support/SupportRequestForm";
 import { useAuth } from "@/lib/AuthContext";
+import { useTranslations } from "@/lib/i18n/LocaleContext";
 
 // Mobile port of apps/web/app/hilfe/kundenservice/page.tsx +
 // components/support/OperatorSupportChannels.tsx.
 export default function KundenserviceScreen() {
   const { user } = useAuth();
+  const t = useTranslations("hilfe");
+  const tHeader = useTranslations("header");
 
   return (
     <ScrollView
       className="flex-1 bg-brand-background dark:bg-brand-background-dark"
       contentContainerClassName="gap-3 p-6"
     >
-      <Stack.Screen options={{ title: "Kundenservice" }} />
+      <Stack.Screen options={{ title: tHeader("customerService") }} />
       <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-        Häufige Fragen, Telefon, Chat oder eine persönliche Nachricht - so erreichst du uns.
+        {t("kundenserviceIntro")}
       </Text>
 
-      <SectionTitle>Häufige Fragen</SectionTitle>
+      <SectionTitle>{t("faqSectionTitle")}</SectionTitle>
       <FAQAccordion />
 
-      <SectionTitle>Telefon (24/7)</SectionTitle>
+      <SectionTitle>{t("phoneSectionTitle")}</SectionTitle>
       <View className="rounded-brand-lg border border-brand-border bg-brand-surface p-6 dark:border-brand-border-dark dark:bg-brand-surface-dark">
-        <Text className="text-brand-text dark:text-brand-text-dark">
-          {/* Platzhalter - vor Live-Gang durch echte Hotline-Nummer ersetzen */}
-          [Telefonnummer] - rund um die Uhr erreichbar
-        </Text>
+        <Text className="text-brand-text dark:text-brand-text-dark">{t("phonePlaceholder")}</Text>
         <Text className="mt-2 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-          Lieber zurückgerufen werden? Nutze das Rückruf-Formular weiter unten.
+          {t("phoneCallbackHint")}
         </Text>
       </View>
 
-      <SectionTitle>KI-Chat</SectionTitle>
+      <SectionTitle>{t("aiChatSectionTitle")}</SectionTitle>
       <Text className="-mt-2 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-        Für schnelle Fragen rund um woodaa - jederzeit verfügbar.
+        {t("aiChatSectionText")}
       </Text>
       <AIChatWidget />
 
-      <SectionTitle>Rückruf anfordern</SectionTitle>
+      <SectionTitle>{t("callbackSectionTitle")}</SectionTitle>
       <Text className="-mt-2 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-        Wir rufen dich unter der angegebenen Nummer zurück.
+        {t("callbackSectionText")}
       </Text>
-      <SupportRequestForm type="RUECKRUF" submitLabel="Rückruf anfordern" phoneRequired />
+      <SupportRequestForm type="RUECKRUF" submitLabel={t("callbackSubmitLabel")} phoneRequired />
 
-      <SectionTitle>Nachricht schreiben</SectionTitle>
+      <SectionTitle>{t("messageSectionTitle")}</SectionTitle>
       <Text className="-mt-2 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-        Für alles, was etwas ausführlicher ist.
+        {t("messageSectionText")}
       </Text>
-      <SupportRequestForm type="KONTAKT" submitLabel="Nachricht senden" />
+      <SupportRequestForm type="KONTAKT" submitLabel={t("messageSubmitLabel")} />
 
       {user?.role === "BETREIBER" && (
         <>

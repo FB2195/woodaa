@@ -1,6 +1,7 @@
 import type { BookingType } from "@woodaa/validators";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
+import { useTranslations } from "@/lib/i18n/LocaleContext";
 import { resolvePhotoUrl } from "@/lib/photoUrl";
 
 // Mobile port of apps/web/app/page.tsx's landing content (Hero + WhySection
@@ -19,28 +20,12 @@ const bookingTypeIcons: Record<BookingType, string> = {
   NACHTPFLEGE: "🌙",
 };
 
-const trustPoints = [
-  {
-    icon: "⚡",
-    title: "Echtzeit-Verfügbarkeit",
-    text: "Kein Rätselraten am Telefon - Sie sehen sofort, wo aktuell wirklich ein Platz frei ist.",
-  },
-  {
-    icon: "🔒",
-    title: "Keine Doppelbuchung",
-    text: "Jeder gebuchte Platz wird technisch abgesichert reserviert - garantiert kein Verwechseln, keine Doppelvergabe.",
-  },
-  {
-    icon: "✅",
-    title: "Geprüfte Einrichtungen",
-    text: "Jede Einrichtung wird vor der Veröffentlichung von uns geprüft, bevor sie sichtbar wird.",
-  },
-  {
-    icon: "🤝",
-    title: "Kostenlos & unverbindlich anfragen",
-    text: "Erst in Ruhe informieren, dann entscheiden - eine Anfrage kostet nichts und verpflichtet zu nichts.",
-  },
-];
+const trustEntries = [
+  { icon: "⚡", titleKey: "trust1Title", textKey: "trust1Text" },
+  { icon: "🔒", titleKey: "trust2Title", textKey: "trust2Text" },
+  { icon: "✅", titleKey: "trust3Title", textKey: "trust3Text" },
+  { icon: "🤝", titleKey: "trust4Title", textKey: "trust4Text" },
+] as const;
 
 type PopularCity = { city: string; count: number; photoUrl: string | null };
 
@@ -57,6 +42,8 @@ export function HomeContent({
   onSelectCity: (city: string) => void;
   onSelectBookingType: (type: BookingType) => void;
 }) {
+  const t = useTranslations("home");
+
   return (
     <ScrollView
       className="flex-1"
@@ -65,16 +52,15 @@ export function HomeContent({
     >
       <View>
         <Text className="text-2xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">
-          Pflegeplatz online buchen
+          {t("heroTitleLine1")}
         </Text>
-        <Text className="mt-1 text-base font-medium text-brand-accent">Jetzt bei woodaa</Text>
+        <Text className="mt-1 text-base font-medium text-brand-accent">{t("heroTitleLine2")}</Text>
         <Text className="mt-3 text-sm leading-5 text-brand-text-muted dark:text-brand-text-muted-dark">
-          So einfach wie eine Hotelbuchung. Mit woodaa finden Sie die passende Einrichtung und
-          können sofort online buchen.
+          {t("heroSubtitleLine1")} {t("heroSubtitleLine2")}
         </Text>
         {facilityCount > 0 && (
           <Text className="mt-3 text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
-            {facilityCount} Einrichtungen in {cityCount} Städten
+            {facilityCount} {t("statsFacilitiesLabel")} · {cityCount} {t("statsCitiesLabel")}
           </Text>
         )}
       </View>
@@ -92,7 +78,11 @@ export function HomeContent({
                 className="w-[47%] overflow-hidden rounded-brand-lg border border-brand-border dark:border-brand-border-dark"
               >
                 {entry.photoUrl ? (
-                  <Image source={{ uri: entry.photoUrl }} className="h-24 w-full" resizeMode="cover" />
+                  <Image
+                    source={{ uri: entry.photoUrl }}
+                    className="h-24 w-full"
+                    resizeMode="cover"
+                  />
                 ) : (
                   <View className="h-24 w-full items-center justify-center bg-brand-surface dark:bg-brand-surface-dark">
                     <Text className="text-2xl">🏙️</Text>
@@ -134,21 +124,21 @@ export function HomeContent({
 
       <View>
         <Text className="text-lg font-semibold text-brand-text dark:text-brand-text-dark">
-          Warum woodaa?
+          {t("whyTitle")}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-3 -mx-6 px-6">
           <View className="flex-row gap-3">
-            {trustPoints.map((point) => (
+            {trustEntries.map((entry) => (
               <View
-                key={point.title}
+                key={entry.titleKey}
                 className="w-60 rounded-brand-lg border border-brand-border bg-brand-surface p-4 dark:border-brand-border-dark dark:bg-brand-surface-dark"
               >
-                <Text className="text-2xl">{point.icon}</Text>
+                <Text className="text-2xl">{entry.icon}</Text>
                 <Text className="mt-2 text-sm font-semibold text-brand-heading dark:text-brand-heading-dark">
-                  {point.title}
+                  {t(entry.titleKey)}
                 </Text>
                 <Text className="mt-1 text-xs leading-4 text-brand-text-muted dark:text-brand-text-muted-dark">
-                  {point.text}
+                  {t(entry.textKey)}
                 </Text>
               </View>
             ))}

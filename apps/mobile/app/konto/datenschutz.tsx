@@ -1,5 +1,6 @@
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
+import { useTranslations } from "@/lib/i18n/LocaleContext";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -13,83 +14,74 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function P({ children }: { children: React.ReactNode }) {
-  return (
-    <Text className="text-sm text-brand-text dark:text-brand-text-dark">{children}</Text>
-  );
+  return <Text className="text-sm text-brand-text dark:text-brand-text-dark">{children}</Text>;
 }
 
-// Mobile port of apps/web/app/datenschutz/page.tsx - gleicher Text.
+// Mobile port of apps/web/app/datenschutz/page.tsx - same translated text
+// (see lib/i18n), same six languages.
 export default function DatenschutzScreen() {
+  const t = useTranslations("datenschutz");
+
   return (
     <ScrollView
       className="flex-1 bg-brand-background dark:bg-brand-background-dark"
       contentContainerClassName="gap-6 p-6"
     >
-      <Stack.Screen options={{ title: "Datenschutz" }} />
+      <Stack.Screen options={{ title: t("title") }} />
       <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-        Diese Seite fasst zusammen, welche Daten woodaa verarbeitet und wofür. Sie ersetzt keine
-        rechtliche Prüfung - bitte vor Live-Schaltung von einer/einem Datenschutzbeauftragten
-        gegenprüfen lassen.
+        {t("intro")}
       </Text>
 
-      <Section title="Verantwortlicher">
-        <P>[Firmenname], [Adresse] - siehe Impressum.</P>
+      <Section title={t("controllerTitle")}>
+        <Text className="text-sm text-brand-text dark:text-brand-text-dark">
+          {t("controllerBody")}{" "}
+          <Text
+            onPress={() => router.push("/konto/impressum")}
+            className="text-brand-accent underline"
+          >
+            Impressum
+          </Text>
+          .
+        </Text>
       </Section>
 
-      <Section title="Welche Daten wir verarbeiten">
-        <P>• Kontodaten: Name, E-Mail-Adresse, Passwort (verschlüsselt gespeichert)</P>
-        <P>
-          • Pflegebezogene Daten (nur wenn du sie angibst): Pflegegrad, Krankenkasse,
-          Versicherungsnummer (verschlüsselt gespeichert, AES-256), Angaben zur gepflegten Person
-        </P>
-        <P>• Buchungsdaten: gewünschte Einrichtung, Zeitraum, Zahlungsart, Zahlungsstatus</P>
-        <P>
-          • Zahlungsdaten: werden direkt von unserem Zahlungsdienstleister Stripe verarbeitet, wir
-          sehen keine vollständigen Kartendaten
-        </P>
-        <P>• Bewertungen: Name (öffentlich sichtbar), Bewertungstext</P>
-        <P>
-          • Standortangaben bei der Suche (Stadt/PLZ), verarbeitet über Google Maps/Places zur
-          Umkreis- und Kartenanzeige
-        </P>
-        <P>• Technisch notwendige Cookies/App-Session, um dich eingeloggt zu halten</P>
+      <Section title={t("dataTitle")}>
+        <P>• {t("dataAccount")}</P>
+        <P>• {t("dataCare")}</P>
+        <P>• {t("dataBooking")}</P>
+        <P>• {t("dataPayment")}</P>
+        <P>• {t("dataReviews")}</P>
+        <P>• {t("dataLocation")}</P>
+        <P>• {t("dataCookies")}</P>
       </Section>
 
-      <Section title="Wofür wir sie nutzen">
-        <P>
-          Ausschließlich zur Bereitstellung des Dienstes: Kontoverwaltung, Suche und Buchung von
-          Pflegeplätzen, Kommunikation mit Einrichtungen, Zahlungsabwicklung, Berechnung des
-          voraussichtlichen Pflegekassen-Zuschusses. Kein Verkauf von Daten an Dritte, keine
-          Werbe- oder Tracking-Cookies.
-        </P>
+      <Section title={t("purposeTitle")}>
+        <P>{t("purposeBody")}</P>
       </Section>
 
-      <Section title="Eingesetzte Dienstleister">
-        <P>• Stripe (Zahlungsabwicklung)</P>
-        <P>• Resend (Versand von E-Mails, z. B. Buchungsbestätigungen)</P>
-        <P>• Cloudflare R2 (Speicherung hochgeladener Dokumente, z. B. Vollmachten)</P>
-        <P>• Google Maps/Places (Kartenanzeige und Adressvorschläge)</P>
-        <P>
-          • Hosting- und Datenbank-Infrastruktur in der EU/den USA (Auftragsverarbeitung
-          vertraglich geregelt)
-        </P>
+      <Section title={t("providersTitle")}>
+        <P>• {t("providerStripe")}</P>
+        <P>• {t("providerResend")}</P>
+        <P>• {t("providerR2")}</P>
+        <P>• {t("providerMaps")}</P>
+        <P>• {t("providerHosting")}</P>
       </Section>
 
-      <Section title="Deine Rechte">
-        <P>
-          Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung,
-          Datenübertragbarkeit und Widerspruch gegen die Verarbeitung deiner Daten. Wende dich
-          dazu über den Kundenservice an uns. Du kannst dich außerdem bei einer
-          Datenschutz-Aufsichtsbehörde beschweren.
-        </P>
+      <Section title={t("rightsTitle")}>
+        <Text className="text-sm text-brand-text dark:text-brand-text-dark">
+          {t("rightsBodyPre")}{" "}
+          <Text
+            onPress={() => router.push("/konto/kundenservice")}
+            className="text-brand-accent underline"
+          >
+            {t("rightsBodyLinkText")}
+          </Text>{" "}
+          {t("rightsBodyPost")}
+        </Text>
       </Section>
 
-      <Section title="Speicherdauer">
-        <P>
-          Wir speichern Daten nur so lange, wie es für die genannten Zwecke oder aufgrund
-          gesetzlicher Aufbewahrungspflichten erforderlich ist. Konten und zugehörige Daten kannst
-          du jederzeit über den Kundenservice löschen lassen.
-        </P>
+      <Section title={t("retentionTitle")}>
+        <P>{t("retentionBody")}</P>
       </Section>
     </ScrollView>
   );

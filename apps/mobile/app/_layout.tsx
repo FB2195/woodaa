@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AppSplashOverlay } from "@/components/AppSplashOverlay";
 import { PushNotificationRegistrar } from "@/components/PushNotificationRegistrar";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
+import { LocaleProvider } from "@/lib/i18n/LocaleContext";
 import { stripePublishableKey } from "@/lib/stripeConfig";
 import { loadInitialTheme } from "@/lib/themeStore";
 import { trpc } from "@/lib/trpc";
@@ -20,13 +21,7 @@ import "../global.css";
 // stays native-module-free.
 const MIN_SPLASH_MS = 900;
 
-function AppGate({
-  themeReady,
-  children,
-}: {
-  themeReady: boolean;
-  children: React.ReactNode;
-}) {
+function AppGate({ themeReady, children }: { themeReady: boolean; children: React.ReactNode }) {
   const { isLoading: authLoading } = useAuth();
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
@@ -61,40 +56,42 @@ export default function RootLayout() {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <AppGate themeReady={themeReady}>
-            {/* Falls kein Key gesetzt ist, bleibt die Provider-Instanz
+        <LocaleProvider>
+          <AuthProvider>
+            <AppGate themeReady={themeReady}>
+              {/* Falls kein Key gesetzt ist, bleibt die Provider-Instanz
                 funktionslos - BookingScreen blendet Karte/Klarna/PayPal dann
                 aus (siehe stripeConfig.ts), Rechnung/Kostenübernahme
                 funktionieren unabhängig davon. */}
-            <StripeProvider publishableKey={stripePublishableKey() ?? ""}>
-              <Stack
-                screenOptions={{
-                  headerStyle: { backgroundColor: "#3E4A2B" },
-                  headerTintColor: "#FFFFFF",
-                  // headerBackTitle: "" alone does NOT hide the back button
-                  // label on @react-navigation/native-stack v6 (bundled with
-                  // Expo SDK 51) - it still falls back to the previous
-                  // screen's title (here, the "(tabs)" route's literal
-                  // folder name, since that screen has headerShown: false
-                  // but no `title`). headerBackTitleVisible: false is the
-                  // documented v6 way to hide the label entirely.
-                  headerBackTitleVisible: false,
-                }}
-              >
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="login"
-                  options={{ title: "Anmelden", presentation: "modal" }}
-                />
-                <Stack.Screen
-                  name="registrieren"
-                  options={{ title: "Konto erstellen", presentation: "modal" }}
-                />
-              </Stack>
-            </StripeProvider>
-          </AppGate>
-        </AuthProvider>
+              <StripeProvider publishableKey={stripePublishableKey() ?? ""}>
+                <Stack
+                  screenOptions={{
+                    headerStyle: { backgroundColor: "#3E4A2B" },
+                    headerTintColor: "#FFFFFF",
+                    // headerBackTitle: "" alone does NOT hide the back button
+                    // label on @react-navigation/native-stack v6 (bundled with
+                    // Expo SDK 51) - it still falls back to the previous
+                    // screen's title (here, the "(tabs)" route's literal
+                    // folder name, since that screen has headerShown: false
+                    // but no `title`). headerBackTitleVisible: false is the
+                    // documented v6 way to hide the label entirely.
+                    headerBackTitleVisible: false,
+                  }}
+                >
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="login"
+                    options={{ title: "Anmelden", presentation: "modal" }}
+                  />
+                  <Stack.Screen
+                    name="registrieren"
+                    options={{ title: "Konto erstellen", presentation: "modal" }}
+                  />
+                </Stack>
+              </StripeProvider>
+            </AppGate>
+          </AuthProvider>
+        </LocaleProvider>
       </QueryClientProvider>
     </trpc.Provider>
   );
