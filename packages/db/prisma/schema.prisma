@@ -226,6 +226,17 @@ model User {
   newsletterOptIn              Boolean                @default(false)
   agbAcceptedAt                DateTime?
   datenschutzAcceptedAt        DateTime?
+  // Granular opt-outs for the non-essential notification categories that
+  // exist today - booking-related transactional mail/push (confirmation,
+  // facility decision) and account-security mail (verification, password
+  // reset) are never gated by these and always send, since they're
+  // essential to using the service rather than a choice, same "necessary
+  // for contract/service" exemption newsletterOptIn's DSGVO consent above
+  // doesn't apply to. See sendUserNewMessageEmail/sendPushNotification's
+  // and sendSavedSearchMatchEmail's call sites for what these actually gate.
+  notifyMessagesEmail          Boolean                @default(true)
+  notifyMessagesPush           Boolean                @default(true)
+  notifySavedSearchEmail       Boolean                @default(true)
   // Bevollmächtigte/r Angehörige/r: the fields above (krankenkasse,
   // versicherungsnummerEncrypted, pflegegrad, ...) already describe "the
   // person this account books care for", which for a representative is

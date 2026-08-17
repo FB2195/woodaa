@@ -89,6 +89,7 @@ export const tr: Messages = {
     personalData: "Kişisel bilgiler",
     securitySettings: "Güvenlik ayarları",
     exportData: "Verilerimi dışa aktar",
+    notifications: "Bildirimler",
     deleteAccount: "Hesabı sil",
     bookingsAndCare: "Rezervasyonlarım ve bakım",
     myBookings: "Rezervasyonlarım",

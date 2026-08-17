@@ -753,3 +753,12 @@ export const ReplyToConversationInput = z.object({
   body: MESSAGE_BODY,
 });
 export type ReplyToConversationInput = z.infer<typeof ReplyToConversationInput>;
+
+// account.updateNotificationPreferences - all optional so a caller can
+// update just one toggle at a time without re-sending the others.
+export const UpdateNotificationPreferencesInput = z.object({
+  notifyMessagesEmail: z.boolean().optional(),
+  notifyMessagesPush: z.boolean().optional(),
+  notifySavedSearchEmail: z.boolean().optional(),
+});
+export type UpdateNotificationPreferencesInput = z.infer<typeof UpdateNotificationPreferencesInput>;

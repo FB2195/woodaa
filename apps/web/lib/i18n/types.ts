@@ -82,6 +82,7 @@ export type Messages = {
     personalData: string;
     securitySettings: string;
     exportData: string;
+    notifications: string;
     deleteAccount: string;
     bookingsAndCare: string;
     myBookings: string;

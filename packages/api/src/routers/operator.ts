@@ -629,7 +629,17 @@ export const operatorRouter = router({
       const facility = await requireOwnFacility(ctx);
       const conversation = await ctx.db.conversation.findUnique({
         where: { id: input.conversationId },
-        include: { user: { select: { id: true, name: true, email: true } } },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              notifyMessagesEmail: true,
+              notifyMessagesPush: true,
+            },
+          },
+        },
       });
       if (!conversation || conversation.facilityId !== facility.id) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Unterhaltung nicht gefunden." });
@@ -648,24 +658,32 @@ export const operatorRouter = router({
 
       // Best-effort, same "never block the mutation" treatment as every
       // other notification call site (see sendPushNotification's comment).
-      try {
-        await sendUserNewMessageEmail({
-          to: conversation.user.email,
-          recipientName: conversation.user.name,
-          facilityName: facility.name,
-          facilitySlug: facility.slug,
-          body: input.body,
-        });
-      } catch (err) {
-        console.error("sendUserNewMessageEmail failed", err);
+      // Gated by the user's own notification preferences (see
+      // notifyMessagesEmail/notifyMessagesPush on User in schema.prisma) -
+      // unlike booking confirmations, a message reply isn't essential to
+      // using the service, so it's opt-out-able.
+      if (conversation.user.notifyMessagesEmail) {
+        try {
+          await sendUserNewMessageEmail({
+            to: conversation.user.email,
+            recipientName: conversation.user.name,
+            facilityName: facility.name,
+            facilitySlug: facility.slug,
+            body: input.body,
+          });
+        } catch (err) {
+          console.error("sendUserNewMessageEmail failed", err);
+        }
       }
-      await sendPushNotification(
-        ctx.db,
-        conversation.user.id,
-        `Neue Antwort von ${facility.name}`,
-        input.body,
-        { conversationId: conversation.id },
-      );
+      if (conversation.user.notifyMessagesPush) {
+        await sendPushNotification(
+          ctx.db,
+          conversation.user.id,
+          `Neue Antwort von ${facility.name}`,
+          input.body,
+          { conversationId: conversation.id },
+        );
+      }
 
       return message;
     }),

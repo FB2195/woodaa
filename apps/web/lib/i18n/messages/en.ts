@@ -91,6 +91,7 @@ export const en: Messages = {
     personalData: "Personal details",
     securitySettings: "Security settings",
     exportData: "Export my data",
+    notifications: "Notifications",
     deleteAccount: "Delete account",
     bookingsAndCare: "My bookings & care",
     myBookings: "My bookings",

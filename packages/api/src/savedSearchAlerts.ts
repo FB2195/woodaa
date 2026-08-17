@@ -50,7 +50,10 @@ export async function checkSavedSearchAlerts(db: PrismaClient): Promise<void> {
     const matchIds = matches.map((m) => m.id);
     const newFacilities = matches.filter((m) => !search.lastMatchedFacilityIds.includes(m.id));
 
-    if (newFacilities.length > 0) {
+    // Gated by the user's own notification preferences (see
+    // notifySavedSearchEmail on User in schema.prisma) - opt-out-able,
+    // unlike booking-related transactional mail.
+    if (newFacilities.length > 0 && search.user.notifySavedSearchEmail) {
       try {
         await sendSavedSearchMatchEmail({
           to: search.user.email,

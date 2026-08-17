@@ -77,6 +77,9 @@ export async function AccountMenu({ role }: { role: "SUCHENDE" | "BETREIBER" | "
     ...(role !== "ADMIN"
       ? [{ href: "/konto/sicherheit", label: t("securitySettings"), icon: <LockIcon /> }]
       : []),
+    ...(role === "SUCHENDE"
+      ? [{ href: "/konto/benachrichtigungen", label: t("notifications"), icon: <BellIcon /> }]
+      : []),
     { href: "/konto/meine-daten", label: t("exportData"), icon: <DownloadIcon /> },
     ...(role !== "ADMIN"
       ? [{ href: "/konto/konto-loeschen", label: t("deleteAccount"), icon: <TrashIcon /> }]

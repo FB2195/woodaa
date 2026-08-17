@@ -90,6 +90,7 @@ export const es: Messages = {
     personalData: "Datos personales",
     securitySettings: "Configuración de seguridad",
     exportData: "Exportar mis datos",
+    notifications: "Notificaciones",
     deleteAccount: "Eliminar cuenta",
     bookingsAndCare: "Mis reservas y cuidados",
     myBookings: "Mis reservas",

@@ -92,6 +92,7 @@ export const fr: Messages = {
     personalData: "Informations personnelles",
     securitySettings: "Paramètres de sécurité",
     exportData: "Exporter mes données",
+    notifications: "Notifications",
     deleteAccount: "Supprimer le compte",
     bookingsAndCare: "Mes réservations et soins",
     myBookings: "Mes réservations",

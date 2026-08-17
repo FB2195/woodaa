@@ -1,10 +1,42 @@
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
+import { UpdateNotificationPreferencesInput } from "@woodaa/validators";
 import { z } from "zod";
 import { decryptSecret } from "../crypto";
 import { protectedProcedure, router } from "../trpc";
 
 export const accountRouter = router({
+  // Only the non-essential categories below are toggleable - see the
+  // comment on User.notifyMessagesEmail/notifyMessagesPush/
+  // notifySavedSearchEmail in schema.prisma for why booking-related
+  // transactional mail/push and account-security mail are exempt and
+  // always send, same as most consumer apps' "you can't opt out of
+  // account activity" split.
+  notificationPreferences: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.user.findUniqueOrThrow({
+      where: { id: ctx.user.id },
+      select: {
+        notifyMessagesEmail: true,
+        notifyMessagesPush: true,
+        notifySavedSearchEmail: true,
+      },
+    });
+  }),
+
+  updateNotificationPreferences: protectedProcedure
+    .input(UpdateNotificationPreferencesInput)
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.user.update({
+        where: { id: ctx.user.id },
+        data: input,
+        select: {
+          notifyMessagesEmail: true,
+          notifyMessagesPush: true,
+          notifySavedSearchEmail: true,
+        },
+      });
+    }),
+
   // Art. 15/20 DSGVO: self-service data export, scoped to data that is
   // actually "about me" - an operator's export includes their own facility
   // listing, but not the bookingRequests they've received (that's personal

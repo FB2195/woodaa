@@ -113,6 +113,15 @@ export default function AccountScreen() {
           },
         ]
       : []),
+    ...(user.role === "SUCHENDE"
+      ? [
+          {
+            href: "/konto/benachrichtigungen" as const,
+            label: "Benachrichtigungen",
+            icon: <BellIcon />,
+          },
+        ]
+      : []),
     ...(user.role !== "ADMIN"
       ? [{ href: "/konto/konto-loeschen" as const, label: "Konto löschen", icon: <TrashIcon /> }]
       : []),
