@@ -9,7 +9,13 @@ import { AMENITY_OPTIONS } from "@woodaa/validators";
 
 function base(children: ReactNode) {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.75">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+    >
       {children}
     </svg>
   );
@@ -18,8 +24,16 @@ function base(children: ReactNode) {
 function BedIcon() {
   return base(
     <>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 18v2M21 18v2M3 12V8a2 2 0 0 1 2-2h3v4" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 18v2M21 18v2M3 12V8a2 2 0 0 1 2-2h3v4"
+      />
       <path strokeLinecap="round" strokeLinejoin="round" d="M11 10h6a2 2 0 0 1 2 2v2" />
     </>,
   );
@@ -76,7 +90,11 @@ function GardenIcon() {
 function CafeteriaIcon() {
   return base(
     <>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Z"
+      />
       <path strokeLinecap="round" strokeLinejoin="round" d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17" />
       <path strokeLinecap="round" d="M8 4c0 1-1 1-1 2M12 4c0 1-1 1-1 2" />
     </>,
@@ -90,7 +108,11 @@ function PetsIcon() {
       <circle cx="12" cy="6.5" r="1.6" />
       <circle cx="17" cy="9" r="1.6" />
       <circle cx="9.5" cy="12" r="1.6" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 13c2 0 3.5 1.6 3.5 3.4 0 1.8-1.5 2.6-3.2 2.1-1-.3-1.7-.3-2.6 0-1.7.5-3.2-.3-3.2-2.1C9.5 14.6 11 13 13 13" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 13c2 0 3.5 1.6 3.5 3.4 0 1.8-1.5 2.6-3.2 2.1-1-.3-1.7-.3-2.6 0-1.7.5-3.2-.3-3.2-2.1C9.5 14.6 11 13 13 13"
+      />
     </>,
   );
 }
@@ -99,8 +121,16 @@ function TherapyIcon() {
   return base(
     <>
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 12c0-3.3 2.7-6 6-6s6 2.7 6 6" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12h3v6a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-3a1 1 0 0 1 1-1Z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M20 12h-3v6a2 2 0 0 0 2 2 2 2 0 0 0 2-2v-3a1 1 0 0 0-1-1Z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 12h3v6a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-3a1 1 0 0 1 1-1Z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M20 12h-3v6a2 2 0 0 0 2 2 2 2 0 0 0 2-2v-3a1 1 0 0 0-1-1Z"
+      />
     </>,
   );
 }
@@ -128,8 +158,16 @@ function LaundryIcon() {
 function AlarmIcon() {
   return base(
     <>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2M5.6 6.6l1.4 1.4M18.4 6.6 17 8" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 13a6 6 0 1 1 12 0c0 2.5 1 3.5 1 3.5H5S6 15.5 6 13Z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 3v2M5.6 6.6l1.4 1.4M18.4 6.6 17 8"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6 13a6 6 0 1 1 12 0c0 2.5 1 3.5 1 3.5H5S6 15.5 6 13Z"
+      />
       <path strokeLinecap="round" d="M10 20a2 2 0 0 0 4 0" />
     </>,
   );
@@ -151,6 +189,9 @@ const ICONS: Partial<Record<(typeof AMENITY_OPTIONS)[number], () => ReactNode>> 
   "TV im Zimmer": TvIcon,
   "WLAN im Zimmer": WifiIcon,
   Barrierefreiheit: WheelchairIcon,
+  Rollstuhlgerecht: WheelchairIcon,
+  "Barrierefreies Bad": WheelchairIcon,
+  "Aufzug vorhanden": WheelchairIcon,
   Garten: GardenIcon,
   Cafeteria: CafeteriaIcon,
   "Haustiere erlaubt": PetsIcon,
@@ -173,6 +214,9 @@ export function amenityIcon(amenity: string) {
 // check the boxes in.
 export const AMENITY_PRIORITY: readonly string[] = [
   "Barrierefreiheit",
+  "Rollstuhlgerecht",
+  "Barrierefreies Bad",
+  "Aufzug vorhanden",
   "WLAN im Zimmer",
   "Eigene Küche/Vollverpflegung",
   "Garten",
@@ -188,7 +232,5 @@ export const AMENITY_PRIORITY: readonly string[] = [
 ];
 
 export function sortByAmenityPriority(amenities: string[]): string[] {
-  return [...amenities].sort(
-    (a, b) => AMENITY_PRIORITY.indexOf(a) - AMENITY_PRIORITY.indexOf(b),
-  );
+  return [...amenities].sort((a, b) => AMENITY_PRIORITY.indexOf(a) - AMENITY_PRIORITY.indexOf(b));
 }

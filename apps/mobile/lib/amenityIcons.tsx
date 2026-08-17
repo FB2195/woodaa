@@ -10,6 +10,9 @@ const ICONS: Partial<Record<(typeof AMENITY_OPTIONS)[number], string>> = {
   "TV im Zimmer": "📺",
   "WLAN im Zimmer": "📶",
   Barrierefreiheit: "♿",
+  Rollstuhlgerecht: "♿",
+  "Barrierefreies Bad": "♿",
+  "Aufzug vorhanden": "♿",
   Garten: "🌳",
   Cafeteria: "☕",
   "Haustiere erlaubt": "🐾",
@@ -29,6 +32,9 @@ export function amenityIcon(amenity: string): string {
 // Ausstattungen" view show the same subset on both platforms.
 export const AMENITY_PRIORITY: readonly string[] = [
   "Barrierefreiheit",
+  "Rollstuhlgerecht",
+  "Barrierefreies Bad",
+  "Aufzug vorhanden",
   "WLAN im Zimmer",
   "Eigene Küche/Vollverpflegung",
   "Garten",
@@ -44,7 +50,5 @@ export const AMENITY_PRIORITY: readonly string[] = [
 ];
 
 export function sortByAmenityPriority(amenities: string[]): string[] {
-  return [...amenities].sort(
-    (a, b) => AMENITY_PRIORITY.indexOf(a) - AMENITY_PRIORITY.indexOf(b),
-  );
+  return [...amenities].sort((a, b) => AMENITY_PRIORITY.indexOf(a) - AMENITY_PRIORITY.indexOf(b));
 }

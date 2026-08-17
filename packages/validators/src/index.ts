@@ -95,7 +95,14 @@ export const AMENITY_OPTIONS = [
   "TV im Zimmer",
   "Telefon im Zimmer",
   "WLAN im Zimmer",
+  // "Barrierefreiheit" bleibt als generische Angabe erhalten (bereits
+  // gepflegte Bestandsdaten sollen weiter filterbar sein) - die drei
+  // folgenden sind zusätzliche, konkretere Angaben für eine echte
+  // Barrierefreiheits-Suche statt nur einer pauschalen Checkbox.
   "Barrierefreiheit",
+  "Rollstuhlgerecht",
+  "Barrierefreies Bad",
+  "Aufzug vorhanden",
   "Garten",
   "Cafeteria",
   "Friseursalon",

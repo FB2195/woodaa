@@ -26,6 +26,17 @@ import { pflegegradOptions } from "@/lib/pflegegradLabels";
 import { sortOptions } from "@/lib/sortLabels";
 import { trpc } from "@/lib/trpc";
 
+// Subset of AMENITY_OPTIONS (@woodaa/validators) surfaced as a dedicated
+// quick filter - the full amenity list isn't ported to mobile search yet
+// (only used for display, see lib/amenityIcons.tsx), but accessibility is
+// common enough to search for that it gets its own section.
+const ACCESSIBILITY_AMENITIES = [
+  "Barrierefreiheit",
+  "Rollstuhlgerecht",
+  "Barrierefreies Bad",
+  "Aufzug vorhanden",
+];
+
 const radiusOptions = [
   { value: 10, label: "10 km Umkreis" },
   { value: 25, label: "25 km Umkreis" },
@@ -68,6 +79,13 @@ export default function SearchScreen() {
   const [weekdays, setWeekdays] = useState<Weekday[]>([]);
   const [hoursPerDay, setHoursPerDay] = useState("");
   const [onlyAvailable, setOnlyAvailable] = useState(true);
+  const [amenities, setAmenities] = useState<string[]>([]);
+
+  function toggleAmenity(amenity: string) {
+    setAmenities((current) =>
+      current.includes(amenity) ? current.filter((a) => a !== amenity) : [...current, amenity],
+    );
+  }
 
   function toggleWeekday(day: Weekday) {
     setWeekdays((current) =>
@@ -103,6 +121,7 @@ export default function SearchScreen() {
         ? hoursPerDayNumber
         : undefined,
     onlyAvailable,
+    amenities: amenities.length ? amenities : undefined,
   });
 
   // Mirrors apps/web's separate "/" vs "/suche" split: before any filter is
@@ -198,7 +217,11 @@ export default function SearchScreen() {
         </View>
 
         {bookingType === "STATIONAERE_AUFNAHME" && (
-          <DateField label="Verfügbar ab" value={availableFromDate} onChange={setAvailableFromDate} />
+          <DateField
+            label="Verfügbar ab"
+            value={availableFromDate}
+            onChange={setAvailableFromDate}
+          />
         )}
 
         {bookingType === "KURZZEITPFLEGE" &&
@@ -343,6 +366,34 @@ export default function SearchScreen() {
               onChange={setPflegegrad}
             />
             <SelectField label="Sortierung" value={sort} options={sortOptions} onChange={setSort} />
+            <View className="gap-1">
+              <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
+                Barrierefreiheit
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {ACCESSIBILITY_AMENITIES.map((amenity) => (
+                  <Pressable
+                    key={amenity}
+                    onPress={() => toggleAmenity(amenity)}
+                    className={`active:opacity-70 rounded-brand-full border px-3 py-1.5 ${
+                      amenities.includes(amenity)
+                        ? "border-brand-accent bg-brand-accent"
+                        : "border-brand-border dark:border-brand-border-dark"
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs font-medium ${
+                        amenities.includes(amenity)
+                          ? "text-white"
+                          : "text-brand-text dark:text-brand-text-dark"
+                      }`}
+                    >
+                      {amenity}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
           </View>
         )}
       </View>
