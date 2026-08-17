@@ -17,7 +17,7 @@ import {
   RequestKostenuebernahmeUploadInput,
 } from "@woodaa/validators";
 import { z } from "zod";
-import { cancelBooking, createBooking } from "../availability";
+import { cancelBooking, createBooking, isWithinFreeCancellationWindow } from "../availability";
 import { encryptSecret } from "../crypto";
 import {
   resolveBookingRecipient,
@@ -37,6 +37,39 @@ import {
 } from "../r2";
 import { refundBookingPayment, stripeClient } from "../stripe";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
+
+// Shared by both customer-initiated cancel mutations below - refunds only
+// when the cancellation still falls inside the facility's advertised free-
+// cancellation window (see isWithinFreeCancellationWindow). Past that
+// window the booking still gets cancelled/the unit released, just without
+// a refund - the payment stays captured in woodaa's own Stripe account
+// (there's no per-facility payout/Stripe Connect split here), so a
+// withheld cancellation fee doesn't automatically reach the facility.
+async function refundIfWithinCancellationPolicy(
+  db: Parameters<typeof refundBookingPayment>[0],
+  booking: Parameters<typeof refundBookingPayment>[1] & {
+    facilityId: string;
+    bookingType: BookingType;
+    startDate: Date | null;
+    desiredStartDate: Date | null;
+    createdAt: Date;
+    cancelledAt: Date | null;
+  },
+) {
+  const facility = await db.facility.findUnique({
+    where: { id: booking.facilityId },
+    select: { cancellationPolicyDays: true },
+  });
+  if (
+    isWithinFreeCancellationWindow(
+      booking,
+      facility?.cancellationPolicyDays ?? null,
+      booking.cancelledAt ?? new Date(),
+    )
+  ) {
+    await refundBookingPayment(db, booking);
+  }
+}
 
 // The exact shape returned by myBookings' `select` below - explicit rather
 // than a full `Booking &`, since (unlike e.g. AdminPendingBookingApproval)
@@ -67,6 +100,7 @@ export type MyBooking = {
     street: string;
     postalCode: string;
     city: string;
+    cancellationPolicyDays: number | null;
     photos: { url: string | null; category: PhotoCategory | null }[];
   };
 };
@@ -352,6 +386,7 @@ export const bookingRouter = router({
             street: true,
             postalCode: true,
             city: true,
+            cancellationPolicyDays: true,
             photos: { take: 1, orderBy: { createdAt: "asc" } },
           },
         },
@@ -374,7 +409,7 @@ export const bookingRouter = router({
       const booking = await cancelBooking(ctx.db, input.bookingId, {
         requireUserId: ctx.user.id,
       });
-      await refundBookingPayment(ctx.db, booking);
+      await refundIfWithinCancellationPolicy(ctx.db, booking);
       return booking;
     }),
 
@@ -387,13 +422,7 @@ export const bookingRouter = router({
     const booking = await cancelBooking(ctx.db, input.bookingId, {
       requireGuestEmail: input.guestEmail,
     });
-    // Volle Rückerstattung bei jeder Stornierung, unabhängig vom Storno-
-    // Hinweistext im Buchungsformular (generisch oder Facility.
-    // cancellationPolicyDays, falls die Einrichtung eine Frist hinterlegt
-    // hat - siehe dort) - eine anteilige Stornogebühr bei später Stornierung
-    // durchzusetzen bräuchte eine separate Abbuchung, die es in diesem MVP
-    // noch nicht gibt (siehe BookingForm.tsx).
-    await refundBookingPayment(ctx.db, booking);
+    await refundIfWithinCancellationPolicy(ctx.db, booking);
     return booking;
   }),
 });

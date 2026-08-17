@@ -156,8 +156,10 @@ export function BookingForm({
   capacities: Capacity[];
   profile: Profile;
   // null = Einrichtung hat keine Angabe gemacht - dann generischer Text statt
-  // eines konkreten Fristwerts. Rein informativ: cancelBooking erstattet
-  // immer voll, unabhängig von dieser Frist (siehe der Kommentar dort).
+  // eines konkreten Fristwerts (siehe cancellationDaysLabel unten). Wird
+  // von cancelBooking/myCancel tatsächlich durchgesetzt (siehe
+  // isWithinFreeCancellationWindow in availability.ts) - kein rein
+  // informativer Text mehr.
   cancellationPolicyDays: number | null;
 }) {
   const [bookingType, setBookingType] = useState<BookingType | undefined>(

@@ -5,6 +5,7 @@ import { KostenuebernahmeUpload } from "@/components/booking/KostenuebernahmeUpl
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { bookingTypeLabels } from "@/lib/bookingTypeLabels";
 import { facilityApprovalLabels, paymentStatusLabels } from "@/lib/bookingStatusLabels";
+import { isWithinFreeCancellationWindow } from "@/lib/cancellationPolicy";
 import { formatDate } from "@/lib/format";
 import { paymentMethodLabels } from "@/lib/paymentMethodLabels";
 import { pflegegradLabels } from "@/lib/pflegegradLabels";
@@ -75,6 +76,13 @@ export default function BookingDetailScreen() {
   const coverPhoto = resolvePhotoUrl(booking.facility.photos[0]?.url);
   const guestName =
     booking.guestFirstName && `${booking.guestFirstName} ${booking.guestLastName ?? ""}`.trim();
+
+  // Reine Vorschau fürs UI (siehe cancellationPolicy.ts) - der Server
+  // entscheidet in booking.myCancel unabhängig davon, was hier angezeigt wird.
+  const refundEligible =
+    booking.paymentStatus === "BEZAHLT"
+      ? isWithinFreeCancellationWindow(booking, booking.facility.cancellationPolicyDays, new Date())
+      : null;
 
   async function handleCancel() {
     setError(null);
@@ -160,7 +168,9 @@ export default function BookingDetailScreen() {
                 value={pflegegradLabels[booking.pflegegrad as 0 | 1 | 2 | 3 | 4 | 5]}
               />
             )}
-            {booking.krankenkasse && <DetailRow label="Krankenkasse" value={booking.krankenkasse} />}
+            {booking.krankenkasse && (
+              <DetailRow label="Krankenkasse" value={booking.krankenkasse} />
+            )}
             {booking.paymentMethod && (
               <DetailRow label="Zahlungsart" value={paymentMethodLabels[booking.paymentMethod]} />
             )}
@@ -194,17 +204,32 @@ export default function BookingDetailScreen() {
           {!isCancelled && (
             <View className="border-t border-brand-border pt-4 dark:border-brand-border-dark">
               {confirmingCancel ? (
-                <View className="flex-row gap-2">
-                  <PrimaryButton
-                    label={cancel.isPending ? "Storniere…" : "Wirklich stornieren"}
-                    loading={cancel.isPending}
-                    onPress={handleCancel}
-                  />
-                  <PrimaryButton
-                    label="Zurück"
-                    variant="secondary"
-                    onPress={() => setConfirmingCancel(false)}
-                  />
+                <View>
+                  {refundEligible !== null && (
+                    <Text
+                      className={`mb-2 text-sm ${
+                        refundEligible
+                          ? "text-brand-text-muted dark:text-brand-text-muted-dark"
+                          : "font-medium text-red-600 dark:text-red-400"
+                      }`}
+                    >
+                      {refundEligible
+                        ? "Deine Zahlung wird bei Stornierung vollständig erstattet."
+                        : "Die kostenlose Stornofrist ist abgelaufen - bei einer Stornierung jetzt bekommst du dein Geld nicht zurück."}
+                    </Text>
+                  )}
+                  <View className="flex-row gap-2">
+                    <PrimaryButton
+                      label={cancel.isPending ? "Storniere…" : "Wirklich stornieren"}
+                      loading={cancel.isPending}
+                      onPress={handleCancel}
+                    />
+                    <PrimaryButton
+                      label="Zurück"
+                      variant="secondary"
+                      onPress={() => setConfirmingCancel(false)}
+                    />
+                  </View>
                 </View>
               ) : (
                 <PrimaryButton

@@ -554,6 +554,45 @@ export async function cancelBooking(
   return updated;
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Whether a *customer-initiated* cancellation (booking.cancel/myCancel -
+// never operator/admin-initiated cancellations, which always refund in
+// full since the customer isn't at fault there, see refundBookingPayment's
+// call sites) still falls inside the facility's advertised free-
+// cancellation window (Facility.cancellationPolicyDays, shown to the user
+// as "Bis X Tage vorher kostenlos" in BookingForm.tsx). No policy on file
+// (null) preserves the previous always-refund behaviour rather than
+// silently defaulting to some assumed deadline.
+//
+// Reference date is the start of the actual stay: `startDate` for the
+// date-ranged types (KURZZEITPFLEGE/TAGESPFLEGE/NACHTPFLEGE), or
+// `desiredStartDate` for STATIONAERE_AUFNAHME - falling back to
+// `createdAt` (no free window) when that's unset, matching this booking
+// type's "occupies the unit indefinitely from creation" semantics: there
+// is no future move-in date to count down to, so cancelling counts as
+// immediate.
+export function isWithinFreeCancellationWindow(
+  booking: {
+    bookingType: BookingType;
+    startDate: Date | null;
+    desiredStartDate: Date | null;
+    createdAt: Date;
+  },
+  cancellationPolicyDays: number | null,
+  now: Date,
+): boolean {
+  if (cancellationPolicyDays === null) return true;
+  const referenceDate =
+    booking.bookingType === "STATIONAERE_AUFNAHME"
+      ? (booking.desiredStartDate ?? booking.createdAt)
+      : (booking.startDate ?? booking.createdAt);
+  const daysUntilStart = Math.round(
+    (startOfDay(referenceDate).getTime() - startOfDay(now).getTime()) / MS_PER_DAY,
+  );
+  return daysUntilStart >= cancellationPolicyDays;
+}
+
 // Provisions/deprovisions anonymous units to match `desiredTotal`. Removing
 // units only ever deletes ones with zero active bookings (past, present, or
 // future) - deleting a unit cascades onto its Booking rows, so one with a

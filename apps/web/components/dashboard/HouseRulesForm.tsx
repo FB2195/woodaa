@@ -101,8 +101,9 @@ export function HouseRulesForm({ houseRules }: { houseRules: HouseRules }) {
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
         <span className="text-xs text-brand-text-muted">
-          Leer lassen für „keine Angabe". Ändert nichts an der tatsächlichen Erstattung - eine
-          Stornierung wird derzeit immer vollständig erstattet, unabhängig vom Zeitpunkt.
+          Leer lassen für „keine Angabe" (dann wird bei einer Storno-Zahlung immer vollständig
+          erstattet). Mit einer hinterlegten Frist gilt: storniert die/der Suchende innerhalb dieser
+          Frist vor dem Anreisedatum, erfolgt keine Rückerstattung der Zahlung mehr.
         </span>
       </label>
 
