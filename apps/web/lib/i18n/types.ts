@@ -85,6 +85,7 @@ export type Messages = {
     deleteAccount: string;
     bookingsAndCare: string;
     myBookings: string;
+    messages: string;
     requestCareBenefits: string;
     authorizedRepresentative: string;
     savedSearches: string;

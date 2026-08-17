@@ -11,6 +11,7 @@ import {
   HeartPulseIcon,
   HelpCircleIcon,
   LockIcon,
+  MessageIcon,
   PersonIcon,
   ShieldIcon,
   TrashIcon,
@@ -104,7 +105,13 @@ export default function AccountScreen() {
     { href: "/konto/favoriten", label: "Favoriten", icon: <HeartPulseIcon /> },
     { href: "/konto/persoenliche-angaben", label: "Persönliche Angaben", icon: <PersonIcon /> },
     ...(user.role !== "ADMIN"
-      ? [{ href: "/konto/sicherheit" as const, label: "Sicherheitseinstellungen", icon: <LockIcon /> }]
+      ? [
+          {
+            href: "/konto/sicherheit" as const,
+            label: "Sicherheitseinstellungen",
+            icon: <LockIcon />,
+          },
+        ]
       : []),
     ...(user.role !== "ADMIN"
       ? [{ href: "/konto/konto-loeschen" as const, label: "Konto löschen", icon: <TrashIcon /> }]
@@ -115,6 +122,7 @@ export default function AccountScreen() {
     user.role === "SUCHENDE"
       ? [
           { href: "/(tabs)/buchungen", label: "Meine Buchungen", icon: <CalendarIcon /> },
+          { href: "/konto/nachrichten", label: "Nachrichten", icon: <MessageIcon /> },
           {
             href: "/konto/pflegeleistungen",
             label: "Pflegeleistungen beantragen",

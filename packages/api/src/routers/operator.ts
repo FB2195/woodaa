@@ -4,6 +4,7 @@ import {
   BookingPaymentApprovalInput,
   CancelBookingInput,
   ConfirmPhotoUploadInput,
+  ConversationIdInput,
   CreateFacilityInput,
   CreateEmployeeInput,
   CreateFacilityTaskInput,
@@ -13,6 +14,7 @@ import {
   MAX_FACILITY_PHOTOS,
   MAX_PHOTO_BYTES,
   RenameUnitInput,
+  ReplyToConversationInput,
   ReplyToReviewInput,
   RequestFacilityChangeInput,
   RequestPhotoUploadInput,
@@ -25,7 +27,11 @@ import {
 } from "@woodaa/validators";
 import { z } from "zod";
 import { cancelBooking, createBooking, setUnitCount } from "../availability";
-import { resolveBookingRecipient, sendBookingFacilityDecisionEmail } from "../email";
+import {
+  resolveBookingRecipient,
+  sendBookingFacilityDecisionEmail,
+  sendUserNewMessageEmail,
+} from "../email";
 import { sendPushNotification } from "../push";
 import { createFacilityForOperator } from "../lib/facility";
 import { cheapestMonthlyEquivalentCents } from "../pricing";
@@ -574,6 +580,105 @@ export const operatorRouter = router({
       data: { operatorReply: input.reply, operatorRepliedAt: new Date() },
     });
   }),
+
+  // Inbox list for the "message the facility" feature (see Conversation in
+  // schema.prisma) - one row per searching user who has ever messaged this
+  // facility, newest activity first.
+  conversations: operatorProcedure.query(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    const conversations = await ctx.db.conversation.findMany({
+      where: { facilityId: facility.id },
+      orderBy: { lastMessageAt: "desc" },
+      select: {
+        id: true,
+        lastMessageAt: true,
+        facilityLastReadAt: true,
+        user: { select: { name: true } },
+        messages: { orderBy: { createdAt: "desc" }, take: 1 },
+      },
+    });
+    return conversations.map((c) => ({
+      id: c.id,
+      lastMessageAt: c.lastMessageAt,
+      user: c.user,
+      lastMessage: c.messages[0] ?? null,
+      unread:
+        c.messages[0]?.senderIsFacility === false &&
+        (c.facilityLastReadAt === null || c.facilityLastReadAt < c.lastMessageAt),
+    }));
+  }),
+
+  conversation: operatorProcedure.input(ConversationIdInput).query(async ({ ctx, input }) => {
+    const facility = await requireOwnFacility(ctx);
+    const conversation = await ctx.db.conversation.findUnique({
+      where: { id: input.conversationId },
+      include: {
+        user: { select: { name: true } },
+        messages: { orderBy: { createdAt: "asc" } },
+      },
+    });
+    if (!conversation || conversation.facilityId !== facility.id) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Unterhaltung nicht gefunden." });
+    }
+    return conversation;
+  }),
+
+  replyToConversation: operatorProcedure
+    .input(ReplyToConversationInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+        include: { user: { select: { id: true, name: true, email: true } } },
+      });
+      if (!conversation || conversation.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Unterhaltung nicht gefunden." });
+      }
+
+      const now = new Date();
+      const [message] = await ctx.db.$transaction([
+        ctx.db.message.create({
+          data: { conversationId: conversation.id, senderIsFacility: true, body: input.body },
+        }),
+        ctx.db.conversation.update({
+          where: { id: conversation.id },
+          data: { lastMessageAt: now, facilityLastReadAt: now },
+        }),
+      ]);
+
+      // Best-effort, same "never block the mutation" treatment as every
+      // other notification call site (see sendPushNotification's comment).
+      try {
+        await sendUserNewMessageEmail({
+          to: conversation.user.email,
+          recipientName: conversation.user.name,
+          facilityName: facility.name,
+          facilitySlug: facility.slug,
+          body: input.body,
+        });
+      } catch (err) {
+        console.error("sendUserNewMessageEmail failed", err);
+      }
+      await sendPushNotification(
+        ctx.db,
+        conversation.user.id,
+        `Neue Antwort von ${facility.name}`,
+        input.body,
+        { conversationId: conversation.id },
+      );
+
+      return message;
+    }),
+
+  markConversationRead: operatorProcedure
+    .input(ConversationIdInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      await ctx.db.conversation.updateMany({
+        where: { id: input.conversationId, facilityId: facility.id },
+        data: { facilityLastReadAt: new Date() },
+      });
+    }),
 
   removePhoto: operatorProcedure
     .input(z.object({ id: z.string().min(1) }))

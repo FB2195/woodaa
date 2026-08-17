@@ -94,6 +94,7 @@ export const en: Messages = {
     deleteAccount: "Delete account",
     bookingsAndCare: "My bookings & care",
     myBookings: "My bookings",
+    messages: "Messages",
     requestCareBenefits: "Apply for care benefits",
     authorizedRepresentative: "Authorized representative",
     savedSearches: "Saved searches",

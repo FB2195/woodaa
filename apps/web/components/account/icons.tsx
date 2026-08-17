@@ -169,6 +169,14 @@ export function CalculatorIcon() {
   );
 }
 
+export function MessageIcon() {
+  return base(
+    <>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 5h16v11H8l-4 4V5z" />
+    </>,
+  );
+}
+
 export function LogOutIcon() {
   return base(
     <>

@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { AskFacilityQuestion } from "@/components/AskFacilityQuestion";
 import { FacilityAmenities } from "@/components/FacilityAmenities";
 import { FacilityAvailability } from "@/components/FacilityAvailability";
 import { FacilityBookingBar } from "@/components/FacilityBookingBar";
@@ -85,10 +86,13 @@ export default function FacilityDetailScreen() {
                   <View className="mt-1.5 flex-row items-center gap-2">
                     <StarRating rating={facility.avgRating ?? 0} size="sm" />
                     <Text className="text-sm font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
-                      {(facility.avgRating ?? 0).toLocaleString("de-DE", { maximumFractionDigits: 1 })}
+                      {(facility.avgRating ?? 0).toLocaleString("de-DE", {
+                        maximumFractionDigits: 1,
+                      })}
                     </Text>
                     <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-                      ({facility.reviewCount} {facility.reviewCount === 1 ? "Bewertung" : "Bewertungen"})
+                      ({facility.reviewCount}{" "}
+                      {facility.reviewCount === 1 ? "Bewertung" : "Bewertungen"})
                     </Text>
                   </View>
                 )}
@@ -154,6 +158,8 @@ export default function FacilityDetailScreen() {
               petsPolicy={facility.petsPolicy}
               cancellationPolicyDays={facility.cancellationPolicyDays}
             />
+
+            <AskFacilityQuestion facilityId={facility.id} facilityName={facility.name} />
 
             <Text className="border-t border-brand-border pt-4 text-sm text-brand-text-muted dark:border-brand-border-dark dark:text-brand-text-muted-dark">
               Verwaltet von {facility.operatorName}

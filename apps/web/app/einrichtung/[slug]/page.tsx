@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { notFound } from "next/navigation";
+import { AskFacilityQuestion } from "@/components/AskFacilityQuestion";
 import { BookingSidebar } from "@/components/BookingSidebar";
 import { FacilityAmenities } from "@/components/FacilityAmenities";
 import { FacilityAvailability } from "@/components/FacilityAvailability";
@@ -64,8 +65,7 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
                 {facility.avgRating!.toLocaleString("de-DE", { maximumFractionDigits: 1 })}
               </span>
               <span className="text-sm text-brand-text-muted">
-                ({facility.reviewCount}{" "}
-                {facility.reviewCount === 1 ? "Bewertung" : "Bewertungen"})
+                ({facility.reviewCount} {facility.reviewCount === 1 ? "Bewertung" : "Bewertungen"})
               </span>
             </div>
           )}
@@ -125,6 +125,10 @@ export default async function FacilityPage({ params }: FacilityPageProps) {
             petsPolicy={facility.petsPolicy}
             cancellationPolicyDays={facility.cancellationPolicyDays}
           />
+
+          <div className="mt-8">
+            <AskFacilityQuestion facilityId={facility.id} facilityName={facility.name} />
+          </div>
 
           <p className="mt-10 border-t border-brand-border pt-4 text-sm text-brand-text-muted">
             Verwaltet von {facility.operatorName}

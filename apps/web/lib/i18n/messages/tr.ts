@@ -92,6 +92,7 @@ export const tr: Messages = {
     deleteAccount: "Hesabı sil",
     bookingsAndCare: "Rezervasyonlarım ve bakım",
     myBookings: "Rezervasyonlarım",
+    messages: "Mesajlar",
     requestCareBenefits: "Bakım hizmeti başvurusu yap",
     authorizedRepresentative: "Yetkili yakın",
     savedSearches: "Kayıtlı aramalar",

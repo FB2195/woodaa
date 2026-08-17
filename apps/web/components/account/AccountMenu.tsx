@@ -13,6 +13,7 @@ import {
   HelpCircleIcon,
   HomeIcon,
   LockIcon,
+  MessageIcon,
   PersonIcon,
   ShieldIcon,
   SmartphoneIcon,
@@ -86,6 +87,7 @@ export async function AccountMenu({ role }: { role: "SUCHENDE" | "BETREIBER" | "
     role === "SUCHENDE"
       ? [
           { href: "/konto/buchungen", label: t("myBookings"), icon: <CalendarIcon /> },
+          { href: "/konto/nachrichten", label: t("messages"), icon: <MessageIcon /> },
           {
             href: "/konto/pflegeleistungen",
             label: t("requestCareBenefits"),

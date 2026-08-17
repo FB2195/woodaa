@@ -726,3 +726,30 @@ export const BookingPaymentApprovalInput = z.object({
   bookingId: z.string().min(1),
 });
 export type BookingPaymentApprovalInput = z.infer<typeof BookingPaymentApprovalInput>;
+
+// Same length cap as Review.comment-style free text elsewhere - long enough
+// for a real question, short enough to stay a message and not an essay.
+const MESSAGE_BODY = z.string().trim().min(1).max(2000);
+
+// message.send - starts a new Conversation for (facilityId, ctx.user.id) if
+// none exists yet, otherwise appends to the existing one (see Conversation's
+// @@unique in schema.prisma).
+export const SendMessageInput = z.object({
+  facilityId: z.string().min(1),
+  body: MESSAGE_BODY,
+});
+export type SendMessageInput = z.infer<typeof SendMessageInput>;
+
+// message.conversation / message.markRead and the operator-side
+// equivalents in operator.ts - identifies one thread.
+export const ConversationIdInput = z.object({
+  conversationId: z.string().min(1),
+});
+export type ConversationIdInput = z.infer<typeof ConversationIdInput>;
+
+// operator.replyToConversation
+export const ReplyToConversationInput = z.object({
+  conversationId: z.string().min(1),
+  body: MESSAGE_BODY,
+});
+export type ReplyToConversationInput = z.infer<typeof ReplyToConversationInput>;

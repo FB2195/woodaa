@@ -6,6 +6,7 @@ import { BookingApprovals } from "./BookingApprovals";
 import { CategoryPanel } from "./CategoryPanel";
 import { FacilityContactForm } from "./FacilityContactForm";
 import { HouseRulesForm } from "./HouseRulesForm";
+import { OperatorConversations } from "./OperatorConversations";
 import { OperatorReviews } from "./OperatorReviews";
 import { PaymentApprovals } from "./PaymentApprovals";
 import { PflegegradSuitabilityForm } from "./PflegegradSuitabilityForm";
@@ -90,6 +91,8 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
       />
 
       <AmenitiesEditor amenities={facility.amenities} />
+
+      <OperatorConversations />
 
       <BookingApprovals bookings={facility.units.flatMap((u) => u.bookings)} />
 

@@ -245,6 +245,7 @@ model User {
   reviews                      Review[]
   supportRequests              SupportRequest[]
   pushTokens                   PushToken[]
+  conversations                Conversation[]
   createdAt                    DateTime               @default(now())
 }
 
@@ -421,6 +422,7 @@ model Facility {
   favoritedBy            Favorite[]
   photos                 FacilityPhoto[]
   reviews                Review[]
+  conversations          Conversation[]
   changeRequests         FacilityChangeRequest[]
   tasks                  FacilityTask[]
   handoverNotes          HandoverNote[]
@@ -849,6 +851,50 @@ model Review {
 
   @@unique([facilityId, userId])
   @@index([facilityId])
+}
+
+// One message thread per (facility, searching user) pair - not a general-
+// purpose multi-topic inbox, matches Booking.com's "message the host"
+// model: a family asks a question before booking (or follows up on an
+// existing one), the facility replies, all in the same thread. Started by
+// the user only (message.send) - a facility can reply but never opens a
+// thread cold, same reasoning as BookingRequest/WaitlistEntry not needing a
+// facility-initiated variant.
+model Conversation {
+  id         String    @id @default(cuid())
+  facility   Facility  @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  createdAt  DateTime  @default(now())
+  // Bumped on every new message (either side) - what both inbox lists
+  // (message.myConversations / operator.conversations) sort by.
+  lastMessageAt      DateTime  @default(now())
+  // Simple "last seen" markers rather than per-message read receipts -
+  // enough to compute an unread badge/count (any message from the other
+  // side newer than this) without a read-state row per message.
+  userLastReadAt     DateTime?
+  facilityLastReadAt DateTime?
+  messages   Message[]
+
+  @@unique([facilityId, userId])
+  @@index([facilityId, lastMessageAt])
+  @@index([userId, lastMessageAt])
+}
+
+model Message {
+  id               String       @id @default(cuid())
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId   String
+  // true = the facility/operator sent it, false = the searching user did -
+  // enough to render/attribute the message; no separate senderUserId since
+  // there's exactly one login per facility (see ResidentNote's comment) and
+  // the user side of a Conversation is already unambiguous via userId above.
+  senderIsFacility Boolean
+  body             String
+  createdAt        DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 model BookingRequest {

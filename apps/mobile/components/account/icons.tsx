@@ -6,16 +6,12 @@ import { Text } from "react-native";
 // Text-Glyphen in derselben Größe/Farbe wie die Web-Icons.
 function base(glyph: string) {
   return (
-    <Text className="text-base text-brand-text-muted dark:text-brand-text-muted-dark">
-      {glyph}
-    </Text>
+    <Text className="text-base text-brand-text-muted dark:text-brand-text-muted-dark">{glyph}</Text>
   );
 }
 
 export function ChevronRightIcon() {
-  return (
-    <Text className="text-base text-brand-text-muted dark:text-brand-text-muted-dark">›</Text>
-  );
+  return <Text className="text-base text-brand-text-muted dark:text-brand-text-muted-dark">›</Text>;
 }
 
 export function PersonIcon() {
@@ -60,4 +56,8 @@ export function ShieldIcon() {
 
 export function CalculatorIcon() {
   return base("🧮");
+}
+
+export function MessageIcon() {
+  return base("💬");
 }

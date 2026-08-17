@@ -730,3 +730,88 @@ Alle Treffer für diese Suche: ${searchUrl}
 Gespeicherte Suchen verwaltest du in deinem woodaa-Konto.`,
   });
 }
+
+// message.send - a searching user asked a facility a question (or followed
+// up on an existing thread). Only sent to facility.operator's own login
+// email (same as sendOperatorNewBookingEmail), so silently skipped by the
+// caller for facilities without a linked operator account.
+export async function sendOperatorNewMessageEmail({
+  to,
+  operatorName,
+  senderName,
+  facilityName,
+  body,
+}: {
+  to: string;
+  operatorName: string;
+  senderName: string;
+  facilityName: string;
+  body: string;
+}) {
+  const dashboardUrl = `${appUrl()}/betreiber/dashboard`;
+  const safeOperatorName = escapeHtml(operatorName);
+  const safeSenderName = escapeHtml(senderName);
+  const safeFacilityName = escapeHtml(facilityName);
+  const safeBody = escapeHtml(body).replace(/\n/g, "<br />");
+
+  await sendEmail({
+    to,
+    subject: `Neue Nachricht von ${senderName} zu ${facilityName}`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${safeOperatorName},</p>
+      <p><strong>${safeSenderName}</strong> hat dir über woodaa eine Nachricht zu
+      <strong>${safeFacilityName}</strong> geschickt:</p>
+      <blockquote style="margin:0;padding:12px 16px;border-left:3px solid #ccc;color:#333">${safeBody}</blockquote>
+      <p>Antworten kannst du direkt in deinem woodaa-Dashboard: <a href="${dashboardUrl}">${dashboardUrl}</a></p>
+    `,
+    text: `Hallo ${operatorName},
+
+${senderName} hat dir über woodaa eine Nachricht zu ${facilityName} geschickt:
+
+"${body}"
+
+Antworten kannst du direkt in deinem woodaa-Dashboard: ${dashboardUrl}`,
+  });
+}
+
+// operator.replyToConversation - the facility answered a question. Push
+// (see sendPushNotification) covers mobile app users; this covers everyone
+// else (and doubles as a record in the user's inbox for app users too).
+export async function sendUserNewMessageEmail({
+  to,
+  recipientName,
+  facilityName,
+  facilitySlug,
+  body,
+}: {
+  to: string;
+  recipientName: string;
+  facilityName: string;
+  facilitySlug: string;
+  body: string;
+}) {
+  const conversationUrl = `${appUrl()}/einrichtung/${facilitySlug}`;
+  const safeRecipientName = escapeHtml(recipientName);
+  const safeFacilityName = escapeHtml(facilityName);
+  const safeBody = escapeHtml(body).replace(/\n/g, "<br />");
+
+  await sendEmail({
+    to,
+    subject: `Neue Antwort von ${facilityName}`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${safeRecipientName},</p>
+      <p><strong>${safeFacilityName}</strong> hat dir über woodaa geantwortet:</p>
+      <blockquote style="margin:0;padding:12px 16px;border-left:3px solid #ccc;color:#333">${safeBody}</blockquote>
+      <p>Die ganze Unterhaltung findest du in deinem woodaa-Konto: <a href="${conversationUrl}">${conversationUrl}</a></p>
+    `,
+    text: `Hallo ${recipientName},
+
+${facilityName} hat dir über woodaa geantwortet:
+
+"${body}"
+
+Die ganze Unterhaltung findest du in deinem woodaa-Konto: ${conversationUrl}`,
+  });
+}
