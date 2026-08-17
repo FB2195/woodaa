@@ -26,6 +26,7 @@ import {
 import { z } from "zod";
 import { cancelBooking, createBooking, setUnitCount } from "../availability";
 import { resolveBookingRecipient, sendBookingFacilityDecisionEmail } from "../email";
+import { sendPushNotification } from "../push";
 import { createFacilityForOperator } from "../lib/facility";
 import { cheapestMonthlyEquivalentCents } from "../pricing";
 import {
@@ -399,6 +400,13 @@ export const operatorRouter = router({
           bookingType: booking.bookingType,
           decision: "BESTAETIGT",
         });
+        await sendPushNotification(
+          ctx.db,
+          booking.user.id,
+          "Buchung bestätigt",
+          `Deine Buchung bei ${facility.name} wurde bestätigt.`,
+          { bookingId: booking.id },
+        );
       }
       return updated;
     }),

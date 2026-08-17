@@ -7,6 +7,7 @@ import { careApplicationRouter } from "./routers/careApplication";
 import { facilityRouter } from "./routers/facility";
 import { favoriteRouter } from "./routers/favorite";
 import { operatorRouter } from "./routers/operator";
+import { pushTokenRouter } from "./routers/pushToken";
 import { reviewRouter } from "./routers/review";
 import { savedSearchRouter } from "./routers/savedSearch";
 import { supportRouter } from "./routers/support";
@@ -37,6 +38,7 @@ export const appRouter = router({
   support: supportRouter,
   waitlist: waitlistRouter,
   savedSearch: savedSearchRouter,
+  pushToken: pushTokenRouter,
 });
 
 export type AppRouter = typeof appRouter;

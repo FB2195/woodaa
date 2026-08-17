@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { AppSplashOverlay } from "@/components/AppSplashOverlay";
+import { PushNotificationRegistrar } from "@/components/PushNotificationRegistrar";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { stripePublishableKey } from "@/lib/stripeConfig";
 import { loadInitialTheme } from "@/lib/themeStore";
@@ -37,7 +38,15 @@ function AppGate({
   if (authLoading || !themeReady || !minTimeElapsed) {
     return <AppSplashOverlay />;
   }
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {/* Only mounts once the splash gate has passed - registering for
+          push notifications is native-module work, kept away from the
+          fragile cold-start path (see MIN_SPLASH_MS comment above). */}
+      <PushNotificationRegistrar />
+    </>
+  );
 }
 
 export default function RootLayout() {

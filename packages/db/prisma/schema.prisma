@@ -244,7 +244,25 @@ model User {
   bookings                     Booking[]
   reviews                      Review[]
   supportRequests              SupportRequest[]
+  pushTokens                   PushToken[]
   createdAt                    DateTime               @default(now())
+}
+
+// Expo push tokens (one row per device/app install, not per user - the
+// same account can be signed in on several phones). Registered by the
+// mobile app after the user grants notification permission (see
+// pushToken.register); currently only used to notify when a booking
+// becomes confirmed (see sendPushNotification call sites in booking.ts/
+// webhooks.ts/operator.ts). Not used on web - browser push would be a
+// separate mechanism (Web Push API) not implemented here.
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // Per-booking-type tracking of whether a SUCHENDE has already applied for

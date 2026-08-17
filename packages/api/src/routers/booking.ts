@@ -26,6 +26,7 @@ import {
   sendOperatorNewBookingEmail,
 } from "../email";
 import { chargeAmountCents } from "../pricing";
+import { sendPushNotification } from "../push";
 import {
   createPresignedDownloadUrl,
   createPresignedUploadUrl,
@@ -184,6 +185,18 @@ export const bookingRouter = router({
         endDate: input.endDate ? new Date(input.endDate) : null,
         facilityApprovalRequired: facility.bookingApprovalMode === "MANUELL",
       });
+      // AUTOMATISCH: the booking is confirmed right away, same moment as
+      // the email above. MANUELL bookings only get their push once the
+      // facility actually confirms - see operator.ts confirmBooking.
+      if (facility.bookingApprovalMode !== "MANUELL") {
+        await sendPushNotification(
+          ctx.db,
+          user.id,
+          "Buchung bestätigt",
+          `Deine Buchung bei ${facility.name} wurde bestätigt.`,
+          { bookingId: booking.id },
+        );
+      }
     }
 
     // Betreiber-Benachrichtigung: nur wenn tatsächlich etwas von ihm/ihr

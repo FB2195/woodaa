@@ -6,6 +6,7 @@ import {
   sendBookingConfirmationEmail,
   sendBookingFacilityDecisionEmail,
 } from "./email";
+import { sendPushNotification } from "./push";
 import { refundBookingPayment, stripeClient, stripeWebhookSecret } from "./stripe";
 
 // Thin on purpose - the Next.js route (apps/web/app/api/webhooks/stripe)
@@ -50,6 +51,7 @@ export async function handleStripeWebhook(rawBody: string, signature: string): P
 
     if (!booking.user) return;
     const { to, recipientName } = resolveBookingRecipient(booking.user);
+    const facilityApprovalRequired = booking.facilityApprovalStatus === "AUSSTEHEND";
     await sendBookingConfirmationEmail({
       to,
       recipientName,
@@ -59,8 +61,20 @@ export async function handleStripeWebhook(rawBody: string, signature: string): P
       bookingType: booking.bookingType,
       startDate: booking.startDate,
       endDate: booking.endDate,
-      facilityApprovalRequired: booking.facilityApprovalStatus === "AUSSTEHEND",
+      facilityApprovalRequired,
     });
+    // AUTOMATISCH: payment succeeding is the last thing standing between
+    // this booking and being confirmed. MANUELL bookings still need the
+    // facility's sign-off - that push fires from operator.ts instead.
+    if (!facilityApprovalRequired) {
+      await sendPushNotification(
+        db,
+        booking.user.id,
+        "Buchung bestätigt",
+        `Deine Buchung bei ${booking.facility.name} wurde bestätigt.`,
+        { bookingId: booking.id },
+      );
+    }
     return;
   }
 
