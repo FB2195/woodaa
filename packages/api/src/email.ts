@@ -536,6 +536,101 @@ Bitte entscheide zeitnah in deinem woodaa-Dashboard: ${dashboardUrl}`,
   });
 }
 
+// bookingRequest.create - an unverbindliche Anfrage (kein Login, keine
+// Zahlung), im Unterschied zu sendOperatorNewBookingEmail für eine
+// verbindliche Buchung. Ohne diese Mail hätte der Betreiber keine
+// Möglichkeit zu erfahren, dass überhaupt eine Anfrage eingegangen ist.
+export async function sendOperatorNewBookingRequestEmail({
+  to,
+  operatorName,
+  requesterName,
+  facilityName,
+  bookingType,
+}: {
+  to: string;
+  operatorName: string;
+  requesterName: string;
+  facilityName: string;
+  bookingType: string;
+}) {
+  const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
+  const dashboardUrl = `${appUrl()}/betreiber/dashboard`;
+  const safeOperatorName = escapeHtml(operatorName);
+  const safeRequesterName = escapeHtml(requesterName);
+  const safeFacilityName = escapeHtml(facilityName);
+
+  await sendEmail({
+    to,
+    subject: `Neue Anfrage bei ${facilityName}: ${bookingTypeLabel}`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${safeOperatorName},</p>
+      <p>bei <strong>${safeFacilityName}</strong> ist eine unverbindliche Anfrage eingegangen:</p>
+      <ul>
+        <li>Leistung: ${bookingTypeLabel}</li>
+        <li>Von: ${safeRequesterName}</li>
+      </ul>
+      <p>Details und Kontaktdaten findest du in deinem woodaa-Dashboard:
+      <a href="${dashboardUrl}">${dashboardUrl}</a></p>
+    `,
+    text: `Hallo ${operatorName},
+
+bei ${facilityName} ist eine unverbindliche Anfrage eingegangen:
+
+Leistung: ${bookingTypeLabel}
+Von: ${requesterName}
+
+Details und Kontaktdaten findest du in deinem woodaa-Dashboard: ${dashboardUrl}`,
+  });
+}
+
+// Nachfass-Mail, falls eine Anfrage nach REMINDER_AFTER_HOURS (siehe
+// approvalEscalation.ts) immer noch auf status=OFFEN steht.
+export async function sendOperatorBookingRequestReminderEmail({
+  to,
+  operatorName,
+  requesterName,
+  facilityName,
+  bookingType,
+}: {
+  to: string;
+  operatorName: string;
+  requesterName: string;
+  facilityName: string;
+  bookingType: string;
+}) {
+  const bookingTypeLabel = bookingTypeLabels[bookingType] ?? bookingType;
+  const dashboardUrl = `${appUrl()}/betreiber/dashboard`;
+  const safeOperatorName = escapeHtml(operatorName);
+  const safeRequesterName = escapeHtml(requesterName);
+  const safeFacilityName = escapeHtml(facilityName);
+
+  await sendEmail({
+    to,
+    subject: `Erinnerung: Anfrage bei ${facilityName} wartet noch auf eine Antwort`,
+    html: `
+      ${logoHtml()}
+      <p>Hallo ${safeOperatorName},</p>
+      <p>eine Anfrage bei <strong>${safeFacilityName}</strong> wartet weiterhin auf eine Antwort:</p>
+      <ul>
+        <li>Leistung: ${bookingTypeLabel}</li>
+        <li>Von: ${safeRequesterName}</li>
+      </ul>
+      <p>Bitte melde dich zeitnah - Familien in dieser Situation entscheiden sich oft für die
+      Einrichtung, die zuerst antwortet. Details in deinem woodaa-Dashboard:
+      <a href="${dashboardUrl}">${dashboardUrl}</a></p>
+    `,
+    text: `Hallo ${operatorName},
+
+eine Anfrage bei ${facilityName} wartet weiterhin auf eine Antwort:
+
+Leistung: ${bookingTypeLabel}
+Von: ${requesterName}
+
+Bitte melde dich zeitnah - Familien in dieser Situation entscheiden sich oft für die Einrichtung, die zuerst antwortet. Details in deinem woodaa-Dashboard: ${dashboardUrl}`,
+  });
+}
+
 // Verschickt an die in ADMIN_NOTIFICATION_EMAIL hinterlegte woodaa-Adresse,
 // sobald eine Buchung von einem bevollmächtigten Account (siehe
 // User.vollmachtDocumentKey) auf die Freigabe durch woodaa-Mitarbeitende

@@ -932,6 +932,15 @@ model BookingRequest {
   desiredEnd     DateTime?
   status         BookingRequestStatus @default(OFFEN)
   createdAt      DateTime             @default(now())
+  // Same "bound how long this can sit unanswered" pattern as Booking.
+  // approvalReminderSentAt/approvalEscalatedAt - see
+  // escalateStaleBookingRequests in packages/api/src/approvalEscalation.ts.
+  // Both stay null on the happy path (operator marks it KONTAKTIERT/
+  // ABGESCHLOSSEN/ABGELEHNT in time) and whenever status isn't OFFEN.
+  reminderSentAt DateTime?
+  escalatedAt    DateTime?
+
+  @@index([facilityId, status])
 }
 
 // A lead-capture form, same public/no-login shape as BookingRequest above -

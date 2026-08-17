@@ -1,4 +1,4 @@
-import type { Booking, FacilityChangeRequest, User } from "@prisma/client";
+import type { Booking, BookingRequest, FacilityChangeRequest, User } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import type { Review } from "@woodaa/db";
 import { z } from "zod";
@@ -33,12 +33,20 @@ export type AdminPendingVollmacht = Pick<
 
 export type AdminPendingBookingApproval = Booking & {
   facility: { name: string; slug: string };
-  user: { name: string; email: string; vollmachtReviewStatus: User["vollmachtReviewStatus"] } | null;
+  user: {
+    name: string;
+    email: string;
+    vollmachtReviewStatus: User["vollmachtReviewStatus"];
+  } | null;
 };
 
 export type AdminFailedRefundBooking = Booking & { facility: { name: string; slug: string } };
 
 export type AdminEscalatedBooking = Booking & { facility: { name: string; slug: string } };
+
+export type AdminEscalatedBookingRequest = BookingRequest & {
+  facility: { name: string; slug: string };
+};
 
 export const adminRouter = router({
   pendingFacilities: adminProcedure.query(async ({ ctx }) => {
@@ -251,6 +259,20 @@ export const adminRouter = router({
         where: { approvalEscalatedAt: { not: null } },
         include: { facility: { select: { name: true, slug: true } } },
         orderBy: { approvalEscalatedAt: "desc" },
+      });
+    },
+  ),
+
+  // BookingRequests, die zu lange auf status=OFFEN stehen geblieben sind
+  // (siehe escalateStaleBookingRequests in
+  // packages/api/src/approvalEscalation.ts) - gleiches "nur Sichtbarkeit,
+  // keine eigene In-App-Aktion" Prinzip wie escalatedPendingApprovals oben.
+  escalatedBookingRequests: adminProcedure.query(
+    async ({ ctx }): Promise<AdminEscalatedBookingRequest[]> => {
+      return ctx.db.bookingRequest.findMany({
+        where: { escalatedAt: { not: null } },
+        include: { facility: { select: { name: true, slug: true } } },
+        orderBy: { escalatedAt: "desc" },
       });
     },
   ),

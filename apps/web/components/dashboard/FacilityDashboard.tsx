@@ -3,6 +3,7 @@ import type { FacilityWithOperatorDetails } from "@woodaa/api";
 import { AmenitiesEditor } from "./AmenitiesEditor";
 import { BookingApprovalModeForm } from "./BookingApprovalModeForm";
 import { BookingApprovals } from "./BookingApprovals";
+import { BookingRequests } from "./BookingRequests";
 import { CategoryPanel } from "./CategoryPanel";
 import { FacilityContactForm } from "./FacilityContactForm";
 import { HouseRulesForm } from "./HouseRulesForm";
@@ -93,6 +94,8 @@ export function FacilityDashboard({ facility }: { facility: Facility }) {
       <AmenitiesEditor amenities={facility.amenities} />
 
       <OperatorConversations />
+
+      <BookingRequests />
 
       <BookingApprovals bookings={facility.units.flatMap((u) => u.bookings)} />
 

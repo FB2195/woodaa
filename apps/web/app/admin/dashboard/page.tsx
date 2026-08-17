@@ -23,6 +23,7 @@ export default async function AdminDashboardPage() {
     pendingFacilityChanges,
     bookingsWithFailedRefunds,
     escalatedPendingApprovals,
+    escalatedBookingRequests,
   ] = await Promise.all([
     trpcServer.admin.pendingFacilities(),
     trpcServer.admin.activeFacilities(),
@@ -34,6 +35,7 @@ export default async function AdminDashboardPage() {
     trpcServer.admin.pendingFacilityChanges(),
     trpcServer.admin.bookingsWithFailedRefunds(),
     trpcServer.admin.escalatedPendingApprovals(),
+    trpcServer.admin.escalatedBookingRequests(),
   ]);
 
   return (
@@ -44,12 +46,9 @@ export default async function AdminDashboardPage() {
           <TwoFactorSetup enabled={me.twoFactorEnabled} />
         </div>
 
-        <h1 className="text-2xl font-bold text-brand-heading">
-          Einrichtungen prüfen
-        </h1>
+        <h1 className="text-2xl font-bold text-brand-heading">Einrichtungen prüfen</h1>
         <p className="mt-1 text-sm text-brand-text-muted">
-          {pending.length}{" "}
-          {pending.length === 1 ? "Einrichtung wartet" : "Einrichtungen warten"}{" "}
+          {pending.length} {pending.length === 1 ? "Einrichtung wartet" : "Einrichtungen warten"}{" "}
           auf Freischaltung
         </p>
 
@@ -59,15 +58,11 @@ export default async function AdminDashboardPage() {
               Aktuell nichts zu prüfen.
             </p>
           ) : (
-            pending.map((facility) => (
-              <PendingFacilityRow key={facility.id} facility={facility} />
-            ))
+            pending.map((facility) => <PendingFacilityRow key={facility.id} facility={facility} />)
           )}
         </div>
 
-        <h2 className="mt-12 text-lg font-semibold text-brand-text">
-          Live ({active.length})
-        </h2>
+        <h2 className="mt-12 text-lg font-semibold text-brand-text">Live ({active.length})</h2>
         <ul className="mt-3 flex flex-col gap-1 text-sm text-brand-text-muted">
           {active.map((facility) => (
             <ActiveFacilityRow key={facility.id} facility={facility} />
@@ -94,13 +89,11 @@ export default async function AdminDashboardPage() {
           )}
         </div>
 
-        <h2 className="mt-12 text-2xl font-bold text-brand-heading">
-          Bewertungen prüfen
-        </h2>
+        <h2 className="mt-12 text-2xl font-bold text-brand-heading">Bewertungen prüfen</h2>
         <p className="mt-1 text-sm text-brand-text-muted">
           {pendingReviews.length}{" "}
-          {pendingReviews.length === 1 ? "Bewertung wartet" : "Bewertungen warten"}{" "}
-          auf Freischaltung
+          {pendingReviews.length === 1 ? "Bewertung wartet" : "Bewertungen warten"} auf
+          Freischaltung
         </p>
         <div className="mt-6 flex flex-col gap-4">
           {pendingReviews.length === 0 ? (
@@ -108,15 +101,11 @@ export default async function AdminDashboardPage() {
               Aktuell nichts zu prüfen.
             </p>
           ) : (
-            pendingReviews.map((review) => (
-              <PendingReviewRow key={review.id} review={review} />
-            ))
+            pendingReviews.map((review) => <PendingReviewRow key={review.id} review={review} />)
           )}
         </div>
 
-        <h2 className="mt-12 text-2xl font-bold text-brand-heading">
-          Vollmachten prüfen
-        </h2>
+        <h2 className="mt-12 text-2xl font-bold text-brand-heading">Vollmachten prüfen</h2>
         <p className="mt-1 text-sm text-brand-text-muted">
           {pendingVollmachten.length}{" "}
           {pendingVollmachten.length === 1 ? "Konto wartet" : "Konten warten"} auf Prüfung
@@ -153,13 +142,10 @@ export default async function AdminDashboardPage() {
           )}
         </div>
 
-        <h2 className="mt-12 text-2xl font-bold text-brand-heading">
-          Kundenservice-Anfragen
-        </h2>
+        <h2 className="mt-12 text-2xl font-bold text-brand-heading">Kundenservice-Anfragen</h2>
         <p className="mt-1 text-sm text-brand-text-muted">
           {openSupportRequests.length}{" "}
-          {openSupportRequests.length === 1 ? "Anfrage wartet" : "Anfragen warten"} auf
-          Bearbeitung
+          {openSupportRequests.length === 1 ? "Anfrage wartet" : "Anfragen warten"} auf Bearbeitung
         </p>
         <div className="mt-6 flex flex-col gap-4">
           {openSupportRequests.length === 0 ? (
@@ -179,8 +165,8 @@ export default async function AdminDashboardPage() {
               Fehlgeschlagene Rückerstattungen
             </h2>
             <p className="mt-1 text-sm text-brand-text-muted">
-              Die Buchung wurde storniert, aber die Stripe-Rückerstattung ist fehlgeschlagen -
-              bitte manuell im Stripe-Dashboard prüfen.
+              Die Buchung wurde storniert, aber die Stripe-Rückerstattung ist fehlgeschlagen - bitte
+              manuell im Stripe-Dashboard prüfen.
             </p>
             <ul className="mt-6 flex flex-col gap-2 text-sm">
               {bookingsWithFailedRefunds.map((booking) => (
@@ -199,13 +185,11 @@ export default async function AdminDashboardPage() {
 
         {escalatedPendingApprovals.length > 0 && (
           <>
-            <h2 className="mt-12 text-2xl font-bold text-brand-heading">
-              Freigabe überfällig
-            </h2>
+            <h2 className="mt-12 text-2xl font-bold text-brand-heading">Freigabe überfällig</h2>
             <p className="mt-1 text-sm text-brand-text-muted">
               Diese Buchungen warten schon zu lange auf die Bestätigung/Ablehnung der Einrichtung
-              (bookingApprovalMode „Manuell") - der Betreiber wurde per Erinnerungsmail
-              informiert, bitte bei Bedarf zusätzlich direkt Kontakt aufnehmen.
+              (bookingApprovalMode „Manuell") - der Betreiber wurde per Erinnerungsmail informiert,
+              bitte bei Bedarf zusätzlich direkt Kontakt aufnehmen.
             </p>
             <ul className="mt-6 flex flex-col gap-2 text-sm">
               {escalatedPendingApprovals.map((booking) => (
@@ -217,6 +201,31 @@ export default async function AdminDashboardPage() {
                   {booking.createdAt && ` · gebucht am ${formatDate(booking.createdAt)}`}
                   {booking.approvalEscalatedAt &&
                     ` · eskaliert am ${formatDate(booking.approvalEscalatedAt)}`}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {escalatedBookingRequests.length > 0 && (
+          <>
+            <h2 className="mt-12 text-2xl font-bold text-brand-heading">Anfrage überfällig</h2>
+            <p className="mt-1 text-sm text-brand-text-muted">
+              Diese unverbindlichen Anfragen warten schon zu lange auf eine Antwort der Einrichtung
+              - der Betreiber wurde per Erinnerungsmail informiert, bitte bei Bedarf zusätzlich
+              direkt Kontakt aufnehmen.
+            </p>
+            <ul className="mt-6 flex flex-col gap-2 text-sm">
+              {escalatedBookingRequests.map((bookingRequest) => (
+                <li
+                  key={bookingRequest.id}
+                  className="rounded-brand-md border border-red-200 bg-red-50 p-4 text-red-700"
+                >
+                  {bookingRequest.requesterName} · {bookingRequest.facility.name}
+                  {bookingRequest.createdAt &&
+                    ` · angefragt am ${formatDate(bookingRequest.createdAt)}`}
+                  {bookingRequest.escalatedAt &&
+                    ` · eskaliert am ${formatDate(bookingRequest.escalatedAt)}`}
                 </li>
               ))}
             </ul>

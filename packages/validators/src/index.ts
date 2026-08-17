@@ -158,6 +158,16 @@ export const CreateBookingRequestInput = z.object({
 });
 export type CreateBookingRequestInput = z.infer<typeof CreateBookingRequestInput>;
 
+// operator.updateBookingRequestStatus - the operator's own manual
+// tracking of an inquiry (contacted the family, closed, declined). No
+// "OFFEN" option here: going back to open isn't a real workflow, it's
+// only ever set by bookingRequest.create.
+export const UpdateBookingRequestStatusInput = z.object({
+  bookingRequestId: z.string().min(1),
+  status: z.enum(["KONTAKTIERT", "ABGESCHLOSSEN", "ABGELEHNT"]),
+});
+export type UpdateBookingRequestStatusInput = z.infer<typeof UpdateBookingRequestStatusInput>;
+
 // Same public/no-login shape as CreateBookingRequestInput above - see
 // WaitlistEntry in schema.prisma. No desiredStart/desiredEnd: joining a
 // waitlist is about "let me know when *any* spot opens", not a specific

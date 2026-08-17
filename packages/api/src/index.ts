@@ -3,13 +3,14 @@ export type { AppRouter } from "./router";
 export { createContext } from "./trpc";
 export type { Context } from "./trpc";
 export { recomputeAllCapacityCaches } from "./availability";
-export { escalateStalePendingApprovals } from "./approvalEscalation";
+export { escalateStalePendingApprovals, escalateStaleBookingRequests } from "./approvalEscalation";
 export { checkSavedSearchAlerts } from "./savedSearchAlerts";
 export { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from "./auth";
 export { handleStripeWebhook } from "./webhooks";
 export type { FacilityCompareItem, FacilityListItem } from "./routers/facility";
 export type { NearbyPlace, NearbyPlacesResult } from "./nearbyPlaces";
 export type {
+  AdminEscalatedBookingRequest,
   AdminPendingBookingApproval,
   AdminPendingFacilityChange,
   AdminPendingReview,

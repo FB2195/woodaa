@@ -21,6 +21,7 @@ import {
   SetEmployeeShiftInput,
   SetPflegegradPricingInput,
   SetUnitCountInput,
+  UpdateBookingRequestStatusInput,
   UpdateEmployeeInput,
   UpdateFacilityInput,
   UpdatePricingInput,
@@ -119,6 +120,34 @@ export const operatorRouter = router({
       orderBy: { createdAt: "desc" },
     });
   }),
+
+  // Unverbindliche Anfragen (bookingRequest.create) - im Unterschied zu
+  // waitlistEntries oben nicht "one-shot, notify once, done", sondern
+  // etwas, das der Betreiber aktiv abarbeitet (siehe
+  // updateBookingRequestStatus).
+  bookingRequests: operatorProcedure.query(async ({ ctx }) => {
+    const facility = await requireOwnFacility(ctx);
+    return ctx.db.bookingRequest.findMany({
+      where: { facilityId: facility.id },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
+  updateBookingRequestStatus: operatorProcedure
+    .input(UpdateBookingRequestStatusInput)
+    .mutation(async ({ ctx, input }) => {
+      const facility = await requireOwnFacility(ctx);
+      const bookingRequest = await ctx.db.bookingRequest.findUnique({
+        where: { id: input.bookingRequestId },
+      });
+      if (!bookingRequest || bookingRequest.facilityId !== facility.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Anfrage nicht gefunden." });
+      }
+      return ctx.db.bookingRequest.update({
+        where: { id: bookingRequest.id },
+        data: { status: input.status },
+      });
+    }),
 
   createFacility: operatorProcedure.input(CreateFacilityInput).mutation(async ({ ctx, input }) => {
     // No email-verification gate here on purpose - the free availability

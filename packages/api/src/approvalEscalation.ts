@@ -1,5 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
-import { sendOperatorApprovalReminderEmail } from "./email";
+import {
+  sendOperatorApprovalReminderEmail,
+  sendOperatorBookingRequestReminderEmail,
+} from "./email";
 
 // How long a MANUELL-Freigabe booking may sit at facilityApprovalStatus=
 // AUSSTEHEND before nudging the operator, and - if it's still unanswered
@@ -12,6 +15,55 @@ const ESCALATION_AFTER_HOURS = 96;
 
 function hoursAgo(hours: number): Date {
   return new Date(Date.now() - hours * 60 * 60 * 1000);
+}
+
+// Shorter than REMINDER_AFTER_HOURS/ESCALATION_AFTER_HOURS above - a
+// BookingRequest is a family reaching out before they've committed to
+// anything (no payment, no reserved unit), so a slow reply risks losing
+// them to another facility entirely, not just a delayed confirmation.
+const REQUEST_REMINDER_AFTER_HOURS = 24;
+const REQUEST_ESCALATION_AFTER_HOURS = 72;
+
+// Same shape as escalateStalePendingApprovals above, for
+// bookingRequest.create's unverbindliche Anfragen instead of paid/
+// MANUELL-approval Buchungen - see BookingRequest.reminderSentAt/
+// escalatedAt in schema.prisma.
+export async function escalateStaleBookingRequests(db: PrismaClient): Promise<void> {
+  const dueForReminder = await db.bookingRequest.findMany({
+    where: {
+      status: "OFFEN",
+      reminderSentAt: null,
+      createdAt: { lte: hoursAgo(REQUEST_REMINDER_AFTER_HOURS) },
+    },
+    include: { facility: { include: { operator: true } } },
+  });
+
+  for (const bookingRequest of dueForReminder) {
+    if (bookingRequest.facility.operator) {
+      await sendOperatorBookingRequestReminderEmail({
+        to: bookingRequest.facility.operator.email,
+        operatorName: bookingRequest.facility.operator.name,
+        requesterName: bookingRequest.requesterName,
+        facilityName: bookingRequest.facility.name,
+        bookingType: bookingRequest.bookingType,
+      });
+    }
+    await db.bookingRequest.update({
+      where: { id: bookingRequest.id },
+      data: { reminderSentAt: new Date() },
+    });
+  }
+
+  // No email here, same "flag for staff visibility only" pattern as
+  // escalateStalePendingApprovals (see admin.escalatedBookingRequests).
+  await db.bookingRequest.updateMany({
+    where: {
+      status: "OFFEN",
+      escalatedAt: null,
+      createdAt: { lte: hoursAgo(REQUEST_ESCALATION_AFTER_HOURS) },
+    },
+    data: { escalatedAt: new Date() },
+  });
 }
 
 // Run periodically from apps/api (see scheduleApprovalEscalation in

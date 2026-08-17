@@ -5,6 +5,7 @@ import {
   appRouter,
   checkSavedSearchAlerts,
   createContext,
+  escalateStaleBookingRequests,
   escalateStalePendingApprovals,
   recomputeAllCapacityCaches,
 } from "@woodaa/api";
@@ -44,6 +45,9 @@ function scheduleApprovalEscalation() {
   const run = () => {
     escalateStalePendingApprovals(db).catch((err) => {
       server.log.error(err, "approval escalation check failed");
+    });
+    escalateStaleBookingRequests(db).catch((err) => {
+      server.log.error(err, "booking request escalation check failed");
     });
   };
   run();
