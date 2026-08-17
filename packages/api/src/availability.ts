@@ -307,6 +307,9 @@ export type CreateBookingInput = {
   pflegegrad?: number | null;
   pflegegradAntragLaeuft?: boolean;
   note?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  emergencyContactRelation?: string | null;
   // ONLINE bookings only - see PaymentMethod/PaymentStatus in schema.prisma.
   paymentMethod?: PaymentMethod | null;
   paymentStatus?: PaymentStatus | null;
@@ -405,6 +408,9 @@ export async function createBooking(db: PrismaClient, input: CreateBookingInput)
             pflegegrad: input.pflegegrad ?? null,
             pflegegradAntragLaeuft: input.pflegegradAntragLaeuft ?? false,
             note: input.note ?? null,
+            emergencyContactName: input.emergencyContactName ?? null,
+            emergencyContactPhone: input.emergencyContactPhone ?? null,
+            emergencyContactRelation: input.emergencyContactRelation ?? null,
             paymentMethod: input.paymentMethod ?? null,
             paymentStatus: input.paymentStatus ?? null,
             stripePaymentIntentId: input.stripePaymentIntentId ?? null,

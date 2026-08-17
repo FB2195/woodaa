@@ -87,6 +87,9 @@ export type MyBooking = {
   krankenkasse: string | null;
   pflegegrad: number | null;
   note: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  emergencyContactRelation: string | null;
   paymentMethod: PaymentMethod | null;
   paymentStatus: PaymentStatus | null;
   facilityApprovedAt: Date | null;
@@ -189,6 +192,9 @@ export const bookingRouter = router({
       pflegegrad: input.pflegegrad,
       pflegegradAntragLaeuft: input.pflegegradAntragLaeuft ?? false,
       note: input.note,
+      emergencyContactName: input.emergencyContactName,
+      emergencyContactPhone: input.emergencyContactPhone,
+      emergencyContactRelation: input.emergencyContactRelation,
       paymentMethod: input.paymentMethod,
       paymentStatus: initialPaymentStatus,
       // Bevollmächtigte/r Angehörige/r: every booking from such an account
@@ -372,6 +378,9 @@ export const bookingRouter = router({
         krankenkasse: true,
         pflegegrad: true,
         note: true,
+        emergencyContactName: true,
+        emergencyContactPhone: true,
+        emergencyContactRelation: true,
         paymentMethod: true,
         paymentStatus: true,
         facilityApprovedAt: true,

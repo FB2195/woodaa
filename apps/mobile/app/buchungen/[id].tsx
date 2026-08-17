@@ -197,6 +197,19 @@ export default function BookingDetailScreen() {
             </View>
           )}
 
+          {booking.emergencyContactName && (
+            <View>
+              <Text className="text-sm font-medium text-brand-text dark:text-brand-text-dark">
+                Notfallkontakt
+              </Text>
+              <Text className="mt-1 text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
+                {booking.emergencyContactName}
+                {booking.emergencyContactRelation && ` (${booking.emergencyContactRelation})`}
+                {booking.emergencyContactPhone && ` · ${booking.emergencyContactPhone}`}
+              </Text>
+            </View>
+          )}
+
           {!isCancelled && booking.paymentMethod === "KOSTENUEBERNAHME_KASSE" && (
             <KostenuebernahmeUpload bookingId={booking.id} />
           )}

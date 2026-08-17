@@ -655,6 +655,16 @@ model Booking {
   // tatsächlichen Zahlbetrag konsistent zu halten.
   hoursPerDay                  Int?
   note                         String?
+  // Optional secondary contact, shown to the facility for cases where the
+  // primary booking person becomes unreachable during an active stay (e.g.
+  // hospitalized, memory impairment) - purely informational, no
+  // notification/escalation logic tied to it. Prefilled in the booking form
+  // from the account's own bevollmaechtigter* fields when set (see
+  // User.hatBevollmaechtigten), but editable per booking since it may
+  // differ from that permanent registration-time designation.
+  emergencyContactName         String?
+  emergencyContactPhone        String?
+  emergencyContactRelation     String?
   // Only set for ONLINE bookings - phone/walk-in bookings settle directly
   // between facility and customer, outside these fields entirely.
   paymentMethod                PaymentMethod?

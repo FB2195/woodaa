@@ -41,7 +41,11 @@ function UnitRow({
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(unit.label);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
   const booking = unit.bookings[0];
+  const hasContactInfo = Boolean(
+    booking?.guestPhone || booking?.emergencyContactName || booking?.emergencyContactPhone,
+  );
 
   return (
     <>
@@ -90,6 +94,15 @@ function UnitRow({
                 </span>
               )}
             </span>
+            {hasContactInfo && (
+              <button
+                type="button"
+                onClick={() => setContactOpen((open) => !open)}
+                className="text-brand-text-muted hover:text-brand-accent"
+              >
+                {contactOpen ? "Kontakt ausblenden" : "Kontakt"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setNotesOpen((open) => !open)}
@@ -110,6 +123,24 @@ function UnitRow({
           <span className="font-medium text-brand-accent">frei</span>
         )}
       </li>
+      {booking && contactOpen && (
+        <li className="rounded-brand-md border border-brand-border bg-brand-background p-3 text-sm">
+          {booking.guestPhone && (
+            <p className="text-brand-text">
+              <span className="text-brand-text-muted">Telefon: </span>
+              {booking.guestPhone}
+            </p>
+          )}
+          {(booking.emergencyContactName || booking.emergencyContactPhone) && (
+            <p className="mt-1 text-brand-text">
+              <span className="text-brand-text-muted">Notfallkontakt: </span>
+              {booking.emergencyContactName}
+              {booking.emergencyContactRelation && ` (${booking.emergencyContactRelation})`}
+              {booking.emergencyContactPhone && ` · ${booking.emergencyContactPhone}`}
+            </p>
+          )}
+        </li>
+      )}
       {booking && notesOpen && (
         <li>
           <ResidentNotes bookingId={booking.id} />

@@ -174,6 +174,17 @@ export function BookingDetailView({ booking }: { booking: MyBooking }) {
             </div>
           )}
 
+          {booking.emergencyContactName && (
+            <div className="mt-4">
+              <p className="text-sm font-medium text-brand-text">Notfallkontakt</p>
+              <p className="mt-1 text-sm text-brand-text-muted">
+                {booking.emergencyContactName}
+                {booking.emergencyContactRelation && ` (${booking.emergencyContactRelation})`}
+                {booking.emergencyContactPhone && ` · ${booking.emergencyContactPhone}`}
+              </p>
+            </div>
+          )}
+
           {!isCancelled && booking.paymentMethod === "KOSTENUEBERNAHME_KASSE" && (
             <KostenuebernahmeUpload bookingId={booking.id} />
           )}

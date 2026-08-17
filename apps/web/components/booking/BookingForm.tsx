@@ -333,6 +333,9 @@ export function BookingForm({
           pflegegrad: Number(pflegegradRaw) as Pflegegrad,
           pflegegradAntragLaeuft: form.get("pflegegradAntragLaeuft") === "on",
           guestPhone: get("guestPhone") || undefined,
+          emergencyContactName: get("emergencyContactName") || undefined,
+          emergencyContactPhone: get("emergencyContactPhone") || undefined,
+          emergencyContactRelation: get("emergencyContactRelation") || undefined,
           note: get("note") || undefined,
           paymentMethod,
           hoursPerDay: isTagesNachtpflege ? hoursPerDay : undefined,
@@ -570,6 +573,39 @@ export function BookingForm({
           className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
         />
       </label>
+
+      <fieldset className="flex flex-col gap-3 rounded-brand-md border border-brand-border p-3">
+        <legend className="px-1 text-sm font-medium text-brand-text">
+          Notfallkontakt (optional)
+        </legend>
+        <p className="text-xs text-brand-text-muted">
+          Für den Fall, dass die Einrichtung dich nicht erreicht - z. B. ein Angehöriger, der
+          zusätzlich kontaktiert werden kann.
+        </p>
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Name
+          <input
+            name="emergencyContactName"
+            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Telefon
+          <input
+            type="tel"
+            name="emergencyContactPhone"
+            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-brand-text">
+          Beziehung
+          <input
+            name="emergencyContactRelation"
+            placeholder="z. B. Sohn, Tochter, Nachbarin"
+            className="rounded-brand-md border border-brand-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          />
+        </label>
+      </fieldset>
 
       <label className="flex flex-col gap-1 text-sm text-brand-text">
         Nachricht an die Einrichtung (optional)

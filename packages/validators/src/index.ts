@@ -486,6 +486,13 @@ export const CreateBookingInput = z
     paymentMethod: PaymentMethod,
     // TAGESPFLEGE/NACHTPFLEGE only - siehe Booking.hoursPerDay.
     hoursPerDay: z.number().int().min(1).max(24).optional(),
+    // Optionaler Notfall-/Ersatzkontakt - siehe Booking.emergencyContactName
+    // in schema.prisma. Nur sinnvoll gemeinsam gesetzt, aber technisch
+    // unabhängig optional, falls z. B. nur der Name ohne Telefonnummer
+    // eingetragen wird.
+    emergencyContactName: z.string().trim().max(200).optional(),
+    emergencyContactPhone: z.string().trim().max(50).optional(),
+    emergencyContactRelation: z.string().trim().max(100).optional(),
   })
   .refine((data) => !(data.startDate === undefined && data.endDate !== undefined), {
     message: "Ohne Startdatum kann kein Enddatum gesetzt werden.",

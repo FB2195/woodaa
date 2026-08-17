@@ -10,7 +10,11 @@ import { StripePaymentStep } from "@/components/booking/StripePaymentStep";
 import { FormField } from "@/components/FormField";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { SelectField } from "@/components/SelectField";
-import { bookingTypeLabels, dateRangedBookingTypes, openEndedBookingTypes } from "@/lib/bookingTypeLabels";
+import {
+  bookingTypeLabels,
+  dateRangedBookingTypes,
+  openEndedBookingTypes,
+} from "@/lib/bookingTypeLabels";
 import { formatPriceEuro } from "@/lib/format";
 import { paymentMethodLabels } from "@/lib/paymentMethodLabels";
 import {
@@ -45,7 +49,11 @@ function SubsidyHint({
 }: {
   bookingType: BookingType;
   pflegegrad: Pflegegrad;
-  rate: { dailyRateCents: number | null; monthlyRateCents: number | null; hourlyRateCents: number | null };
+  rate: {
+    dailyRateCents: number | null;
+    monthlyRateCents: number | null;
+    hourlyRateCents: number | null;
+  };
   days: number | null;
   hoursPerDay: number;
 }) {
@@ -85,8 +93,8 @@ function SubsidyHint({
           Grundsätzlich verfügbar sind bis zu {formatPriceEuro(result.fullJahresbudgetCents)} pro
           Kalenderjahr. Für {days} Tage kostet das Heim {formatPriceEuro(result.totalCostCents)},
           wovon die Kasse {formatPriceEuro(result.subsidyCents)} übernimmt. Ihr voraussichtlicher
-          Eigenanteil beträgt damit {formatPriceEuro(result.eigenanteilCents)} - danach stehen
-          noch {formatPriceEuro(result.remainingBudgetCents)} Jahresbudget zur Verfügung.
+          Eigenanteil beträgt damit {formatPriceEuro(result.eigenanteilCents)} - danach stehen noch{" "}
+          {formatPriceEuro(result.remainingBudgetCents)} Jahresbudget zur Verfügung.
         </Text>
         {result.note && (
           <Text className="mt-1 text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
@@ -101,7 +109,11 @@ function SubsidyHint({
   }
 
   if (rate.hourlyRateCents === null) return null;
-  const result = calculateTagesNachtpflegeEigenanteil(pflegegrad, rate.hourlyRateCents, hoursPerDay);
+  const result = calculateTagesNachtpflegeEigenanteil(
+    pflegegrad,
+    rate.hourlyRateCents,
+    hoursPerDay,
+  );
   return (
     <View className="rounded-brand-md bg-brand-background p-3 dark:bg-brand-background-dark">
       <Text className="text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
@@ -144,6 +156,9 @@ export default function BookingScreen() {
   const [guestPostalCode, setGuestPostalCode] = useState("");
   const [guestCity, setGuestCity] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [emergencyContactRelation, setEmergencyContactRelation] = useState("");
   const [krankenkasse, setKrankenkasse] = useState("");
   const [versicherungsnummer, setVersicherungsnummer] = useState("");
   const [note, setNote] = useState("");
@@ -198,7 +213,9 @@ export default function BookingScreen() {
   const isTagesNachtpflege = bookingType === "TAGESPFLEGE" || bookingType === "NACHTPFLEGE";
   const capacity = capacities.find((c) => c.bookingType === bookingType);
   const rate =
-    pflegegrad === null ? undefined : capacity?.pflegegradPricing.find((r) => r.pflegegrad === pflegegrad);
+    pflegegrad === null
+      ? undefined
+      : capacity?.pflegegradPricing.find((r) => r.pflegegrad === pflegegrad);
 
   const days =
     isDateRanged && !endeOffen && startDate && endDate
@@ -252,29 +269,38 @@ export default function BookingScreen() {
 
     if (stripeClientSecret && !paymentConfirmed) {
       return (
-        <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark" contentContainerClassName="gap-4 p-6">
+        <ScrollView
+          className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+          contentContainerClassName="gap-4 p-6"
+        >
           {screenTitle}
           <Text className="text-lg font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
             Dein Platz ist reserviert - jetzt bezahlen
           </Text>
           <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-            Der Platz ist für dich vorgemerkt. Schließe die Zahlung ab, um die Buchung
-            verbindlich zu machen.
+            Der Platz ist für dich vorgemerkt. Schließe die Zahlung ab, um die Buchung verbindlich
+            zu machen.
           </Text>
-          <StripePaymentStep clientSecret={stripeClientSecret} onConfirmed={() => setPaymentConfirmed(true)} />
+          <StripePaymentStep
+            clientSecret={stripeClientSecret}
+            onConfirmed={() => setPaymentConfirmed(true)}
+          />
         </ScrollView>
       );
     }
 
     return (
-      <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark" contentContainerClassName="gap-3 p-6">
+      <ScrollView
+        className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+        contentContainerClassName="gap-3 p-6"
+      >
         {screenTitle}
         <Text className="text-lg font-semibold text-brand-primary-dark dark:text-brand-heading-dark">
           Platz gebucht!
         </Text>
         <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
-          Dein Platz ist reserviert. Die Einrichtung wurde informiert und meldet sich bei
-          Rückfragen direkt bei dir.
+          Dein Platz ist reserviert. Die Einrichtung wurde informiert und meldet sich bei Rückfragen
+          direkt bei dir.
         </Text>
         {booking.paymentMethod === "RECHNUNG" && (
           <Text className="text-sm text-brand-text-muted dark:text-brand-text-muted-dark">
@@ -291,7 +317,10 @@ export default function BookingScreen() {
             zusätzlich - du hörst in Kürze von uns.
           </Text>
         )}
-        <PrimaryButton label="Zu meinen Buchungen" onPress={() => router.replace("/(tabs)/buchungen")} />
+        <PrimaryButton
+          label="Zu meinen Buchungen"
+          onPress={() => router.replace("/(tabs)/buchungen")}
+        />
       </ScrollView>
     );
   }
@@ -349,6 +378,9 @@ export default function BookingScreen() {
       pflegegrad,
       pflegegradAntragLaeuft,
       guestPhone: guestPhone.trim() || undefined,
+      emergencyContactName: emergencyContactName.trim() || undefined,
+      emergencyContactPhone: emergencyContactPhone.trim() || undefined,
+      emergencyContactRelation: emergencyContactRelation.trim() || undefined,
       note: note.trim() || undefined,
       paymentMethod,
       hoursPerDay: isTagesNachtpflege ? hoursPerDayNumber : undefined,
@@ -358,7 +390,10 @@ export default function BookingScreen() {
   return (
     <>
       {screenTitle}
-      <ScrollView className="flex-1 bg-brand-background dark:bg-brand-background-dark" contentContainerClassName="gap-4 p-6">
+      <ScrollView
+        className="flex-1 bg-brand-background dark:bg-brand-background-dark"
+        contentContainerClassName="gap-4 p-6"
+      >
         <View>
           <Text className="text-xl font-bold text-brand-primary-dark dark:text-brand-heading-dark">
             Pflegeplatz buchen
@@ -372,7 +407,10 @@ export default function BookingScreen() {
           <SelectField
             label="Pflegeart"
             value={bookingType}
-            options={capacities.map((c) => ({ value: c.bookingType, label: bookingTypeLabels[c.bookingType] }))}
+            options={capacities.map((c) => ({
+              value: c.bookingType,
+              label: bookingTypeLabels[c.bookingType],
+            }))}
             onChange={setBookingType}
           />
           {capacity?.monthlyPriceCents != null && (
@@ -399,7 +437,13 @@ export default function BookingScreen() {
                   Von
                 </Text>
                 <Text className="text-base text-brand-text dark:text-brand-text-dark">
-                  {startDate ? startDate.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "–"}
+                  {startDate
+                    ? startDate.toLocaleDateString("de-DE", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })
+                    : "–"}
                 </Text>
               </View>
               <View className="flex-1">
@@ -407,7 +451,13 @@ export default function BookingScreen() {
                   Bis
                 </Text>
                 <Text className="text-base text-brand-text dark:text-brand-text-dark">
-                  {endDate ? endDate.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "–"}
+                  {endDate
+                    ? endDate.toLocaleDateString("de-DE", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })
+                    : "–"}
                 </Text>
               </View>
             </View>
@@ -423,10 +473,13 @@ export default function BookingScreen() {
             />
 
             {isKurzzeitpflege && minStayNights !== null && (
-              <Text className={`text-xs ${belowMinStay ? "text-red-600" : "text-brand-text-muted dark:text-brand-text-muted-dark"}`}>
+              <Text
+                className={`text-xs ${belowMinStay ? "text-red-600" : "text-brand-text-muted dark:text-brand-text-muted-dark"}`}
+              >
                 Mindestaufenthalt bei dieser Einrichtung: {minStayNights}{" "}
                 {minStayNights === 1 ? "Nacht" : "Nächte"}
-                {nights !== null && ` (gewählter Zeitraum: ${nights} ${nights === 1 ? "Nacht" : "Nächte"})`}
+                {nights !== null &&
+                  ` (gewählter Zeitraum: ${nights} ${nights === 1 ? "Nacht" : "Nächte"})`}
               </Text>
             )}
 
@@ -493,7 +546,10 @@ export default function BookingScreen() {
           options={pflegegradOptions}
           onChange={setPflegegrad}
         />
-        <Checkbox checked={pflegegradAntragLaeuft} onToggle={() => setPflegegradAntragLaeuft((v) => !v)}>
+        <Checkbox
+          checked={pflegegradAntragLaeuft}
+          onToggle={() => setPflegegradAntragLaeuft((v) => !v)}
+        >
           {pflegegradAntragLabel}
         </Checkbox>
 
@@ -503,6 +559,36 @@ export default function BookingScreen() {
           onChangeText={setGuestPhone}
           keyboardType="phone-pad"
         />
+
+        <View className="gap-3 rounded-brand-md border border-brand-border p-3 dark:border-brand-border-dark">
+          <View>
+            <Text className="text-sm font-medium text-brand-text dark:text-brand-text-dark">
+              Notfallkontakt (optional)
+            </Text>
+            <Text className="mt-1 text-xs text-brand-text-muted dark:text-brand-text-muted-dark">
+              Für den Fall, dass die Einrichtung dich nicht erreicht - z. B. ein Angehöriger, der
+              zusätzlich kontaktiert werden kann.
+            </Text>
+          </View>
+          <FormField
+            label="Name"
+            value={emergencyContactName}
+            onChangeText={setEmergencyContactName}
+          />
+          <FormField
+            label="Telefon"
+            value={emergencyContactPhone}
+            onChangeText={setEmergencyContactPhone}
+            keyboardType="phone-pad"
+          />
+          <FormField
+            label="Beziehung"
+            value={emergencyContactRelation}
+            onChangeText={setEmergencyContactRelation}
+            placeholder="z. B. Sohn, Tochter, Nachbarin"
+          />
+        </View>
+
         <FormField
           label="Nachricht an die Einrichtung (optional)"
           value={note}
@@ -527,9 +613,17 @@ export default function BookingScreen() {
             Zahlungsart
           </Text>
           {(Object.keys(paymentMethodLabels) as PaymentMethod[])
-            .filter((method) => cardPaymentAvailable || (method !== "KARTE" && method !== "KLARNA" && method !== "PAYPAL"))
+            .filter(
+              (method) =>
+                cardPaymentAvailable ||
+                (method !== "KARTE" && method !== "KLARNA" && method !== "PAYPAL"),
+            )
             .map((method) => (
-              <Checkbox key={method} checked={paymentMethod === method} onToggle={() => setPaymentMethod(method)}>
+              <Checkbox
+                key={method}
+                checked={paymentMethod === method}
+                onToggle={() => setPaymentMethod(method)}
+              >
                 {paymentMethodLabels[method]}
               </Checkbox>
             ))}
@@ -559,10 +653,14 @@ export default function BookingScreen() {
         </Text>
 
         {clientError && <Text className="text-sm text-red-600">{clientError}</Text>}
-        {createBooking.isError && <Text className="text-sm text-red-600">{createBooking.error.message}</Text>}
+        {createBooking.isError && (
+          <Text className="text-sm text-red-600">{createBooking.error.message}</Text>
+        )}
 
         <PrimaryButton
-          label={createBooking.isPending ? "Wird gebucht…" : "Verbindlich und zahlungspflichtig buchen"}
+          label={
+            createBooking.isPending ? "Wird gebucht…" : "Verbindlich und zahlungspflichtig buchen"
+          }
           loading={createBooking.isPending}
           onPress={submit}
         />
