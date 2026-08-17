@@ -105,7 +105,10 @@ export function PflegeleistungenRechner() {
             <View className="flex-row items-center gap-2">
               <TextInput
                 value={alreadyUsedEuro}
-                onChangeText={(text) => setAlreadyUsedEuro(text.replace(/[^0-9]/g, ""))}
+                onChangeText={(text) => {
+                  const digitsOnly = text.replace(/[^0-9]/g, "");
+                  setAlreadyUsedEuro(digitsOnly === "" ? "" : String(Number(digitsOnly)));
+                }}
                 keyboardType="number-pad"
                 placeholderTextColor={placeholderColor}
                 className={inputClassName}
