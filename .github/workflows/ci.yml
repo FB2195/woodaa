@@ -27,6 +27,11 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/woodaa
       DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/woodaa
+      # Separate database on the same Postgres service - packages/api's
+      # integration tests (src/testDb.ts) truncate every table between
+      # tests, so they must never point at the same database as the build
+      # step above.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/woodaa_test
 
     steps:
       - uses: actions/checkout@v4
@@ -55,3 +60,17 @@ jobs:
         # the job. Turbo's local cache makes the retry only re-run the task
         # that actually failed.
         run: pnpm turbo run build || pnpm turbo run build
+
+      - name: Create test database
+        run: psql "$DATABASE_URL" -c "CREATE DATABASE woodaa_test;"
+        env:
+          PGPASSWORD: postgres
+
+      - name: Migrate test database
+        run: pnpm --filter @woodaa/db exec prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          DATABASE_URL_UNPOOLED: ${{ env.TEST_DATABASE_URL }}
+
+      - name: Test
+        run: pnpm turbo run test
