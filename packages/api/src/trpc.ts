@@ -43,37 +43,47 @@ const isAuthed = t.middleware(({ ctx, next }) => {
 });
 export const protectedProcedure = t.procedure.use(isAuthed);
 
-const isOperator = t.middleware(({ ctx, next }) => {
-  if (!ctx.user || ctx.user.role !== "BETREIBER") {
-    throw new TRPCError({ code: "FORBIDDEN" });
-  }
-  return next({ ctx: { ...ctx, user: ctx.user } });
-});
-export const operatorProcedure = t.procedure.use(isOperator);
-
-// Admin accounts have access to every user's and every facility's data, so
-// - unlike SUCHENDE/BETREIBER, where 2FA is opt-in - it's required here,
-// not merely offered. Checked fresh against the DB rather than trusted from
-// the JWT: an admin could enable/disable 2FA mid-session, and admin traffic
-// is low-volume internal staff usage, so the extra query per request is a
-// non-issue. twoFactor.setupInitiate/setupConfirm are protectedProcedure
-// (not adminProcedure), so an admin without 2FA yet can still reach them to
-// actually set it up - see TwoFactorSetup.tsx on the admin dashboard.
-const isAdmin = t.middleware(async ({ ctx, next }) => {
-  if (!ctx.user || ctx.user.role !== "ADMIN") {
-    throw new TRPCError({ code: "FORBIDDEN" });
-  }
-  const user = await ctx.db.user.findUnique({
-    where: { id: ctx.user.id },
+// Shared by isOperator/isAdmin below - both roles hold real people's
+// sensitive data (an operator sees every Suchende's Sozialdaten who books
+// or messages their facility; an admin sees everyone's), so 2FA is
+// required, not merely offered, for either. Checked fresh against the DB
+// rather than trusted from the JWT: it can be enabled/disabled mid-session,
+// and traffic on these roles is low-volume enough that the extra query per
+// request is a non-issue. twoFactor.setupInitiate/setupConfirm are
+// protectedProcedure (not operatorProcedure/adminProcedure), so an account
+// without 2FA yet can still reach them to actually set it up - see
+// TwoFactorSetup.tsx on the operator/admin dashboards.
+async function requireTwoFactor(
+  db: Context["db"],
+  userId: string,
+  roleLabel: string,
+): Promise<void> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
     select: { twoFactorEnabled: true },
   });
   if (!user?.twoFactorEnabled) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message:
-        "Zwei-Faktor-Authentifizierung ist für Admin-Konten Pflicht - bitte zuerst einrichten.",
+      message: `Zwei-Faktor-Authentifizierung ist für ${roleLabel} Pflicht - bitte zuerst einrichten.`,
     });
   }
+}
+
+const isOperator = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.user || ctx.user.role !== "BETREIBER") {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+  await requireTwoFactor(ctx.db, ctx.user.id, "Betreiber-Konten");
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
+export const operatorProcedure = t.procedure.use(isOperator);
+
+const isAdmin = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.user || ctx.user.role !== "ADMIN") {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+  await requireTwoFactor(ctx.db, ctx.user.id, "Admin-Konten");
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
 export const adminProcedure = t.procedure.use(isAdmin);

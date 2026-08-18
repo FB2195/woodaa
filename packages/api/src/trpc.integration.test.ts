@@ -73,3 +73,52 @@ describe("adminProcedure requires 2FA", () => {
     });
   });
 });
+
+// Same requirement, same reasoning, for BETREIBER accounts - an operator
+// sees every Suchende's Sozialdaten who books or messages their facility,
+// so this isn't opt-in either (see the isOperator middleware in trpc.ts).
+describe("operatorProcedure requires 2FA", () => {
+  beforeEach(async () => {
+    await resetTestDb();
+  });
+
+  afterAll(async () => {
+    await db.$disconnect();
+  });
+
+  async function createOperator(twoFactorEnabled: boolean) {
+    return db.user.create({
+      data: {
+        email: `operator-${crypto.randomUUID()}@example.test`,
+        passwordHash: "irrelevant-for-this-test",
+        name: "Test Betreiber",
+        role: "BETREIBER",
+        twoFactorEnabled,
+      },
+    });
+  }
+
+  it("rejects an operator request when 2FA is not enabled", async () => {
+    const operator = await createOperator(false);
+    const caller = appRouter.createCaller({
+      db,
+      user: { id: operator.id, role: "BETREIBER" },
+      ip: null,
+    });
+
+    await expect(caller.operator.myFacility()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  it("allows an operator request once 2FA is enabled", async () => {
+    const operator = await createOperator(true);
+    const caller = appRouter.createCaller({
+      db,
+      user: { id: operator.id, role: "BETREIBER" },
+      ip: null,
+    });
+
+    await expect(caller.operator.myFacility()).resolves.toBeNull();
+  });
+});
