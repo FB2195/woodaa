@@ -1,4 +1,5 @@
 import { ChatMessageInput, CreateSupportRequestInput } from "@woodaa/validators";
+import { reportError } from "../errorReporting";
 import { publicProcedure, rateLimited, router } from "../trpc";
 
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
@@ -37,7 +38,7 @@ async function callAnthropic(messages: ChatMessageInput["messages"]): Promise<st
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    console.error(`Anthropic chat error ${res.status}: ${body}`);
+    reportError(new Error(`Anthropic chat error ${res.status}: ${body}`), "Anthropic chat error");
     return "Der KI-Chat hat gerade ein Problem. Nutze gerne den Rückruf oder das Kontaktformular weiter unten - wir melden uns persönlich bei dir.";
   }
 

@@ -2,6 +2,7 @@ import type { Agent } from "http";
 import type { PaymentStatus, PrismaClient } from "@prisma/client";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import Stripe from "stripe";
+import { reportError } from "./errorReporting";
 
 // Lazy singleton, same pattern as r2Client() - importing this file shouldn't
 // hard-crash a process that never actually touches payments (e.g. local dev
@@ -80,7 +81,7 @@ export async function refundBookingPayment(
       { idempotencyKey: `refund_${booking.id}` },
     );
   } catch (err) {
-    console.error(`Stripe-Rückerstattung fehlgeschlagen für Buchung ${booking.id}:`, err);
+    reportError(err, "Stripe-Rückerstattung fehlgeschlagen", { bookingId: booking.id });
     // The refund never went through - revert the claim so paymentStatus
     // keeps reflecting reality (still BEZAHLT, not REFUNDIERT).
     // refundFailedAt is the signal staff use to find and resolve these

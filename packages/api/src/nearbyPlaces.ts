@@ -9,6 +9,8 @@
  * a per-keystroke one.
  */
 
+import { reportError } from "./errorReporting";
+
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 const USER_AGENT = "woodaa/1.0 (+https://woodaa.de)";
 // ~5 km/h, the walking-speed assumption booking sites' "X Min. (Y m)"
@@ -75,7 +77,9 @@ function topByDistance(places: NearbyPlace[], limit: number): NearbyPlace[] {
       closestByName.set(place.name, place);
     }
   }
-  return [...closestByName.values()].sort((a, b) => a.distanceMeters - b.distanceMeters).slice(0, limit);
+  return [...closestByName.values()]
+    .sort((a, b) => a.distanceMeters - b.distanceMeters)
+    .slice(0, limit);
 }
 
 const cache = new Map<string, { expires: number; value: NearbyPlacesResult }>();
@@ -84,7 +88,10 @@ const cache = new Map<string, { expires: number; value: NearbyPlacesResult }>();
 // location rather than per keystroke.
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-export async function getNearbyPlaces(latitude: number, longitude: number): Promise<NearbyPlacesResult> {
+export async function getNearbyPlaces(
+  latitude: number,
+  longitude: number,
+): Promise<NearbyPlacesResult> {
   const key = `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
   const cached = cache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
@@ -135,7 +142,10 @@ export async function getNearbyPlaces(latitude: number, longitude: number): Prom
       if (tags.shop) {
         place = toPlace(el, latitude, longitude);
         if (place) shopping.push(place);
-      } else if (tags.amenity && ["doctors", "hospital", "pharmacy", "clinic"].includes(tags.amenity)) {
+      } else if (
+        tags.amenity &&
+        ["doctors", "hospital", "pharmacy", "clinic"].includes(tags.amenity)
+      ) {
         place = toPlace(el, latitude, longitude);
         if (place) healthcare.push(place);
       } else if (tags.highway === "bus_stop") {
@@ -156,7 +166,7 @@ export async function getNearbyPlaces(latitude: number, longitude: number): Prom
     cache.set(key, { expires: Date.now() + CACHE_TTL_MS, value: result });
     return result;
   } catch (err) {
-    console.error("Nearby places lookup failed:", err);
+    reportError(err, "Nearby places lookup failed", { latitude, longitude });
     return EMPTY_RESULT;
   }
 }

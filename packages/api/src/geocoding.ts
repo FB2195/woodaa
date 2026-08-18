@@ -14,6 +14,8 @@
  *   key is set, so local dev works without a Google Cloud account.
  */
 
+import { reportError } from "./errorReporting";
+
 const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
 const USER_AGENT = "woodaa/1.0 (+https://woodaa.de)";
 const MIN_REQUEST_GAP_MS = 1100;
@@ -46,7 +48,7 @@ export async function geocodeAddress(address: string): Promise<GeoPoint | null> 
 
     return { latitude: Number(first.lat), longitude: Number(first.lon) };
   } catch (err) {
-    console.error("Geocoding failed:", err);
+    reportError(err, "Geocoding failed", { address });
     return null;
   }
 }
@@ -66,7 +68,7 @@ export async function reverseGeocode(latitude: number, longitude: number): Promi
     };
     return result.address?.city ?? result.address?.town ?? result.address?.village ?? null;
   } catch (err) {
-    console.error("Reverse geocoding failed:", err);
+    reportError(err, "Reverse geocoding failed", { latitude, longitude });
     return null;
   }
 }
@@ -144,7 +146,10 @@ async function searchLocationsGoogle(
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    console.error(`Google Places Autocomplete error ${res.status}: ${body}`);
+    reportError(
+      new Error(`Google Places Autocomplete error ${res.status}: ${body}`),
+      "Google Places Autocomplete error",
+    );
     return null;
   }
 
@@ -222,11 +227,11 @@ export async function searchLocations(query: string): Promise<LocationSuggestion
     suggestionCache.set(key, { expires: Date.now() + CACHE_TTL_MS, value: results });
     return results;
   } catch (err) {
-    console.error("Location search failed:", err);
+    reportError(err, "Location search failed", { query });
     try {
       return await searchLocationsNominatim(query);
     } catch (fallbackErr) {
-      console.error("Nominatim fallback also failed:", fallbackErr);
+      reportError(fallbackErr, "Nominatim fallback also failed", { query });
       return [];
     }
   }

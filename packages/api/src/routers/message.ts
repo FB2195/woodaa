@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { ConversationIdInput, SendMessageInput } from "@woodaa/validators";
 import { sendOperatorNewMessageEmail } from "../email";
+import { reportError } from "../errorReporting";
 import { withPhotoUrl } from "../r2";
 import { protectedProcedure, router } from "../trpc";
 
@@ -98,7 +99,7 @@ export const messageRouter = router({
           body: input.body,
         });
       } catch (err) {
-        console.error("sendOperatorNewMessageEmail failed", err);
+        reportError(err, "sendOperatorNewMessageEmail failed", { facilityId: facility.id });
       }
     }
 

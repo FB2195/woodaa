@@ -33,6 +33,7 @@ import {
   sendBookingFacilityDecisionEmail,
   sendUserNewMessageEmail,
 } from "../email";
+import { reportError } from "../errorReporting";
 import { sendPushNotification } from "../push";
 import { createFacilityForOperator } from "../lib/facility";
 import { cheapestMonthlyEquivalentCents } from "../pricing";
@@ -701,7 +702,7 @@ export const operatorRouter = router({
             body: input.body,
           });
         } catch (err) {
-          console.error("sendUserNewMessageEmail failed", err);
+          reportError(err, "sendUserNewMessageEmail failed", { facilityId: facility.id });
         }
       }
       if (conversation.user.notifyMessagesPush) {

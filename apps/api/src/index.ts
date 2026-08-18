@@ -7,10 +7,16 @@ import {
   createContext,
   escalateStaleBookingRequests,
   escalateStalePendingApprovals,
+  initErrorReporting,
   recomputeAllCapacityCaches,
+  reportError,
 } from "@woodaa/api";
 import { db } from "@woodaa/db";
 import Fastify from "fastify";
+
+// Before anything else, so startup failures are captured too - stays a
+// no-op until SENTRY_DSN is actually set (see errorReporting.ts).
+initErrorReporting();
 
 // trustProxy so req.ip resolves the real client address from
 // X-Forwarded-For when Railway sits this behind its own edge proxy -
@@ -30,6 +36,7 @@ function scheduleCapacityRollover() {
   const run = () => {
     recomputeAllCapacityCaches(db).catch((err) => {
       server.log.error(err, "capacity rollover recompute failed");
+      reportError(err, "capacity rollover recompute failed");
     });
   };
   run();
@@ -45,9 +52,11 @@ function scheduleApprovalEscalation() {
   const run = () => {
     escalateStalePendingApprovals(db).catch((err) => {
       server.log.error(err, "approval escalation check failed");
+      reportError(err, "approval escalation check failed");
     });
     escalateStaleBookingRequests(db).catch((err) => {
       server.log.error(err, "booking request escalation check failed");
+      reportError(err, "booking request escalation check failed");
     });
   };
   run();
@@ -62,6 +71,7 @@ function scheduleSavedSearchAlerts() {
   const run = () => {
     checkSavedSearchAlerts(db).catch((err) => {
       server.log.error(err, "saved search alert check failed");
+      reportError(err, "saved search alert check failed");
     });
   };
   run();
@@ -80,6 +90,14 @@ async function main() {
         const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
         return createContext({ token, ip: req.ip });
       },
+      // Genuinely unhandled procedure errors (a bug, not one of the
+      // deliberate "best-effort" catches elsewhere that already call
+      // reportError themselves) - the last line of defense, so a request
+      // that 500s is at least visible instead of only ever showing up as
+      // "something went wrong" in a user's browser.
+      onError: ({ error, path }: { error: unknown; path?: string }) => {
+        reportError(error, `unhandled tRPC error on ${path ?? "unknown procedure"}`);
+      },
     },
   });
 
@@ -95,5 +113,6 @@ async function main() {
 
 main().catch((err) => {
   server.log.error(err);
+  reportError(err, "server failed to start");
   process.exit(1);
 });

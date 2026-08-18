@@ -26,6 +26,7 @@ import {
   verifyTwoFactorChallengeToken,
 } from "../auth";
 import { encryptSecret } from "../crypto";
+import { reportError } from "../errorReporting";
 import {
   sendEmailChangeNewAddressEmail,
   sendEmailChangeOldAddressEmail,
@@ -107,7 +108,7 @@ async function dispatchVerificationEmail(user: { id: string; name: string; email
   } catch (err) {
     // Registration itself should still succeed even if the email provider
     // has a hiccup - the user can request another one via resendVerificationEmail.
-    console.error("Failed to send verification email:", err);
+    reportError(err, "Failed to send verification email", { userId: user.id });
   }
 }
 
@@ -505,7 +506,7 @@ export const authRouter = router({
           try {
             await sendPasswordResetEmail({ to: user.email, name: user.name, token });
           } catch (err) {
-            console.error("Failed to send password reset email:", err);
+            reportError(err, "Failed to send password reset email", { userId: user.id });
           }
         }
       }
@@ -621,7 +622,7 @@ export const authRouter = router({
           token,
         });
       } catch (err) {
-        console.error("Failed to send email change (old address) email:", err);
+        reportError(err, "Failed to send email change (old address) email", { userId: user.id });
       }
       return { success: true as const };
     }),
@@ -667,7 +668,7 @@ export const authRouter = router({
           token: newToken,
         });
       } catch (err) {
-        console.error("Failed to send email change (new address) email:", err);
+        reportError(err, "Failed to send email change (new address) email", { userId: user.id });
       }
       return { newEmail: request.newEmail };
     }),

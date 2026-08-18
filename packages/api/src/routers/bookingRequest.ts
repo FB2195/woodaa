@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { CreateBookingRequestInput } from "@woodaa/validators";
 import { sendOperatorNewBookingRequestEmail } from "../email";
+import { reportError } from "../errorReporting";
 import { publicProcedure, rateLimited, router } from "../trpc";
 
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
@@ -48,7 +49,9 @@ export const bookingRequestRouter = router({
             bookingType: input.bookingType,
           });
         } catch (err) {
-          console.error("sendOperatorNewBookingRequestEmail failed", err);
+          reportError(err, "sendOperatorNewBookingRequestEmail failed", {
+            facilityId: facility.id,
+          });
         }
       }
 

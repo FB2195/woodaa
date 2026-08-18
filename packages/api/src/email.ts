@@ -3,6 +3,8 @@
  * `resend` SDK — one less dependency to go wrong in a serverless bundle,
  * and the API is a single JSON POST.
  */
+import { reportError } from "./errorReporting";
+
 function appUrl(): string {
   if (process.env.APP_URL) return process.env.APP_URL;
   // VERCEL_ENV is "production" for the live custom domain and "preview" for
@@ -54,8 +56,9 @@ async function sendEmail({
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     // Don't hard-fail registration if email isn't configured yet (e.g. a
-    // fresh local dev setup) - log loudly instead.
-    console.error("RESEND_API_KEY is not set - skipping email send:", subject);
+    // fresh local dev setup) - log loudly instead. In production this is a
+    // real misconfiguration worth an alert, not just a log line.
+    reportError(new Error("RESEND_API_KEY is not set - skipping email send"), subject, { to });
     return;
   }
 
@@ -75,7 +78,7 @@ async function sendEmail({
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    console.error(`Resend API error ${res.status}: ${body}`);
+    reportError(new Error(`Resend API error ${res.status}: ${body}`), subject, { to });
   }
 }
 
@@ -650,8 +653,11 @@ export async function sendAdminPendingBookingApprovalEmail({
   if (!to) {
     // Wie bei fehlendem RESEND_API_KEY: kein Hard-Fail, nur ein Log - die
     // Buchung selbst darf davon nicht abhängen.
-    console.error(
-      "ADMIN_NOTIFICATION_EMAIL is not set - skipping admin booking approval notification",
+    reportError(
+      new Error(
+        "ADMIN_NOTIFICATION_EMAIL is not set - skipping admin booking approval notification",
+      ),
+      "sendAdminPendingBookingApprovalEmail",
     );
     return;
   }

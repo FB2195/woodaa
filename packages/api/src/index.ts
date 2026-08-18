@@ -1,5 +1,6 @@
 export { appRouter } from "./router";
 export type { AppRouter } from "./router";
+export { initErrorReporting, reportError } from "./errorReporting";
 export { createContext } from "./trpc";
 export type { Context } from "./trpc";
 export { recomputeAllCapacityCaches } from "./availability";

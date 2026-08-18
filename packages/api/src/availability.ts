@@ -12,6 +12,7 @@ import {
   type PaymentMethod,
 } from "@woodaa/validators";
 import { sendWaitlistSpotAvailableEmail } from "./email";
+import { reportError } from "./errorReporting";
 import { stripeClient } from "./stripe";
 
 type Tx = Prisma.TransactionClient;
@@ -485,7 +486,7 @@ export async function notifyWaitlist(
       });
     }
   } catch (err) {
-    console.error("notifyWaitlist failed", facilityId, bookingType, err);
+    reportError(err, "notifyWaitlist failed", { facilityId, bookingType });
   }
 }
 
@@ -546,7 +547,10 @@ export async function cancelBooking(
     try {
       await stripeClient().paymentIntents.cancel(updated.stripePaymentIntentId);
     } catch (err) {
-      console.error("Failed to cancel Stripe PaymentIntent on booking cancel", err);
+      reportError(err, "Failed to cancel Stripe PaymentIntent on booking cancel", {
+        bookingId: updated.id,
+        stripePaymentIntentId: updated.stripePaymentIntentId,
+      });
     }
   }
 

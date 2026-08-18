@@ -1,5 +1,6 @@
 import type { BookingType, PrismaClient } from "@prisma/client";
 import { sendSavedSearchMatchEmail } from "./email";
+import { reportError } from "./errorReporting";
 
 type MatchedFacility = { id: string; name: string; slug: string; city: string };
 
@@ -65,7 +66,7 @@ export async function checkSavedSearchAlerts(db: PrismaClient): Promise<void> {
         // Don't advance lastMatchedFacilityIds - these facilities stay
         // "new" and get retried on the next run instead of silently
         // getting marked as already-notified without an email going out.
-        console.error(`Failed to send saved-search alert for ${search.id}:`, err);
+        reportError(err, "Failed to send saved-search alert", { savedSearchId: search.id });
         continue;
       }
     }
