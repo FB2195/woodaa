@@ -12,10 +12,35 @@ import { getTrpcServer } from "@/lib/trpc-server";
 
 export default async function AdminDashboardPage() {
   const trpcServer = await getTrpcServer();
+  // Fetched separately, before any admin.* call: those now require 2FA to
+  // be enabled (see the isAdmin middleware in packages/api/src/trpc.ts) and
+  // would otherwise reject the whole Promise.all below, crashing the page
+  // instead of showing the setup prompt an admin actually needs to see.
+  const me = await trpcServer.auth.me();
+
+  if (!me.twoFactorEnabled) {
+    return (
+      <main className="min-h-screen">
+        <Header />
+        <section className="mx-auto max-w-4xl px-6 py-12">
+          <h1 className="text-2xl font-bold text-brand-heading">
+            Zwei-Faktor-Authentifizierung erforderlich
+          </h1>
+          <p className="mt-1 text-sm text-brand-text-muted">
+            Admin-Konten benötigen Zwei-Faktor-Authentifizierung, bevor das Dashboard genutzt werden
+            kann - richte sie hier einmalig ein.
+          </p>
+          <div className="mt-8">
+            <TwoFactorSetup enabled={me.twoFactorEnabled} />
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   const [
     pending,
     active,
-    me,
     pendingReviews,
     pendingVollmachten,
     pendingBookingApprovals,
@@ -27,7 +52,6 @@ export default async function AdminDashboardPage() {
   ] = await Promise.all([
     trpcServer.admin.pendingFacilities(),
     trpcServer.admin.activeFacilities(),
-    trpcServer.auth.me(),
     trpcServer.admin.pendingReviews(),
     trpcServer.admin.pendingVollmachten(),
     trpcServer.admin.pendingBookingApprovals(),

@@ -51,9 +51,28 @@ const isOperator = t.middleware(({ ctx, next }) => {
 });
 export const operatorProcedure = t.procedure.use(isOperator);
 
-const isAdmin = t.middleware(({ ctx, next }) => {
+// Admin accounts have access to every user's and every facility's data, so
+// - unlike SUCHENDE/BETREIBER, where 2FA is opt-in - it's required here,
+// not merely offered. Checked fresh against the DB rather than trusted from
+// the JWT: an admin could enable/disable 2FA mid-session, and admin traffic
+// is low-volume internal staff usage, so the extra query per request is a
+// non-issue. twoFactor.setupInitiate/setupConfirm are protectedProcedure
+// (not adminProcedure), so an admin without 2FA yet can still reach them to
+// actually set it up - see TwoFactorSetup.tsx on the admin dashboard.
+const isAdmin = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user || ctx.user.role !== "ADMIN") {
     throw new TRPCError({ code: "FORBIDDEN" });
+  }
+  const user = await ctx.db.user.findUnique({
+    where: { id: ctx.user.id },
+    select: { twoFactorEnabled: true },
+  });
+  if (!user?.twoFactorEnabled) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message:
+        "Zwei-Faktor-Authentifizierung ist für Admin-Konten Pflicht - bitte zuerst einrichten.",
+    });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
