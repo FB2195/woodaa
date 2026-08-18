@@ -541,6 +541,9 @@ export const CreateManualBookingInput = z
     guestEmail: z.string().trim().email().optional(),
     guestPhone: z.string().trim().max(50).optional(),
     note: z.string().trim().max(1000).optional(),
+    emergencyContactName: z.string().trim().max(200).optional(),
+    emergencyContactPhone: z.string().trim().max(50).optional(),
+    emergencyContactRelation: z.string().trim().max(100).optional(),
   })
   .refine((data) => (data.startDate === undefined) === (data.endDate === undefined), {
     message: "Start- und Enddatum müssen beide gesetzt sein oder beide leer bleiben.",

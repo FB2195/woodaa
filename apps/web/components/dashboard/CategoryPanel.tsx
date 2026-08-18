@@ -165,6 +165,9 @@ function ManualBookingForm({
     guestPhone?: string;
     startDate?: string;
     endDate?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+    emergencyContactRelation?: string;
   }) => void;
 }) {
   return (
@@ -181,6 +184,9 @@ function ManualBookingForm({
           guestPhone: String(form.get("guestPhone") ?? "") || undefined,
           startDate: startDateRaw ? new Date(startDateRaw).toISOString() : undefined,
           endDate: endDateRaw ? new Date(endDateRaw).toISOString() : undefined,
+          emergencyContactName: String(form.get("emergencyContactName") ?? "") || undefined,
+          emergencyContactPhone: String(form.get("emergencyContactPhone") ?? "") || undefined,
+          emergencyContactRelation: String(form.get("emergencyContactRelation") ?? "") || undefined,
         });
       }}
     >
@@ -206,6 +212,26 @@ function ManualBookingForm({
         placeholder="Telefon (optional)"
         className="rounded-brand-md border border-brand-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent"
       />
+      <fieldset className="flex flex-col gap-2 rounded-brand-md border border-brand-border p-3">
+        <legend className="px-1 text-xs font-medium text-brand-text-muted">
+          Notfallkontakt (optional)
+        </legend>
+        <input
+          name="emergencyContactName"
+          placeholder="Name"
+          className="rounded-brand-md border border-brand-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent"
+        />
+        <input
+          name="emergencyContactPhone"
+          placeholder="Telefon"
+          className="rounded-brand-md border border-brand-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent"
+        />
+        <input
+          name="emergencyContactRelation"
+          placeholder="Beziehung, z. B. Sohn, Tochter"
+          className="rounded-brand-md border border-brand-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent"
+        />
+      </fieldset>
       {isDateRanged && (
         <div className="flex gap-3">
           <label className="flex flex-col gap-1 text-xs text-brand-text-muted">

@@ -392,6 +392,9 @@ export const operatorRouter = router({
         guestEmail: input.guestEmail,
         guestPhone: input.guestPhone,
         note: input.note,
+        emergencyContactName: input.emergencyContactName,
+        emergencyContactPhone: input.emergencyContactPhone,
+        emergencyContactRelation: input.emergencyContactRelation,
       });
     }),
 
